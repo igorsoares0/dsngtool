@@ -28,6 +28,11 @@ export interface TextElement extends BaseElement {
 export interface ImageElement extends BaseElement {
   type: "image";
   src: string;
+  flipX?: boolean;
+  flipY?: boolean;
+  cornerRadius?: number;
+  shadowColor?: string;
+  shadowBlur?: number;
 }
 
 export interface ShapeElement extends BaseElement {

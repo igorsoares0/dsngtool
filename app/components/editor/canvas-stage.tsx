@@ -60,6 +60,9 @@ function ImageNode({
   const shapeRef = useRef<Konva.Image>(null);
   const image = useImage(el.src);
 
+  const flipSx = el.flipX ? -1 : 1;
+  const flipSy = el.flipY ? -1 : 1;
+
   return (
     <Image
       ref={shapeRef}
@@ -69,8 +72,17 @@ function ImageNode({
       y={el.y}
       width={el.width}
       height={el.height}
+      offsetX={el.flipX ? el.width : 0}
+      offsetY={el.flipY ? el.height : 0}
+      scaleX={flipSx}
+      scaleY={flipSy}
       rotation={el.rotation}
       opacity={el.opacity}
+      cornerRadius={el.cornerRadius || 0}
+      shadowColor={el.shadowColor || "#000000"}
+      shadowBlur={el.shadowBlur || 0}
+      shadowEnabled={(el.shadowBlur || 0) > 0}
+      shadowOpacity={0.4}
       draggable={!el.locked}
       onClick={onSelect}
       onTap={onSelect}
@@ -80,15 +92,19 @@ function ImageNode({
       onTransformEnd={() => {
         const node = shapeRef.current;
         if (!node) return;
-        const scaleX = node.scaleX();
-        const scaleY = node.scaleY();
-        node.scaleX(1);
-        node.scaleY(1);
+        const sx = Math.abs(node.scaleX());
+        const sy = Math.abs(node.scaleY());
+        const newW = Math.max(5, node.width() * sx);
+        const newH = Math.max(5, node.height() * sy);
+        node.scaleX(flipSx);
+        node.scaleY(flipSy);
+        node.offsetX(el.flipX ? newW : 0);
+        node.offsetY(el.flipY ? newH : 0);
         onChange({
           x: node.x(),
           y: node.y(),
-          width: Math.max(5, node.width() * scaleX),
-          height: Math.max(5, node.height() * scaleY),
+          width: newW,
+          height: newH,
           rotation: node.rotation(),
         });
       }}

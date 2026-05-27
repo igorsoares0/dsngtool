@@ -20,9 +20,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "../../store/editor-store";
 import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon } from "./icons";
 import { AVAILABLE_FONTS } from "./font-loader";
-import type { EditorElement, TextElement, ShapeElement } from "../../types/editor";
+import type { EditorElement, TextElement, ShapeElement, ImageElement } from "../../types/editor";
 
-type Section = "position" | "typography" | "fill" | "stroke" | "effects" | "layers";
+type Section = "position" | "typography" | "image" | "fill" | "stroke" | "effects" | "layers";
 
 function SectionHeader({
   label,
@@ -259,6 +259,100 @@ function FillSection({ el, update }: { el: EditorElement; update: (u: Partial<Ed
             style={{ backgroundColor: c }}
           />
         ))}
+      </div>
+    </div>
+  );
+}
+
+function FlipIcon({ direction }: { direction: "h" | "v" }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      {direction === "h" ? (
+        <>
+          <path d="M12 3v18" />
+          <path d="M16 7l4 5-4 5" />
+          <path d="M8 7L4 12l4 5" />
+        </>
+      ) : (
+        <>
+          <path d="M3 12h18" />
+          <path d="M7 8L12 4l5 4" />
+          <path d="M7 16l5 4 5-4" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<EditorElement>) => void }) {
+  return (
+    <div className="space-y-3">
+      {/* Flip */}
+      <div>
+        <span className="text-[10px] text-text-ghost uppercase block mb-1">Flip</span>
+        <div className="flex gap-2">
+          <button
+            onClick={() => update({ flipX: !el.flipX } as Partial<EditorElement>)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] border transition-all ${
+              el.flipX
+                ? "bg-surface-4 text-text-primary border-border-default"
+                : "bg-surface-2 text-text-ghost border-border-subtle hover:text-text-tertiary"
+            }`}
+          >
+            <FlipIcon direction="h" />
+            Horizontal
+          </button>
+          <button
+            onClick={() => update({ flipY: !el.flipY } as Partial<EditorElement>)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] border transition-all ${
+              el.flipY
+                ? "bg-surface-4 text-text-primary border-border-default"
+                : "bg-surface-2 text-text-ghost border-border-subtle hover:text-text-tertiary"
+            }`}
+          >
+            <FlipIcon direction="v" />
+            Vertical
+          </button>
+        </div>
+      </div>
+
+      {/* Border radius */}
+      <NumberField
+        label="Border Radius"
+        value={el.cornerRadius || 0}
+        onChange={(v) => update({ cornerRadius: v } as Partial<EditorElement>)}
+        min={0}
+        max={Math.min(el.width, el.height) / 2}
+      />
+
+      {/* Shadow */}
+      <div>
+        <span className="text-[10px] text-text-ghost uppercase block mb-1">Shadow</span>
+        <div className="space-y-2">
+          <NumberField
+            label="Blur"
+            value={el.shadowBlur || 0}
+            onChange={(v) => update({ shadowBlur: v } as Partial<EditorElement>)}
+            min={0}
+            max={100}
+          />
+          {(el.shadowBlur || 0) > 0 && (
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={el.shadowColor || "#000000"}
+                onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
+                className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+              />
+              <input
+                type="text"
+                value={el.shadowColor || "#000000"}
+                onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
+                className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -547,6 +641,22 @@ export default function RightPanel() {
             {openSections.has("typography") && (
               <div className="pb-2 animate-fade-in">
                 <TypographySection el={selected as TextElement} update={update} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Image controls — only for images */}
+        {selected?.type === "image" && (
+          <div className="border-b border-border-subtle pb-2">
+            <SectionHeader
+              label="Image"
+              isOpen={openSections.has("image")}
+              onToggle={() => toggleSection("image")}
+            />
+            {openSections.has("image") && (
+              <div className="pb-2 animate-fade-in">
+                <ImageSection el={selected as ImageElement} update={update} />
               </div>
             )}
           </div>
