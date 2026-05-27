@@ -20,6 +20,7 @@ export interface TextElement extends BaseElement {
   align: "left" | "center" | "right";
   fontStyle?: string;
   textDecoration?: string;
+  textTransform?: "none" | "uppercase";
   lineHeight?: number;
   letterSpacing?: number;
 }

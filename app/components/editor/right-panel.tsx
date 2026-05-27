@@ -6,7 +6,7 @@ import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon } from "./ico
 import { AVAILABLE_FONTS } from "./font-loader";
 import type { EditorElement, TextElement, ShapeElement } from "../../types/editor";
 
-type Section = "position" | "typography" | "fill" | "effects" | "layers";
+type Section = "position" | "typography" | "fill" | "stroke" | "effects" | "layers";
 
 function SectionHeader({
   label,
@@ -84,7 +84,49 @@ function PositionSection({ el, update }: { el: EditorElement; update: (u: Partia
   );
 }
 
+function parseKonvaFontStyle(fontStyle: string | undefined) {
+  const s = fontStyle || "normal";
+  return {
+    isBold: s.includes("bold"),
+    isItalic: s.includes("italic"),
+  };
+}
+
+function buildKonvaFontStyle(bold: boolean, italic: boolean): string {
+  if (bold && italic) return "bold italic";
+  if (bold) return "bold";
+  if (italic) return "italic";
+  return "normal";
+}
+
+function StyleToggle({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 py-1.5 text-[11px] rounded transition-all ${
+        active
+          ? "bg-surface-4 text-text-primary"
+          : "text-text-ghost hover:text-text-tertiary"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function TypographySection({ el, update }: { el: TextElement; update: (u: Partial<EditorElement>) => void }) {
+  const { isBold, isItalic } = parseKonvaFontStyle(el.fontStyle);
+  const isUnderline = el.textDecoration === "underline";
+  const isUppercase = el.textTransform === "uppercase";
+
   return (
     <div className="space-y-3">
       <div>
@@ -113,6 +155,35 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
       <div className="grid grid-cols-2 gap-2">
         <NumberField label="Size" value={el.fontSize} onChange={(v) => update({ fontSize: v })} min={8} />
         <NumberField label="Line H." value={el.lineHeight || 1.2} onChange={(v) => update({ lineHeight: v })} step={0.1} min={0.5} max={4} />
+      </div>
+      <div>
+        <span className="text-[10px] text-text-ghost uppercase">Style</span>
+        <div className="flex mt-1 bg-surface-2 rounded-md p-0.5 border border-border-subtle">
+          <StyleToggle
+            active={isBold}
+            onClick={() => update({ fontStyle: buildKonvaFontStyle(!isBold, isItalic) } as Partial<EditorElement>)}
+          >
+            <span className="font-bold">B</span>
+          </StyleToggle>
+          <StyleToggle
+            active={isItalic}
+            onClick={() => update({ fontStyle: buildKonvaFontStyle(isBold, !isItalic) } as Partial<EditorElement>)}
+          >
+            <span className="italic">I</span>
+          </StyleToggle>
+          <StyleToggle
+            active={isUnderline}
+            onClick={() => update({ textDecoration: isUnderline ? "" : "underline" } as Partial<EditorElement>)}
+          >
+            <span className="underline">U</span>
+          </StyleToggle>
+          <StyleToggle
+            active={isUppercase}
+            onClick={() => update({ textTransform: isUppercase ? "none" : "uppercase" } as Partial<EditorElement>)}
+          >
+            <span className="text-[10px]">Aa</span>
+          </StyleToggle>
+        </div>
       </div>
       <div>
         <span className="text-[10px] text-text-ghost uppercase">Align</span>
@@ -173,6 +244,60 @@ function FillSection({ el, update }: { el: EditorElement; update: (u: Partial<Ed
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+function StrokeSection({ el, update }: { el: ShapeElement; update: (u: Partial<EditorElement>) => void }) {
+  const stroke = el.stroke || "#000000";
+  const strokeWidth = el.strokeWidth || 0;
+
+  const STROKE_SWATCHES = [
+    "#000000", "#FFFFFF", "#EF4444", "#F97316", "#EAB308",
+    "#22C55E", "#3B82F6", "#8B5CF6", "#EC4899", "#6B7280",
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <NumberField
+          label="Width"
+          value={strokeWidth}
+          onChange={(v) => update({ strokeWidth: v, stroke: v > 0 && !el.stroke ? "#000000" : el.stroke } as Partial<EditorElement>)}
+          min={0}
+          max={50}
+        />
+      </div>
+      {strokeWidth > 0 && (
+        <>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={stroke}
+              onChange={(e) => update({ stroke: e.target.value } as Partial<EditorElement>)}
+              className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+            />
+            <input
+              type="text"
+              value={stroke}
+              onChange={(e) => update({ stroke: e.target.value } as Partial<EditorElement>)}
+              className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+            />
+          </div>
+          <div className="flex gap-1.5 flex-wrap">
+            {STROKE_SWATCHES.map((c) => (
+              <button
+                key={c}
+                onClick={() => update({ stroke: c } as Partial<EditorElement>)}
+                className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
+                  stroke.toLowerCase() === c.toLowerCase() ? "border-accent-green scale-110" : "border-border-subtle"
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -357,6 +482,22 @@ export default function RightPanel() {
             {openSections.has("fill") && (
               <div className="pb-2 animate-fade-in">
                 <FillSection el={selected} update={update} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stroke — only for shapes */}
+        {selected?.type === "shape" && (
+          <div className="border-b border-border-subtle pb-2">
+            <SectionHeader
+              label="Stroke"
+              isOpen={openSections.has("stroke")}
+              onToggle={() => toggleSection("stroke")}
+            />
+            {openSections.has("stroke") && (
+              <div className="pb-2 animate-fade-in">
+                <StrokeSection el={selected as ShapeElement} update={update} />
               </div>
             )}
           </div>

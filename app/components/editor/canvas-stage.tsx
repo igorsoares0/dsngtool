@@ -221,7 +221,7 @@ function TextNode({
       x={el.x}
       y={el.y}
       width={el.width}
-      text={el.text}
+      text={el.textTransform === "uppercase" ? el.text.toUpperCase() : el.text}
       fontSize={el.fontSize}
       fontFamily={el.fontFamily}
       fill={el.fill}
