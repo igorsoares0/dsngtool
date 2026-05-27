@@ -19,17 +19,21 @@ interface HistorySnapshot {
 }
 
 interface EditorState {
+  projectId: string;
+  projectName: string;
   elements: EditorElement[];
   selectedId: string | null;
   format: CanvasFormat;
   zoom: number;
   backgroundColor: string;
+  lastSavedAt: number | null;
 
   // history
   past: HistorySnapshot[];
   future: HistorySnapshot[];
 
   // actions
+  setProjectName: (name: string) => void;
   addElement: (el: Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">) => void;
   updateElement: (id: string, updates: Partial<EditorElement>) => void;
   removeElement: (id: string) => void;
@@ -40,6 +44,8 @@ interface EditorState {
   moveElement: (id: string, direction: "up" | "down") => void;
   duplicateElement: (id: string) => void;
   loadTemplate: (template: { elements: (Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">)[]; backgroundColor: string; format?: CanvasFormat }) => void;
+  loadProject: (project: { id: string; name: string; elements: EditorElement[]; backgroundColor: string; format: CanvasFormat }) => void;
+  markSaved: () => void;
 
   undo: () => void;
   redo: () => void;
@@ -53,14 +59,19 @@ function pushHistory(state: EditorState): Pick<EditorState, "past" | "future"> {
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
+  projectId: `proj_${Date.now()}`,
+  projectName: "Untitled",
   elements: [],
   selectedId: null,
   format: CANVAS_FORMATS[0],
   zoom: 100,
   backgroundColor: "#ffffff",
+  lastSavedAt: null,
 
   past: [],
   future: [],
+
+  setProjectName: (name) => set({ projectName: name }),
 
   addElement: (elData) => {
     const id = genId();
@@ -140,6 +151,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedId: newId,
     }));
   },
+
+  loadProject: (project) => {
+    set({
+      projectId: project.id,
+      projectName: project.name,
+      elements: project.elements,
+      backgroundColor: project.backgroundColor,
+      format: project.format,
+      selectedId: null,
+      past: [],
+      future: [],
+    });
+  },
+
+  markSaved: () => set({ lastSavedAt: Date.now() }),
 
   undo: () => {
     set((s) => {

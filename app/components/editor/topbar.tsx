@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import { CANVAS_FORMATS } from "../../types/editor";
+import { db } from "../../lib/db";
 import {
   LogoIcon,
   UndoIcon,
@@ -30,11 +31,34 @@ export default function Topbar({
   const redo = useEditorStore((s) => s.redo);
   const past = useEditorStore((s) => s.past);
   const future = useEditorStore((s) => s.future);
+  const projectName = useEditorStore((s) => s.projectName);
+  const setProjectName = useEditorStore((s) => s.setProjectName);
+  const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
 
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [activeTool, setActiveTool] = useState<"cursor" | "hand">("cursor");
-  const [projectName, setProjectName] = useState("Untitled");
   const [isEditingName, setIsEditingName] = useState(false);
+  const [saveFlash, setSaveFlash] = useState(false);
+
+  const handleSave = useCallback(async () => {
+    const s = useEditorStore.getState();
+    try {
+      await db.projects.put({
+        id: s.projectId,
+        name: s.projectName,
+        elements: s.elements,
+        backgroundColor: s.backgroundColor,
+        format: s.format,
+        createdAt: (await db.projects.get(s.projectId))?.createdAt ?? new Date(),
+        updatedAt: new Date(),
+      });
+      s.markSaved();
+      setSaveFlash(true);
+      setTimeout(() => setSaveFlash(false), 1500);
+    } catch {
+      // silent
+    }
+  }, []);
 
   const handleExport = () => {
     const stage = stageRef.current;
@@ -194,7 +218,16 @@ export default function Topbar({
 
       {/* Right */}
       <div className="flex items-center gap-2 min-w-[200px] justify-end">
-        <button className="p-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded-md transition-all">
+        {saveFlash && (
+          <span className="text-[10px] text-accent-green animate-fade-in">Saved</span>
+        )}
+        {!saveFlash && lastSavedAt && (
+          <span className="text-[10px] text-text-ghost">Auto-saved</span>
+        )}
+        <button
+          onClick={handleSave}
+          className="p-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded-md transition-all"
+        >
           <SaveIcon />
         </button>
         <button

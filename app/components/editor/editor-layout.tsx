@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import type Konva from "konva";
 import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";
+import { useAutosave } from "../../hooks/use-autosave";
+import { useProjectLoader } from "../../hooks/use-project-loader";
 import Topbar from "./topbar";
 import LeftSidebar from "./left-sidebar";
 import LeftPanel from "./left-panel";
@@ -22,7 +24,20 @@ type SidebarTool =
 export default function EditorLayout() {
   const [activeTool, setActiveTool] = useState<SidebarTool | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
+  const ready = useProjectLoader();
   useKeyboardShortcuts();
+  useAutosave();
+
+  if (!ready) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-surface-0">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-accent-green border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-text-ghost">Loading project...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
