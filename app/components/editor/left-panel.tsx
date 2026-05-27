@@ -1,6 +1,8 @@
 "use client";
 
+import { useEditorStore } from "../../store/editor-store";
 import { PlusIcon } from "./icons";
+import type { EditorElement } from "../../types/editor";
 
 type PanelType =
   | "templates"
@@ -18,12 +20,6 @@ const TEMPLATE_THUMBNAILS = [
   { id: 4, label: "Fitness Dark", color: "#0f172a" },
   { id: 5, label: "Fashion Light", color: "#fbbf24" },
   { id: 6, label: "Modern Business", color: "#0ea5e9" },
-];
-
-const SHAPE_OPTIONS = [
-  { id: "rect", label: "Rectangle", preview: "rounded-sm" },
-  { id: "ellipse", label: "Ellipse", preview: "rounded-full" },
-  { id: "triangle", label: "Triangle", preview: "" },
 ];
 
 function TemplatesPanel() {
@@ -61,40 +57,113 @@ function TemplatesPanel() {
 }
 
 function UploadsPanel() {
+  const addElement = useEditorStore((s) => s.addElement);
+  const format = useEditorStore((s) => s.format);
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = reader.result as string;
+      const img = new window.Image();
+      img.onload = () => {
+        const maxW = format.width * 0.6;
+        const ratio = img.width / img.height;
+        const w = Math.min(img.width, maxW);
+        const h = w / ratio;
+        addElement({
+          type: "image",
+          src,
+          x: (format.width - w) / 2,
+          y: (format.height - h) / 2,
+          width: w,
+          height: h,
+          rotation: 0,
+          opacity: 1,
+        });
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
         Uploads
       </h3>
-      <button className="w-full border border-dashed border-border-strong rounded-lg py-8 flex flex-col items-center gap-2 text-text-tertiary hover:text-text-secondary hover:border-accent-green/30 transition-all group">
+      <label className="w-full border border-dashed border-border-strong rounded-lg py-8 flex flex-col items-center gap-2 text-text-tertiary hover:text-text-secondary hover:border-accent-green/30 transition-all group cursor-pointer">
         <div className="w-10 h-10 rounded-full bg-surface-3 flex items-center justify-center group-hover:bg-surface-4 transition-colors">
           <PlusIcon className="w-5 h-5" />
         </div>
         <span className="text-xs">Upload image</span>
         <span className="text-[10px] text-text-ghost">or drag & drop</span>
-      </button>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleUpload}
+        />
+      </label>
     </div>
   );
 }
 
 function TextPanel() {
+  const addElement = useEditorStore((s) => s.addElement);
+  const format = useEditorStore((s) => s.format);
+
+  const addText = (preset: "heading" | "subheading" | "body") => {
+    const configs = {
+      heading: { text: "Add a heading", fontSize: 64, fontStyle: "bold" },
+      subheading: { text: "Add a subheading", fontSize: 40, fontStyle: "500" },
+      body: { text: "Add body text", fontSize: 24, fontStyle: "normal" },
+    };
+    const cfg = configs[preset];
+    addElement({
+      type: "text",
+      text: cfg.text,
+      fontSize: cfg.fontSize,
+      fontFamily: "Arial",
+      fill: "#000000",
+      align: "center",
+      fontStyle: cfg.fontStyle,
+      width: format.width * 0.6,
+      height: cfg.fontSize * 1.5,
+      x: format.width * 0.2,
+      y: format.height / 2 - cfg.fontSize,
+      rotation: 0,
+      opacity: 1,
+    });
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
         Text
       </h3>
       <div className="space-y-2">
-        <button className="w-full text-left bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-lg px-4 py-3 transition-all group">
+        <button
+          onClick={() => addText("heading")}
+          className="w-full text-left bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-lg px-4 py-3 transition-all"
+        >
           <span className="text-lg font-bold text-text-primary font-[family-name:var(--font-dm-sans)]">
             Add a heading
           </span>
         </button>
-        <button className="w-full text-left bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-lg px-4 py-3 transition-all group">
+        <button
+          onClick={() => addText("subheading")}
+          className="w-full text-left bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-lg px-4 py-3 transition-all"
+        >
           <span className="text-sm font-medium text-text-secondary">
             Add a subheading
           </span>
         </button>
-        <button className="w-full text-left bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-lg px-4 py-2.5 transition-all group">
+        <button
+          onClick={() => addText("body")}
+          className="w-full text-left bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-lg px-4 py-2.5 transition-all"
+        >
           <span className="text-xs text-text-tertiary">Add body text</span>
         </button>
       </div>
@@ -103,15 +172,38 @@ function TextPanel() {
 }
 
 function ShapesPanel() {
+  const addElement = useEditorStore((s) => s.addElement);
+  const format = useEditorStore((s) => s.format);
+
+  const addShape = (shapeType: "rectangle" | "ellipse" | "triangle") => {
+    const size = Math.min(format.width, format.height) * 0.25;
+    addElement({
+      type: "shape",
+      shapeType,
+      fill: "#6366f1",
+      x: (format.width - size) / 2,
+      y: (format.height - size) / 2,
+      width: size,
+      height: size,
+      rotation: 0,
+      opacity: 1,
+    });
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
         Shapes
       </h3>
       <div className="grid grid-cols-3 gap-2">
-        {SHAPE_OPTIONS.map((shape) => (
+        {([
+          { id: "rectangle" as const, preview: "rounded-sm" },
+          { id: "ellipse" as const, preview: "rounded-full" },
+          { id: "triangle" as const, preview: "" },
+        ]).map((shape) => (
           <button
             key={shape.id}
+            onClick={() => addShape(shape.id)}
             className="aspect-square bg-surface-2 border border-border-subtle rounded-lg flex items-center justify-center hover:border-accent-green/40 hover:bg-surface-3 transition-all group"
           >
             {shape.id === "triangle" ? (
@@ -142,14 +234,9 @@ function ImagesPanel() {
         placeholder="Search free images..."
         className="w-full bg-surface-2 border border-border-subtle text-xs text-text-primary placeholder:text-text-ghost px-3 py-2 rounded-md outline-none focus:border-accent-green/40 transition-colors"
       />
-      <div className="grid grid-cols-2 gap-2">
-        {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="aspect-square bg-surface-3 rounded-lg border border-border-subtle animate-pulse"
-          />
-        ))}
-      </div>
+      <p className="text-[11px] text-text-ghost text-center py-6">
+        Image search coming soon
+      </p>
     </div>
   );
 }
