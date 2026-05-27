@@ -1,6 +1,7 @@
 "use client";
 
 import { useEditorStore } from "../../store/editor-store";
+import { TEMPLATES } from "../../data/templates";
 import { PlusIcon } from "./icons";
 import type { EditorElement } from "../../types/editor";
 
@@ -13,16 +14,29 @@ type PanelType =
   | "assets"
   | "overlays";
 
-const TEMPLATE_THUMBNAILS = [
-  { id: 1, label: "Minimal Story", color: "#1e293b" },
-  { id: 2, label: "Bold Promo", color: "#7c3aed" },
-  { id: 3, label: "Food Post", color: "#ea580c" },
-  { id: 4, label: "Fitness Dark", color: "#0f172a" },
-  { id: 5, label: "Fashion Light", color: "#fbbf24" },
-  { id: 6, label: "Modern Business", color: "#0ea5e9" },
-];
+function TemplatePreview({ bgColor, accent, isStory }: { bgColor: string; accent: string; isStory?: boolean }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center p-3 gap-1.5">
+      {/* Mini decorative line */}
+      <div className="w-8 h-px opacity-40" style={{ backgroundColor: accent }} />
+      {/* Fake heading lines */}
+      <div className="w-12 h-1 rounded-full opacity-60" style={{ backgroundColor: accent }} />
+      <div className="w-16 h-1 rounded-full opacity-40" style={{ backgroundColor: accent }} />
+      {/* Small diamond */}
+      <div
+        className="w-1.5 h-1.5 rotate-45 opacity-30 mt-1"
+        style={{ backgroundColor: accent }}
+      />
+      {/* Fake body lines */}
+      <div className="w-14 h-0.5 rounded-full opacity-20 mt-1" style={{ backgroundColor: accent }} />
+      <div className="w-10 h-0.5 rounded-full opacity-20" style={{ backgroundColor: accent }} />
+    </div>
+  );
+}
 
 function TemplatesPanel() {
+  const loadTemplate = useEditorStore((s) => s.loadTemplate);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -30,27 +44,38 @@ function TemplatesPanel() {
           Templates
         </h3>
         <span className="text-[10px] text-text-ghost bg-surface-3 px-1.5 py-0.5 rounded">
-          {TEMPLATE_THUMBNAILS.length}
+          {TEMPLATES.length}
         </span>
       </div>
-      <input
-        type="text"
-        placeholder="Search templates..."
-        className="w-full bg-surface-2 border border-border-subtle text-xs text-text-primary placeholder:text-text-ghost px-3 py-2 rounded-md outline-none focus:border-accent-green/40 transition-colors"
-      />
       <div className="grid grid-cols-2 gap-2">
-        {TEMPLATE_THUMBNAILS.map((t) => (
-          <button
-            key={t.id}
-            className="group aspect-[3/4] rounded-lg overflow-hidden border border-border-subtle hover:border-accent-green/40 transition-all relative"
-            style={{ backgroundColor: t.color }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="absolute bottom-2 left-2 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
-              {t.label}
-            </span>
-          </button>
-        ))}
+        {TEMPLATES.map((t) => {
+          const isStory = t.format.height > t.format.width;
+          return (
+            <button
+              key={t.name}
+              onClick={() => loadTemplate(t)}
+              className={`group rounded-lg overflow-hidden border border-border-subtle hover:border-accent-green/40 transition-all relative ${
+                isStory ? "aspect-[9/16]" : "aspect-square"
+              }`}
+              style={{ backgroundColor: t.previewColor }}
+            >
+              <TemplatePreview
+                bgColor={t.previewColor}
+                accent={t.previewAccent}
+                isStory={isStory}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="text-[10px] text-white font-medium block">
+                  {t.name}
+                </span>
+                <span className="text-[9px] text-white/60">
+                  {t.format.width}×{t.format.height}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -116,16 +141,16 @@ function TextPanel() {
 
   const addText = (preset: "heading" | "subheading" | "body") => {
     const configs = {
-      heading: { text: "Add a heading", fontSize: 64, fontStyle: "bold" },
-      subheading: { text: "Add a subheading", fontSize: 40, fontStyle: "500" },
-      body: { text: "Add body text", fontSize: 24, fontStyle: "normal" },
+      heading: { text: "Add a heading", fontSize: 64, fontStyle: "bold", fontFamily: "Playfair Display" },
+      subheading: { text: "Add a subheading", fontSize: 40, fontStyle: "500", fontFamily: "Montserrat" },
+      body: { text: "Add body text", fontSize: 24, fontStyle: "normal", fontFamily: "DM Sans" },
     };
     const cfg = configs[preset];
     addElement({
       type: "text",
       text: cfg.text,
       fontSize: cfg.fontSize,
-      fontFamily: "Arial",
+      fontFamily: cfg.fontFamily,
       fill: "#000000",
       align: "center",
       fontStyle: cfg.fontStyle,

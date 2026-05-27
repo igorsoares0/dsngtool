@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useEditorStore } from "../../store/editor-store";
 import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon } from "./icons";
+import { AVAILABLE_FONTS } from "./font-loader";
 import type { EditorElement, TextElement, ShapeElement } from "../../types/editor";
 
 type Section = "position" | "typography" | "fill" | "effects" | "layers";
@@ -102,13 +103,11 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
           onChange={(e) => update({ fontFamily: e.target.value })}
           className="w-full mt-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors"
         >
-          {["Arial", "Georgia", "Times New Roman", "Verdana", "Courier New", "Impact"].map(
-            (f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            )
-          )}
+          {AVAILABLE_FONTS.map((f) => (
+            <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>
+              {f.family}
+            </option>
+          ))}
         </select>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -235,6 +234,55 @@ function LayersSection() {
   );
 }
 
+function BackgroundSection() {
+  const backgroundColor = useEditorStore((s) => s.backgroundColor);
+  const setBackgroundColor = useEditorStore((s) => s.setBackgroundColor);
+
+  const BG_SWATCHES = [
+    "#FFFFFF", "#F5F5F4", "#FEF3C7", "#F5F0E8", "#E8E0D4",
+    "#D5C7B5", "#C4B5A2", "#A8927D", "#4A5043", "#2D3A2D",
+    "#1A2E1A", "#0F172A", "#1E293B", "#0C0C0C", "#000000",
+  ];
+
+  return (
+    <div className="border-b border-border-subtle pb-3 mb-1">
+      <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider block py-2">
+        Background
+      </span>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={backgroundColor}
+            onChange={(e) => setBackgroundColor(e.target.value)}
+            className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+          />
+          <input
+            type="text"
+            value={backgroundColor}
+            onChange={(e) => setBackgroundColor(e.target.value)}
+            className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+          />
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {BG_SWATCHES.map((c) => (
+            <button
+              key={c}
+              onClick={() => setBackgroundColor(c)}
+              className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
+                backgroundColor.toLowerCase() === c.toLowerCase()
+                  ? "border-accent-green scale-110"
+                  : "border-border-subtle"
+              }`}
+              style={{ backgroundColor: c }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RightPanel() {
   const selectedId = useEditorStore((s) => s.selectedId);
   const elements = useEditorStore((s) => s.elements);
@@ -328,8 +376,11 @@ export default function RightPanel() {
           )}
         </div>
 
+        {/* Background color — always visible */}
+        <BackgroundSection />
+
         {!selected && (
-          <p className="text-[11px] text-text-ghost text-center py-6">
+          <p className="text-[11px] text-text-ghost text-center py-4">
             Select an element to edit properties
           </p>
         )}

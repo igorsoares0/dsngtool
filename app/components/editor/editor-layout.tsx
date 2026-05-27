@@ -8,6 +8,7 @@ import LeftSidebar from "./left-sidebar";
 import LeftPanel from "./left-panel";
 import CanvasArea from "./canvas-area";
 import RightPanel from "./right-panel";
+import FontLoader from "./font-loader";
 
 type SidebarTool =
   | "templates"
@@ -25,6 +26,7 @@ export default function EditorLayout() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
+      <FontLoader />
       <Topbar stageRef={stageRef} />
       <div className="flex flex-1 overflow-hidden">
         <LeftSidebar activeTool={activeTool} onToolChange={setActiveTool} />

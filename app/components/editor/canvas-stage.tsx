@@ -276,6 +276,7 @@ export default function CanvasStage({
   const selectedId = useEditorStore((s) => s.selectedId);
   const format = useEditorStore((s) => s.format);
   const zoom = useEditorStore((s) => s.zoom);
+  const backgroundColor = useEditorStore((s) => s.backgroundColor);
   const selectElement = useEditorStore((s) => s.selectElement);
   const updateElement = useEditorStore((s) => s.updateElement);
 
@@ -329,7 +330,7 @@ export default function CanvasStage({
           y={offsetY}
           width={format.width * scale}
           height={format.height * scale}
-          fill="#ffffff"
+          fill={backgroundColor}
           shadowColor="rgba(0,0,0,0.5)"
           shadowBlur={40}
           shadowOffsetY={8}
