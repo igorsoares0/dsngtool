@@ -445,11 +445,15 @@ function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: 
     opacity: isDragging ? 0.5 : undefined,
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    selectElement(el.id, e.shiftKey);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      onClick={() => selectElement(el.id)}
+      onClick={handleClick}
       className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors group cursor-pointer ${
         isSelected
           ? "bg-surface-3 border border-border-default"
@@ -493,7 +497,7 @@ function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: 
 
 function LayersSection() {
   const elements = useEditorStore((s) => s.elements);
-  const selectedId = useEditorStore((s) => s.selectedId);
+  const selectedIds = useEditorStore((s) => s.selectedIds);
   const reorderElements = useEditorStore((s) => s.reorderElements);
 
   const sensors = useSensors(
@@ -525,7 +529,7 @@ function LayersSection() {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={reversedIds} strategy={verticalListSortingStrategy}>
             {reversed.map((el) => (
-              <SortableLayerItem key={el.id} el={el} isSelected={el.id === selectedId} />
+              <SortableLayerItem key={el.id} el={el} isSelected={selectedIds.includes(el.id)} />
             ))}
           </SortableContext>
         </DndContext>
@@ -583,12 +587,68 @@ function BackgroundSection() {
   );
 }
 
+function MultiSelectionInfo() {
+  const selectedIds = useEditorStore((s) => s.selectedIds);
+  const removeSelectedElements = useEditorStore((s) => s.removeSelectedElements);
+  const duplicateSelectedElements = useEditorStore((s) => s.duplicateSelectedElements);
+  const updateElement = useEditorStore((s) => s.updateElement);
+  const elements = useEditorStore((s) => s.elements);
+
+  const selectedEls = elements.filter((el) => selectedIds.includes(el.id));
+
+  return (
+    <div className="border-b border-border-subtle pb-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="w-7 h-7 rounded bg-surface-3 flex items-center justify-center">
+          <LayersIcon className="w-3.5 h-3.5 text-accent-green" />
+        </div>
+        <span className="text-xs text-text-primary font-medium">
+          {selectedIds.length} elements selected
+        </span>
+      </div>
+      <div className="space-y-2">
+        <div>
+          <span className="text-[10px] text-text-ghost uppercase block mb-1">Opacity</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round((selectedEls[0]?.opacity ?? 1) * 100)}
+            onChange={(e) => {
+              const val = Number(e.target.value) / 100;
+              for (const id of selectedIds) {
+                updateElement(id, { opacity: val });
+              }
+            }}
+            className="w-full accent-accent-green h-1"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={duplicateSelectedElements}
+            className="flex-1 py-1.5 text-[11px] text-text-secondary bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-md transition-all"
+          >
+            Duplicate All
+          </button>
+          <button
+            onClick={removeSelectedElements}
+            className="flex-1 py-1.5 text-[11px] text-accent-pink bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-md transition-all"
+          >
+            Delete All
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RightPanel() {
-  const selectedId = useEditorStore((s) => s.selectedId);
+  const selectedIds = useEditorStore((s) => s.selectedIds);
   const elements = useEditorStore((s) => s.elements);
   const updateElement = useEditorStore((s) => s.updateElement);
 
-  const selected = selectedId ? elements.find((e) => e.id === selectedId) : null;
+  const isSingle = selectedIds.length === 1;
+  const selected = isSingle ? elements.find((e) => e.id === selectedIds[0]) : null;
 
   const [openSections, setOpenSections] = useState<Set<Section>>(
     new Set(["position", "fill", "layers"])
@@ -614,7 +674,10 @@ export default function RightPanel() {
           Properties
         </h2>
 
-        {/* Position & Size — only when element selected */}
+        {/* Multi-selection info */}
+        {selectedIds.length > 1 && <MultiSelectionInfo />}
+
+        {/* Position & Size — only when single element selected */}
         {selected && (
           <div className="border-b border-border-subtle pb-2">
             <SectionHeader
@@ -711,7 +774,7 @@ export default function RightPanel() {
         {/* Background color — always visible */}
         <BackgroundSection />
 
-        {!selected && (
+        {selectedIds.length === 0 && (
           <p className="text-[11px] text-text-ghost text-center py-4">
             Select an element to edit properties
           </p>

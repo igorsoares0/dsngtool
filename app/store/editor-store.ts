@@ -22,7 +22,7 @@ interface EditorState {
   projectId: string;
   projectName: string;
   elements: EditorElement[];
-  selectedId: string | null;
+  selectedIds: string[];
   format: CanvasFormat;
   zoom: number;
   backgroundColor: string;
@@ -36,14 +36,18 @@ interface EditorState {
   setProjectName: (name: string) => void;
   addElement: (el: Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">) => void;
   updateElement: (id: string, updates: Partial<EditorElement>) => void;
+  updateMultipleElements: (updates: Map<string, Partial<EditorElement>>) => void;
   removeElement: (id: string) => void;
-  selectElement: (id: string | null) => void;
+  removeSelectedElements: () => void;
+  selectElement: (id: string | null, addToSelection?: boolean) => void;
+  selectAll: () => void;
   setFormat: (format: CanvasFormat) => void;
   setZoom: (zoom: number) => void;
   setBackgroundColor: (color: string) => void;
   moveElement: (id: string, direction: "up" | "down") => void;
   reorderElements: (fromIndex: number, toIndex: number) => void;
   duplicateElement: (id: string) => void;
+  duplicateSelectedElements: () => void;
   loadTemplate: (template: { elements: (Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">)[]; backgroundColor: string; format?: CanvasFormat }) => void;
   loadProject: (project: { id: string; name: string; elements: EditorElement[]; backgroundColor: string; format: CanvasFormat }) => void;
   newProject: () => void;
@@ -64,7 +68,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   projectId: `proj_${Date.now()}`,
   projectName: "Untitled",
   elements: [],
-  selectedId: null,
+  selectedIds: [],
   format: CANVAS_FORMATS[0],
   zoom: 100,
   backgroundColor: "#ffffff",
@@ -81,7 +85,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((s) => ({
       ...pushHistory(s),
       elements: [...s.elements, el],
-      selectedId: id,
+      selectedIds: [id],
     }));
   },
 
@@ -94,15 +98,55 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }));
   },
 
+  updateMultipleElements: (updates) => {
+    set((s) => ({
+      ...pushHistory(s),
+      elements: s.elements.map((el) => {
+        const u = updates.get(el.id);
+        return u ? ({ ...el, ...u } as EditorElement) : el;
+      }),
+    }));
+  },
+
   removeElement: (id) => {
     set((s) => ({
       ...pushHistory(s),
       elements: s.elements.filter((el) => el.id !== id),
-      selectedId: s.selectedId === id ? null : s.selectedId,
+      selectedIds: s.selectedIds.filter((sid) => sid !== id),
     }));
   },
 
-  selectElement: (id) => set({ selectedId: id }),
+  removeSelectedElements: () => {
+    set((s) => {
+      if (s.selectedIds.length === 0) return s;
+      const idSet = new Set(s.selectedIds);
+      return {
+        ...pushHistory(s),
+        elements: s.elements.filter((el) => !idSet.has(el.id)),
+        selectedIds: [],
+      };
+    });
+  },
+
+  selectElement: (id, addToSelection) => {
+    if (id === null) {
+      set({ selectedIds: [] });
+      return;
+    }
+    if (addToSelection) {
+      set((s) => ({
+        selectedIds: s.selectedIds.includes(id)
+          ? s.selectedIds.filter((sid) => sid !== id)
+          : [...s.selectedIds, id],
+      }));
+    } else {
+      set({ selectedIds: [id] });
+    }
+  },
+
+  selectAll: () => {
+    set((s) => ({ selectedIds: s.elements.map((el) => el.id) }));
+  },
 
   setFormat: (format) => set({ format }),
 
@@ -125,7 +169,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       elements: newElements,
       backgroundColor: template.backgroundColor,
       format: template.format || s.format,
-      selectedId: null,
+      selectedIds: [],
     }));
   },
 
@@ -160,7 +204,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((s) => ({
       ...pushHistory(s),
       elements: [...s.elements, dup],
-      selectedId: newId,
+      selectedIds: [newId],
+    }));
+  },
+
+  duplicateSelectedElements: () => {
+    const s = get();
+    if (s.selectedIds.length === 0) return;
+    const idSet = new Set(s.selectedIds);
+    const toDup = s.elements.filter((el) => idSet.has(el.id));
+    const newEls: EditorElement[] = [];
+    const newIds: string[] = [];
+    for (const el of toDup) {
+      const newId = genId();
+      newEls.push({ ...el, id: newId, x: el.x + 20, y: el.y + 20 });
+      newIds.push(newId);
+    }
+    set((s) => ({
+      ...pushHistory(s),
+      elements: [...s.elements, ...newEls],
+      selectedIds: newIds,
     }));
   },
 
@@ -171,7 +234,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       elements: project.elements,
       backgroundColor: project.backgroundColor,
       format: project.format,
-      selectedId: null,
+      selectedIds: [],
       past: [],
       future: [],
     });
@@ -182,7 +245,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       projectId: `proj_${Date.now()}`,
       projectName: "Untitled",
       elements: [],
-      selectedId: null,
+      selectedIds: [],
       format: CANVAS_FORMATS[0],
       zoom: 100,
       backgroundColor: "#ffffff",
@@ -203,7 +266,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         future: [{ elements: s.elements, backgroundColor: s.backgroundColor }, ...s.future.slice(0, 49)],
         elements: prev.elements,
         backgroundColor: prev.backgroundColor,
-        selectedId: null,
+        selectedIds: [],
       };
     });
   },
@@ -217,7 +280,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         future: s.future.slice(1),
         elements: next.elements,
         backgroundColor: next.backgroundColor,
-        selectedId: null,
+        selectedIds: [],
       };
     });
   },

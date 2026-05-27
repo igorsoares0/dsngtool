@@ -24,18 +24,26 @@ export function useKeyboardShortcuts() {
       }
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        const { selectedId, removeElement } = useEditorStore.getState();
-        if (selectedId) {
+        const { selectedIds, removeSelectedElements } = useEditorStore.getState();
+        if (selectedIds.length > 0) {
           e.preventDefault();
-          removeElement(selectedId);
+          removeSelectedElements();
         }
       }
 
       if (ctrl && e.key === "d") {
-        const { selectedId, duplicateElement } = useEditorStore.getState();
-        if (selectedId) {
+        const { selectedIds, duplicateSelectedElements } = useEditorStore.getState();
+        if (selectedIds.length > 0) {
           e.preventDefault();
-          duplicateElement(selectedId);
+          duplicateSelectedElements();
+        }
+      }
+
+      if (ctrl && e.key === "a") {
+        const { elements } = useEditorStore.getState();
+        if (elements.length > 0) {
+          e.preventDefault();
+          useEditorStore.getState().selectAll();
         }
       }
     };
