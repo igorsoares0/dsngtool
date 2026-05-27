@@ -4,8 +4,85 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
+import type { InlineEditRequest } from "./canvas-stage";
 
 const CanvasStage = dynamic(() => import("./canvas-stage"), { ssr: false });
+
+function InlineTextEditor({
+  req,
+  scale,
+  offsetX,
+  offsetY,
+  onFinish,
+}: {
+  req: InlineEditRequest;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+  onFinish: (elementId: string, newText: string) => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.focus();
+    ta.select();
+  }, []);
+
+  const commit = () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    onFinish(req.elementId, ta.value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      commit();
+    }
+  };
+
+  const left = offsetX + req.x * scale;
+  const top = offsetY + req.y * scale;
+  const width = req.width * scale;
+  const fontSize = req.fontSize * scale;
+  const lineHeight = req.lineHeight;
+
+  const fontWeight =
+    req.fontStyle.includes("bold") ? "bold" : "normal";
+  const fontStyleCss =
+    req.fontStyle.includes("italic") ? "italic" : "normal";
+
+  return (
+    <textarea
+      ref={textareaRef}
+      defaultValue={req.text}
+      onBlur={commit}
+      onKeyDown={handleKeyDown}
+      className="absolute z-30 outline-none border-2 border-accent-green rounded-sm bg-transparent resize-none overflow-hidden"
+      style={{
+        left,
+        top,
+        width,
+        minHeight: fontSize * lineHeight + 4,
+        fontSize,
+        fontFamily: req.fontFamily,
+        fontWeight,
+        fontStyle: fontStyleCss,
+        color: req.fill,
+        textAlign: req.align,
+        lineHeight,
+        letterSpacing: req.letterSpacing * scale,
+        transformOrigin: "top left",
+        transform: `rotate(${req.rotation}deg)`,
+        padding: 0,
+        margin: 0,
+        boxSizing: "border-box",
+      }}
+    />
+  );
+}
 
 export default function CanvasArea({
   stageRef,
@@ -16,6 +93,13 @@ export default function CanvasArea({
   const [dims, setDims] = useState({ width: 0, height: 0 });
   const format = useEditorStore((s) => s.format);
   const zoom = useEditorStore((s) => s.zoom);
+  const updateElement = useEditorStore((s) => s.updateElement);
+
+  const [editReq, setEditReq] = useState<InlineEditRequest | null>(null);
+
+  const scale = zoom / 100;
+  const offsetX = (dims.width - format.width * scale) / 2;
+  const offsetY = (dims.height - format.height * scale) / 2;
 
   const measure = useCallback(() => {
     if (containerRef.current) {
@@ -33,12 +117,27 @@ export default function CanvasArea({
     return () => ro.disconnect();
   }, [measure]);
 
+  const handleStartEditing = useCallback((req: InlineEditRequest) => {
+    setEditReq(req);
+  }, []);
+
+  const handleFinishEditing = useCallback(
+    (elementId: string, newText: string) => {
+      if (newText.trim() !== "") {
+        updateElement(elementId, { text: newText });
+      }
+      setEditReq(null);
+    },
+    [updateElement]
+  );
+
   return (
     <div
       ref={containerRef}
       className="flex-1 bg-surface-0 overflow-hidden relative"
       style={{
-        backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)",
+        backgroundImage:
+          "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)",
         backgroundSize: "24px 24px",
       }}
     >
@@ -50,6 +149,19 @@ export default function CanvasArea({
           stageRef={stageRef}
           containerWidth={dims.width}
           containerHeight={dims.height}
+          onStartEditing={handleStartEditing}
+          editingId={editReq?.elementId ?? null}
+        />
+      )}
+
+      {/* Inline text editor overlay */}
+      {editReq && (
+        <InlineTextEditor
+          req={editReq}
+          scale={scale}
+          offsetX={offsetX}
+          offsetY={offsetY}
+          onFinish={handleFinishEditing}
         />
       )}
 
@@ -58,7 +170,9 @@ export default function CanvasArea({
         <span className="text-[10px] text-text-ghost tabular-nums">
           {format.width} × {format.height}
         </span>
-        <span className="text-[10px] text-text-ghost tabular-nums">{zoom}%</span>
+        <span className="text-[10px] text-text-ghost tabular-nums">
+          {zoom}%
+        </span>
       </div>
     </div>
   );

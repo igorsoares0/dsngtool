@@ -6,6 +6,23 @@ import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import type { EditorElement, ShapeElement, TextElement, ImageElement } from "../../types/editor";
 
+export interface InlineEditRequest {
+  elementId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  fontStyle: string;
+  fill: string;
+  align: "left" | "center" | "right";
+  lineHeight: number;
+  letterSpacing: number;
+}
+
 function useImage(src: string): HTMLImageElement | null {
   const imgRef = useRef<HTMLImageElement | null>(null);
   const mountedRef = useRef(true);
@@ -32,7 +49,6 @@ function useImage(src: string): HTMLImageElement | null {
 
 function ImageNode({
   el,
-  isSelected,
   onSelect,
   onChange,
 }: {
@@ -82,7 +98,6 @@ function ImageNode({
 
 function ShapeNode({
   el,
-  isSelected,
   onSelect,
   onChange,
 }: {
@@ -163,16 +178,41 @@ function ShapeNode({
 
 function TextNode({
   el,
-  isSelected,
   onSelect,
   onChange,
+  onStartEditing,
+  isEditing,
 }: {
   el: TextElement;
   isSelected: boolean;
   onSelect: () => void;
   onChange: (updates: Partial<EditorElement>) => void;
+  onStartEditing: (req: InlineEditRequest) => void;
+  isEditing: boolean;
 }) {
   const shapeRef = useRef<Konva.Text>(null);
+
+  const handleDblClick = () => {
+    const node = shapeRef.current;
+    if (!node) return;
+
+    onStartEditing({
+      elementId: el.id,
+      x: el.x,
+      y: el.y,
+      width: el.width,
+      height: node.height(),
+      rotation: el.rotation,
+      text: el.text,
+      fontSize: el.fontSize,
+      fontFamily: el.fontFamily,
+      fontStyle: el.fontStyle || "normal",
+      fill: el.fill,
+      align: el.align,
+      lineHeight: el.lineHeight || 1.2,
+      letterSpacing: el.letterSpacing || 0,
+    });
+  };
 
   return (
     <Text
@@ -191,8 +231,8 @@ function TextNode({
       lineHeight={el.lineHeight || 1.2}
       letterSpacing={el.letterSpacing || 0}
       rotation={el.rotation}
-      opacity={el.opacity}
-      draggable={!el.locked}
+      opacity={isEditing ? 0 : el.opacity}
+      draggable={!el.locked && !isEditing}
       onClick={onSelect}
       onTap={onSelect}
       onDragEnd={(e) => {
@@ -213,9 +253,8 @@ function TextNode({
           rotation: node.rotation(),
         });
       }}
-      onDblClick={() => {
-        // TODO: inline text editing
-      }}
+      onDblClick={handleDblClick}
+      onDblTap={handleDblClick}
     />
   );
 }
@@ -224,10 +263,14 @@ export default function CanvasStage({
   stageRef,
   containerWidth,
   containerHeight,
+  onStartEditing,
+  editingId,
 }: {
   stageRef: React.RefObject<Konva.Stage | null>;
   containerWidth: number;
   containerHeight: number;
+  onStartEditing: (req: InlineEditRequest) => void;
+  editingId: string | null;
 }) {
   const elements = useEditorStore((s) => s.elements);
   const selectedId = useEditorStore((s) => s.selectedId);
@@ -248,7 +291,7 @@ export default function CanvasStage({
     const stage = stageRef.current;
     if (!tr || !stage) return;
 
-    if (selectedId) {
+    if (selectedId && !editingId) {
       const node = stage.findOne(`#${selectedId}`);
       if (node) {
         tr.nodes([node]);
@@ -258,7 +301,7 @@ export default function CanvasStage({
     }
     tr.nodes([]);
     tr.getLayer()?.batchDraw();
-  }, [selectedId, elements, stageRef]);
+  }, [selectedId, elements, stageRef, editingId]);
 
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
@@ -330,6 +373,8 @@ export default function CanvasStage({
                   isSelected={isSelected}
                   onSelect={onSelect}
                   onChange={onChange}
+                  onStartEditing={onStartEditing}
+                  isEditing={editingId === el.id}
                 />
               );
             case "image":
