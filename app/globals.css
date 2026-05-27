@@ -1,26 +1,75 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface-0: #0c0c0c;
+  --color-surface-1: #141414;
+  --color-surface-2: #1a1a1a;
+  --color-surface-3: #222222;
+  --color-surface-4: #2a2a2a;
+
+  --color-border-subtle: #ffffff08;
+  --color-border-default: #ffffff12;
+  --color-border-strong: #ffffff20;
+
+  --color-text-primary: #e8e8e8;
+  --color-text-secondary: #888888;
+  --color-text-tertiary: #555555;
+  --color-text-ghost: #333333;
+
+  --color-accent-green: #34d399;
+  --color-accent-green-hover: #6ee7b7;
+  --color-accent-pink: #f472b6;
+  --color-accent-blue: #60a5fa;
+
+  --font-display: var(--font-dm-sans);
+  --font-body: var(--font-inter-tight);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff12 transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface-0);
+  color: var(--color-text-primary);
+  overflow: hidden;
+}
+
+::selection {
+  background: #34d39940;
+  color: #fff;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes canvas-appear {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-canvas-appear {
+  animation: canvas-appear 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.canvas-grid {
+  background-image:
+    radial-gradient(circle, #ffffff06 1px, transparent 1px);
+  background-size: 24px 24px;
 }
