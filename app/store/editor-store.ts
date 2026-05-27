@@ -46,6 +46,7 @@ interface EditorState {
   duplicateElement: (id: string) => void;
   loadTemplate: (template: { elements: (Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">)[]; backgroundColor: string; format?: CanvasFormat }) => void;
   loadProject: (project: { id: string; name: string; elements: EditorElement[]; backgroundColor: string; format: CanvasFormat }) => void;
+  newProject: () => void;
   markSaved: () => void;
 
   undo: () => void;
@@ -171,6 +172,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       backgroundColor: project.backgroundColor,
       format: project.format,
       selectedId: null,
+      past: [],
+      future: [],
+    });
+  },
+
+  newProject: () => {
+    set({
+      projectId: `proj_${Date.now()}`,
+      projectName: "Untitled",
+      elements: [],
+      selectedId: null,
+      format: CANVAS_FORMATS[0],
+      zoom: 100,
+      backgroundColor: "#ffffff",
+      lastSavedAt: null,
       past: [],
       future: [],
     });

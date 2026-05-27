@@ -20,8 +20,10 @@ import {
 
 export default function Topbar({
   stageRef,
+  onOpenProjects,
 }: {
   stageRef: React.RefObject<Konva.Stage | null>;
+  onOpenProjects: () => void;
 }) {
   const format = useEditorStore((s) => s.format);
   const zoom = useEditorStore((s) => s.zoom);
@@ -103,7 +105,9 @@ export default function Topbar({
       {/* Left */}
       <div className="flex items-center gap-3 min-w-[200px]">
         <div className="flex items-center gap-2.5">
-          <LogoIcon className="w-6 h-6" />
+          <button onClick={onOpenProjects} className="hover:opacity-80 transition-opacity" title="My Projects">
+            <LogoIcon className="w-6 h-6" />
+          </button>
           {isEditingName ? (
             <input
               type="text"

@@ -11,6 +11,7 @@ import LeftPanel from "./left-panel";
 import CanvasArea from "./canvas-area";
 import RightPanel from "./right-panel";
 import FontLoader from "./font-loader";
+import ProjectsModal from "./projects-modal";
 
 type SidebarTool =
   | "templates"
@@ -23,6 +24,7 @@ type SidebarTool =
 
 export default function EditorLayout() {
   const [activeTool, setActiveTool] = useState<SidebarTool | null>(null);
+  const [showProjects, setShowProjects] = useState(false);
   const stageRef = useRef<Konva.Stage>(null);
   const ready = useProjectLoader();
   useKeyboardShortcuts();
@@ -42,13 +44,14 @@ export default function EditorLayout() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <FontLoader />
-      <Topbar stageRef={stageRef} />
+      <Topbar stageRef={stageRef} onOpenProjects={() => setShowProjects(true)} />
       <div className="flex flex-1 overflow-hidden">
         <LeftSidebar activeTool={activeTool} onToolChange={setActiveTool} />
         <LeftPanel activePanel={activeTool} />
         <CanvasArea stageRef={stageRef} />
         <RightPanel />
       </div>
+      {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
     </div>
   );
 }
