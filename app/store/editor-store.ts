@@ -42,6 +42,7 @@ interface EditorState {
   setZoom: (zoom: number) => void;
   setBackgroundColor: (color: string) => void;
   moveElement: (id: string, direction: "up" | "down") => void;
+  reorderElements: (fromIndex: number, toIndex: number) => void;
   duplicateElement: (id: string) => void;
   loadTemplate: (template: { elements: (Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">)[]; backgroundColor: string; format?: CanvasFormat }) => void;
   loadProject: (project: { id: string; name: string; elements: EditorElement[]; backgroundColor: string; format: CanvasFormat }) => void;
@@ -135,6 +136,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const swapIdx = direction === "up" ? idx + 1 : idx - 1;
       if (swapIdx < 0 || swapIdx >= newElements.length) return s;
       [newElements[idx], newElements[swapIdx]] = [newElements[swapIdx], newElements[idx]];
+      return { ...pushHistory(s), elements: newElements };
+    });
+  },
+
+  reorderElements: (fromIndex, toIndex) => {
+    set((s) => {
+      if (fromIndex === toIndex) return s;
+      const newElements = [...s.elements];
+      const [moved] = newElements.splice(fromIndex, 1);
+      newElements.splice(toIndex, 0, moved);
       return { ...pushHistory(s), elements: newElements };
     });
   },

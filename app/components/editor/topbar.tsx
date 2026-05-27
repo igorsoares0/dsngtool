@@ -36,6 +36,10 @@ export default function Topbar({
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
 
   const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"png" | "jpeg">("png");
+  const [exportQuality, setExportQuality] = useState(90);
+  const [transparentBg, setTransparentBg] = useState(false);
   const [activeTool, setActiveTool] = useState<"cursor" | "hand">("cursor");
   const [isEditingName, setIsEditingName] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
@@ -60,33 +64,39 @@ export default function Topbar({
     }
   }, []);
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     const stage = stageRef.current;
     if (!stage) return;
 
     const scale = zoom / 100;
-    const layers = stage.getLayers();
-    const elementsLayer = layers[1];
-    if (!elementsLayer) return;
-
     const containerWidth = stage.width();
     const containerHeight = stage.height();
     const offsetX = (containerWidth - format.width * scale) / 2;
     const offsetY = (containerHeight - format.height * scale) / 2;
 
+    const bgLayer = stage.getLayers()[0];
+    const bgRect = bgLayer?.findOne("Rect");
+    if (transparentBg && bgRect) bgRect.hide();
+
+    const mimeType = exportFormat === "jpeg" ? "image/jpeg" : "image/png";
     const dataUrl = stage.toDataURL({
       x: offsetX,
       y: offsetY,
       width: format.width * scale,
       height: format.height * scale,
       pixelRatio: format.width / (format.width * scale),
+      mimeType,
+      quality: exportFormat === "jpeg" ? exportQuality / 100 : undefined,
     });
 
+    if (transparentBg && bgRect) bgRect.show();
+
     const link = document.createElement("a");
-    link.download = `${projectName || "design"}.png`;
+    link.download = `${projectName || "design"}.${exportFormat}`;
     link.href = dataUrl;
     link.click();
-  };
+    setShowExportMenu(false);
+  }, [stageRef, zoom, format, projectName, exportFormat, exportQuality, transparentBg]);
 
   return (
     <header className="h-12 bg-surface-1 border-b border-border-subtle flex items-center justify-between px-3 shrink-0 relative z-50">
@@ -230,13 +240,75 @@ export default function Topbar({
         >
           <SaveIcon />
         </button>
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-1.5 bg-accent-green hover:bg-accent-green-hover text-surface-0 text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all"
-        >
-          <DownloadIcon className="w-3.5 h-3.5" />
-          Export
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            className="flex items-center gap-1.5 bg-accent-green hover:bg-accent-green-hover text-surface-0 text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all"
+          >
+            <DownloadIcon className="w-3.5 h-3.5" />
+            Export
+            <ChevronDownIcon className="w-3 h-3" />
+          </button>
+          {showExportMenu && (
+            <div className="absolute top-full mt-1 right-0 bg-surface-2 border border-border-default rounded-lg p-3 min-w-[220px] shadow-2xl animate-scale-in space-y-3 z-50">
+              <div>
+                <span className="text-[10px] text-text-ghost uppercase block mb-1">Format</span>
+                <div className="flex bg-surface-3 rounded-md p-0.5 border border-border-subtle">
+                  {(["png", "jpeg"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setExportFormat(f)}
+                      className={`flex-1 py-1.5 text-[11px] rounded uppercase transition-all ${
+                        exportFormat === f
+                          ? "bg-surface-4 text-text-primary"
+                          : "text-text-ghost hover:text-text-tertiary"
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {exportFormat === "jpeg" && (
+                <div>
+                  <span className="text-[10px] text-text-ghost uppercase block mb-1">
+                    Quality — {exportQuality}%
+                  </span>
+                  <input
+                    type="range"
+                    min={10}
+                    max={100}
+                    step={5}
+                    value={exportQuality}
+                    onChange={(e) => setExportQuality(Number(e.target.value))}
+                    className="w-full accent-accent-green h-1"
+                  />
+                </div>
+              )}
+              {exportFormat === "png" && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={transparentBg}
+                    onChange={(e) => setTransparentBg(e.target.checked)}
+                    className="accent-accent-green w-3.5 h-3.5 rounded"
+                  />
+                  <span className="text-xs text-text-secondary">Transparent background</span>
+                </label>
+              )}
+              <div className="text-[10px] text-text-ghost">
+                {format.width} × {format.height}px
+              </div>
+              <button
+                onClick={handleExport}
+                className="w-full flex items-center justify-center gap-1.5 bg-accent-green hover:bg-accent-green-hover text-surface-0 text-xs font-semibold py-2 rounded-lg transition-all"
+              >
+                <DownloadIcon className="w-3.5 h-3.5" />
+                Download {exportFormat.toUpperCase()}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

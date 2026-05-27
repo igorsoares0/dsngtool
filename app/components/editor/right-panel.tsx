@@ -1,6 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "../../store/editor-store";
 import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon } from "./icons";
 import { AVAILABLE_FONTS } from "./font-loader";
@@ -302,58 +318,123 @@ function StrokeSection({ el, update }: { el: ShapeElement; update: (u: Partial<E
   );
 }
 
-function LayersSection() {
-  const elements = useEditorStore((s) => s.elements);
-  const selectedId = useEditorStore((s) => s.selectedId);
+function DragHandleIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" className="shrink-0 opacity-40">
+      <circle cx="3" cy="2" r="1" />
+      <circle cx="7" cy="2" r="1" />
+      <circle cx="3" cy="5" r="1" />
+      <circle cx="7" cy="5" r="1" />
+      <circle cx="3" cy="8" r="1" />
+      <circle cx="7" cy="8" r="1" />
+    </svg>
+  );
+}
+
+function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: boolean }) {
   const selectElement = useEditorStore((s) => s.selectElement);
   const updateElement = useEditorStore((s) => s.updateElement);
   const removeElement = useEditorStore((s) => s.removeElement);
-  const moveElement = useEditorStore((s) => s.moveElement);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: el.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={() => selectElement(el.id)}
+      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors group cursor-pointer ${
+        isSelected
+          ? "bg-surface-3 border border-border-default"
+          : "hover:bg-surface-2 border border-transparent"
+      }`}
+    >
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-0.5">
+        <DragHandleIcon />
+      </div>
+      <div className="w-5 h-5 rounded bg-surface-3 flex items-center justify-center shrink-0">
+        <span className="text-[9px] text-text-ghost uppercase">
+          {el.type[0]}
+        </span>
+      </div>
+      <span className="text-xs text-text-secondary flex-1 truncate">
+        {el.type === "text" ? (el as TextElement).text.slice(0, 20) : `${el.type} ${el.id.slice(-4)}`}
+      </span>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); updateElement(el.id, { hidden: !el.hidden }); }}
+          className={`p-0.5 ${el.hidden ? "text-accent-pink" : "text-text-ghost hover:text-text-tertiary"}`}
+        >
+          <EyeIcon />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); updateElement(el.id, { locked: !el.locked }); }}
+          className={`p-0.5 ${el.locked ? "text-accent-blue" : "text-text-ghost hover:text-text-tertiary"}`}
+        >
+          <LockIcon />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); removeElement(el.id); }}
+          className="p-0.5 text-text-ghost hover:text-accent-pink"
+        >
+          <TrashIcon />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LayersSection() {
+  const elements = useEditorStore((s) => s.elements);
+  const selectedId = useEditorStore((s) => s.selectedId);
+  const reorderElements = useEditorStore((s) => s.reorderElements);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const reversed = [...elements].reverse();
+  const reversedIds = reversed.map((el) => el.id);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldVisualIndex = reversedIds.indexOf(active.id as string);
+    const newVisualIndex = reversedIds.indexOf(over.id as string);
+
+    const fromIndex = elements.length - 1 - oldVisualIndex;
+    const toIndex = elements.length - 1 - newVisualIndex;
+
+    reorderElements(fromIndex, toIndex);
+  };
 
   return (
     <div className="space-y-1">
-      {[...elements].reverse().map((el) => (
-        <div
-          key={el.id}
-          onClick={() => selectElement(el.id)}
-          className={`flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors group cursor-pointer ${
-            selectedId === el.id
-              ? "bg-surface-3 border border-border-default"
-              : "hover:bg-surface-2 border border-transparent"
-          }`}
-        >
-          <div className="w-6 h-6 rounded bg-surface-3 flex items-center justify-center shrink-0">
-            <span className="text-[9px] text-text-ghost uppercase">
-              {el.type[0]}
-            </span>
-          </div>
-          <span className="text-xs text-text-secondary flex-1 truncate">
-            {el.type === "text" ? (el as TextElement).text.slice(0, 20) : `${el.type} ${el.id.slice(-4)}`}
-          </span>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={(e) => { e.stopPropagation(); updateElement(el.id, { hidden: !el.hidden }); }}
-              className={`p-0.5 ${el.hidden ? "text-accent-pink" : "text-text-ghost hover:text-text-tertiary"}`}
-            >
-              <EyeIcon />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); updateElement(el.id, { locked: !el.locked }); }}
-              className={`p-0.5 ${el.locked ? "text-accent-blue" : "text-text-ghost hover:text-text-tertiary"}`}
-            >
-              <LockIcon />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); removeElement(el.id); }}
-              className="p-0.5 text-text-ghost hover:text-accent-pink"
-            >
-              <TrashIcon />
-            </button>
-          </div>
-        </div>
-      ))}
-      {elements.length === 0 && (
+      {elements.length === 0 ? (
         <p className="text-[11px] text-text-ghost text-center py-4">No elements</p>
+      ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={reversedIds} strategy={verticalListSortingStrategy}>
+            {reversed.map((el) => (
+              <SortableLayerItem key={el.id} el={el} isSelected={el.id === selectedId} />
+            ))}
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );
