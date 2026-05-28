@@ -93,9 +93,11 @@ export default function CanvasArea({
   const [dims, setDims] = useState({ width: 0, height: 0 });
   const format = useEditorStore((s) => s.format);
   const zoom = useEditorStore((s) => s.zoom);
+  const setZoom = useEditorStore((s) => s.setZoom);
   const updateElement = useEditorStore((s) => s.updateElement);
 
   const [editReq, setEditReq] = useState<InlineEditRequest | null>(null);
+  const lastFitFormatRef = useRef<string | null>(null);
 
   const scale = zoom / 100;
   const offsetX = (dims.width - format.width * scale) / 2;
@@ -116,6 +118,21 @@ export default function CanvasArea({
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, [measure]);
+
+  // Auto-fit zoom on first render and whenever format changes
+  useEffect(() => {
+    if (dims.width === 0 || dims.height === 0) return;
+    const formatKey = `${format.width}x${format.height}`;
+    if (lastFitFormatRef.current === formatKey) return;
+    const padding = 80;
+    const fitScale = Math.min(
+      (dims.width - padding) / format.width,
+      (dims.height - padding) / format.height,
+      1
+    );
+    setZoom(Math.max(10, Math.floor(fitScale * 100)));
+    lastFitFormatRef.current = formatKey;
+  }, [dims, format, setZoom]);
 
   const handleStartEditing = useCallback((req: InlineEditRequest) => {
     setEditReq(req);
