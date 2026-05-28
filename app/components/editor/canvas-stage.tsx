@@ -1,10 +1,119 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { Stage, Layer, Rect, Ellipse, Text, Image, Transformer, Line } from "react-konva";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import type { EditorElement, ShapeElement, TextElement, ImageElement } from "../../types/editor";
+
+interface Guide {
+  orientation: "v" | "h";
+  pos: number;
+  start: number;
+  end: number;
+}
+
+interface BBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface SnapTargetX {
+  pos: number;
+  guideStart: number;
+  guideEnd: number;
+}
+interface SnapTargetY extends SnapTargetX {}
+
+function computeSnap(
+  proposed: BBox,
+  others: BBox[],
+  canvas: { width: number; height: number },
+  threshold: number
+): { x: number; y: number; guides: Guide[] } {
+  const propEdgesX = [
+    { pos: proposed.x, kind: "left" as const },
+    { pos: proposed.x + proposed.width / 2, kind: "center" as const },
+    { pos: proposed.x + proposed.width, kind: "right" as const },
+  ];
+  const propEdgesY = [
+    { pos: proposed.y, kind: "top" as const },
+    { pos: proposed.y + proposed.height / 2, kind: "middle" as const },
+    { pos: proposed.y + proposed.height, kind: "bottom" as const },
+  ];
+
+  const targetsX: SnapTargetX[] = [
+    { pos: 0, guideStart: 0, guideEnd: canvas.height },
+    { pos: canvas.width / 2, guideStart: 0, guideEnd: canvas.height },
+    { pos: canvas.width, guideStart: 0, guideEnd: canvas.height },
+  ];
+  for (const o of others) {
+    const s = Math.min(o.y, proposed.y);
+    const e = Math.max(o.y + o.height, proposed.y + proposed.height);
+    targetsX.push({ pos: o.x, guideStart: s, guideEnd: e });
+    targetsX.push({ pos: o.x + o.width / 2, guideStart: s, guideEnd: e });
+    targetsX.push({ pos: o.x + o.width, guideStart: s, guideEnd: e });
+  }
+
+  const targetsY: SnapTargetY[] = [
+    { pos: 0, guideStart: 0, guideEnd: canvas.width },
+    { pos: canvas.height / 2, guideStart: 0, guideEnd: canvas.width },
+    { pos: canvas.height, guideStart: 0, guideEnd: canvas.width },
+  ];
+  for (const o of others) {
+    const s = Math.min(o.x, proposed.x);
+    const e = Math.max(o.x + o.width, proposed.x + proposed.width);
+    targetsY.push({ pos: o.y, guideStart: s, guideEnd: e });
+    targetsY.push({ pos: o.y + o.height / 2, guideStart: s, guideEnd: e });
+    targetsY.push({ pos: o.y + o.height, guideStart: s, guideEnd: e });
+  }
+
+  let bestX: { delta: number; target: SnapTargetX } | null = null;
+  for (const e of propEdgesX) {
+    for (const t of targetsX) {
+      const d = t.pos - e.pos;
+      if (Math.abs(d) <= threshold && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) {
+        bestX = { delta: d, target: t };
+      }
+    }
+  }
+
+  let bestY: { delta: number; target: SnapTargetY } | null = null;
+  for (const e of propEdgesY) {
+    for (const t of targetsY) {
+      const d = t.pos - e.pos;
+      if (Math.abs(d) <= threshold && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) {
+        bestY = { delta: d, target: t };
+      }
+    }
+  }
+
+  const guides: Guide[] = [];
+  if (bestX) {
+    guides.push({
+      orientation: "v",
+      pos: bestX.target.pos,
+      start: bestX.target.guideStart,
+      end: bestX.target.guideEnd,
+    });
+  }
+  if (bestY) {
+    guides.push({
+      orientation: "h",
+      pos: bestY.target.pos,
+      start: bestY.target.guideStart,
+      end: bestY.target.guideEnd,
+    });
+  }
+
+  return {
+    x: proposed.x + (bestX?.delta ?? 0),
+    y: proposed.y + (bestY?.delta ?? 0),
+    guides,
+  };
+}
 
 export interface InlineEditRequest {
   elementId: string;
@@ -314,6 +423,8 @@ export default function CanvasStage({
   const transformerRef = useRef<Konva.Transformer>(null);
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const dragOrigin = useRef<{ x: number; y: number } | null>(null);
+  const snapData = useRef<{ width: number; height: number; others: BBox[] } | null>(null);
+  const [guides, setGuides] = useState<Guide[]>([]);
 
   const scale = zoom / 100;
 
@@ -359,8 +470,25 @@ export default function CanvasStage({
   const makeDragHandlers = useCallback(
     (elId: string): DragHandlers => ({
       onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => {
-        const ids = useEditorStore.getState().selectedIds;
-        if (!ids.includes(elId) || ids.length <= 1) return;
+        const state = useEditorStore.getState();
+        const draggedEl = state.elements.find((x) => x.id === elId);
+        if (draggedEl) {
+          const selectedSet = new Set(state.selectedIds);
+          const others: BBox[] = state.elements
+            .filter((x) => !x.hidden && !selectedSet.has(x.id) && x.id !== elId)
+            .map((x) => ({ x: x.x, y: x.y, width: x.width, height: x.height }));
+          snapData.current = {
+            width: draggedEl.width,
+            height: draggedEl.height,
+            others,
+          };
+        }
+
+        const ids = state.selectedIds;
+        if (!ids.includes(elId) || ids.length <= 1) {
+          dragOrigin.current = { x: e.target.x(), y: e.target.y() };
+          return;
+        }
         const stage = stageRef.current;
         if (!stage) return;
         const positions = new Map<string, { x: number; y: number }>();
@@ -373,6 +501,41 @@ export default function CanvasStage({
         dragOrigin.current = { x: e.target.x(), y: e.target.y() };
       },
       onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
+        // Snap (works for both single and multi-select)
+        if (snapData.current) {
+          const proposed: BBox = {
+            x: e.target.x(),
+            y: e.target.y(),
+            width: snapData.current.width,
+            height: snapData.current.height,
+          };
+          const z = useEditorStore.getState().zoom / 100;
+          const threshold = 6 / z;
+          const snap = computeSnap(
+            proposed,
+            snapData.current.others,
+            { width: format.width, height: format.height },
+            threshold
+          );
+          if (snap.x !== proposed.x || snap.y !== proposed.y) {
+            e.target.position({ x: snap.x, y: snap.y });
+          }
+          setGuides((prev) => {
+            if (
+              prev.length === snap.guides.length &&
+              prev.every(
+                (g, i) =>
+                  g.orientation === snap.guides[i].orientation &&
+                  g.pos === snap.guides[i].pos
+              )
+            ) {
+              return prev;
+            }
+            return snap.guides;
+          });
+        }
+
+        // Group drag — move other selected nodes by the (snapped) delta
         const ids = useEditorStore.getState().selectedIds;
         if (!ids.includes(elId) || ids.length <= 1 || !dragOrigin.current) return;
         const dx = e.target.x() - dragOrigin.current.x;
@@ -389,12 +552,15 @@ export default function CanvasStage({
         stage.batchDraw();
       },
       onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
+        setGuides([]);
+        snapData.current = null;
         const ids = useEditorStore.getState().selectedIds;
         if (!ids.includes(elId) || ids.length <= 1 || !dragOrigin.current) {
           useEditorStore.getState().updateElement(elId, {
             x: e.target.x(),
             y: e.target.y(),
           });
+          dragOrigin.current = null;
           return;
         }
         const dx = e.target.x() - dragOrigin.current.x;
@@ -409,7 +575,7 @@ export default function CanvasStage({
         dragOrigin.current = null;
       },
     }),
-    [stageRef]
+    [stageRef, format.width, format.height]
   );
 
   const visibleElements = elements.filter((el) => !el.hidden);
@@ -491,6 +657,20 @@ export default function CanvasStage({
               return null;
           }
         })}
+        {guides.map((g, i) => (
+          <Line
+            key={`${g.orientation}-${i}-${g.pos}`}
+            points={
+              g.orientation === "v"
+                ? [g.pos, g.start, g.pos, g.end]
+                : [g.start, g.pos, g.end, g.pos]
+            }
+            stroke="#FF00B8"
+            strokeWidth={1 / scale}
+            dash={[6 / scale, 4 / scale]}
+            listening={false}
+          />
+        ))}
         <Transformer
           ref={transformerRef}
           boundBoxFunc={(oldBox, newBox) => {
