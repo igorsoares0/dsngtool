@@ -23,14 +23,17 @@ import {
   HandIcon,
   ChevronDownIcon,
   UploadIcon,
+  KeyboardIcon,
 } from "./icons";
 
 export default function Topbar({
   stageRef,
   onOpenProjects,
+  onOpenShortcuts,
 }: {
   stageRef: React.RefObject<Konva.Stage | null>;
   onOpenProjects: () => void;
+  onOpenShortcuts: () => void;
 }) {
   const format = useEditorStore((s) => s.format);
   const zoom = useEditorStore((s) => s.zoom);
@@ -295,6 +298,13 @@ export default function Topbar({
           onChange={handleImportFile}
           className="hidden"
         />
+        <button
+          onClick={onOpenShortcuts}
+          title="Keyboard shortcuts (?)"
+          className="p-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded-md transition-all"
+        >
+          <KeyboardIcon />
+        </button>
         <button
           onClick={handleImportClick}
           title={`Import .${FILE_EXTENSION} file`}

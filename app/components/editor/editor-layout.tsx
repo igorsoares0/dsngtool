@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type Konva from "konva";
 import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";
 import { useAutosave } from "../../hooks/use-autosave";
@@ -12,6 +12,7 @@ import CanvasArea from "./canvas-area";
 import RightPanel from "./right-panel";
 import FontLoader from "./font-loader";
 import ProjectsModal from "./projects-modal";
+import ShortcutsModal from "./shortcuts-modal";
 
 type SidebarTool =
   | "templates"
@@ -25,10 +26,24 @@ type SidebarTool =
 export default function EditorLayout() {
   const [activeTool, setActiveTool] = useState<SidebarTool | null>(null);
   const [showProjects, setShowProjects] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const stageRef = useRef<Konva.Stage>(null);
   const ready = useProjectLoader();
   useKeyboardShortcuts();
   useAutosave();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT") return;
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setShowShortcuts((s) => !s);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   if (!ready) {
     return (
@@ -44,7 +59,11 @@ export default function EditorLayout() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <FontLoader />
-      <Topbar stageRef={stageRef} onOpenProjects={() => setShowProjects(true)} />
+      <Topbar
+        stageRef={stageRef}
+        onOpenProjects={() => setShowProjects(true)}
+        onOpenShortcuts={() => setShowShortcuts(true)}
+      />
       <div className="flex flex-1 overflow-hidden">
         <LeftSidebar activeTool={activeTool} onToolChange={setActiveTool} />
         <LeftPanel activePanel={activeTool} />
@@ -52,6 +71,7 @@ export default function EditorLayout() {
         <RightPanel />
       </div>
       {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
+      {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </div>
   );
 }
