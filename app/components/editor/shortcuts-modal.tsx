@@ -35,6 +35,14 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: "Clipboard",
+    items: [
+      { keys: [mod, "C"], label: "Copy" },
+      { keys: [mod, "X"], label: "Cut" },
+      { keys: [mod, "V"], label: "Paste (works across projects)" },
+    ],
+  },
+  {
     title: "Movement",
     items: [
       { keys: ["←", "→", "↑", "↓"], label: "Nudge 1px" },

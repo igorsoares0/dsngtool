@@ -2,6 +2,10 @@
 
 import { useEffect } from "react";
 import { useEditorStore } from "../store/editor-store";
+import {
+  readElementsFromClipboard,
+  writeElementsToClipboard,
+} from "../lib/clipboard";
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
@@ -45,6 +49,25 @@ export function useKeyboardShortcuts() {
           e.preventDefault();
           useEditorStore.getState().selectAll();
         }
+      }
+
+      if (ctrl && (e.key === "c" || e.key === "x")) {
+        const { selectedIds, elements, removeSelectedElements } = useEditorStore.getState();
+        if (selectedIds.length === 0) return;
+        e.preventDefault();
+        const selectedSet = new Set(selectedIds);
+        const toCopy = elements.filter((el) => selectedSet.has(el.id));
+        void writeElementsToClipboard(toCopy).then((ok) => {
+          if (ok && e.key === "x") removeSelectedElements();
+        });
+      }
+
+      if (ctrl && e.key === "v") {
+        e.preventDefault();
+        void readElementsFromClipboard().then((items) => {
+          if (!items || items.length === 0) return;
+          useEditorStore.getState().addMultipleElements(items);
+        });
       }
 
       if (

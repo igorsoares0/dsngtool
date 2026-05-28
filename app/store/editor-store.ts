@@ -38,6 +38,7 @@ interface EditorState {
   // actions
   setProjectName: (name: string) => void;
   addElement: (el: Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">) => void;
+  addMultipleElements: (els: (Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">)[]) => void;
   updateElement: (id: string, updates: Partial<EditorElement>) => void;
   updateMultipleElements: (updates: Map<string, Partial<EditorElement>>) => void;
   removeElement: (id: string) => void;
@@ -98,6 +99,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...pushHistory(s),
       elements: [...s.elements, el],
       selectedIds: [id],
+    }));
+  },
+
+  addMultipleElements: (elsData) => {
+    if (elsData.length === 0) return;
+    const newEls: EditorElement[] = [];
+    const newIds: string[] = [];
+    for (const d of elsData) {
+      const id = genId();
+      newEls.push({ ...d, id } as EditorElement);
+      newIds.push(id);
+    }
+    set((s) => ({
+      ...pushHistory(s),
+      elements: [...s.elements, ...newEls],
+      selectedIds: newIds,
     }));
   },
 
