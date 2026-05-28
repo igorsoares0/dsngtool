@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import { CANVAS_FORMATS } from "../../types/editor";
 import { db } from "../../lib/db";
+import {
+  downloadProjectFile,
+  readProjectFile,
+  FILE_EXTENSION,
+  ImportError,
+} from "../../lib/project-io";
 import {
   LogoIcon,
   UndoIcon,
@@ -16,6 +22,7 @@ import {
   CursorIcon,
   HandIcon,
   ChevronDownIcon,
+  UploadIcon,
 } from "./icons";
 
 export default function Topbar({
@@ -45,6 +52,8 @@ export default function Topbar({
   const [activeTool, setActiveTool] = useState<"cursor" | "hand">("cursor");
   const [isEditingName, setIsEditingName] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = useCallback(async () => {
     const s = useEditorStore.getState();
@@ -99,6 +108,42 @@ export default function Topbar({
     link.click();
     setShowExportMenu(false);
   }, [stageRef, zoom, format, projectName, exportFormat, exportQuality, transparentBg]);
+
+  const handleExportProjectFile = useCallback(() => {
+    const s = useEditorStore.getState();
+    downloadProjectFile({
+      name: s.projectName,
+      format: s.format,
+      backgroundColor: s.backgroundColor,
+      elements: s.elements,
+    });
+    setShowExportMenu(false);
+  }, []);
+
+  const handleImportClick = useCallback(() => {
+    setImportError(null);
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const imported = await readProjectFile(file);
+      useEditorStore.getState().loadProject({
+        id: `proj_${Date.now()}`,
+        name: imported.name,
+        elements: imported.elements,
+        backgroundColor: imported.backgroundColor,
+        format: imported.format,
+      });
+    } catch (err) {
+      const msg = err instanceof ImportError ? err.message : "Could not import file";
+      setImportError(msg);
+      setTimeout(() => setImportError(null), 4000);
+    }
+  }, []);
 
   return (
     <header className="h-12 bg-surface-1 border-b border-border-subtle flex items-center justify-between px-3 shrink-0 relative z-50">
@@ -232,12 +277,31 @@ export default function Topbar({
 
       {/* Right */}
       <div className="flex items-center gap-2 min-w-[200px] justify-end">
-        {saveFlash && (
+        {importError && (
+          <span className="text-[10px] text-red-400 animate-fade-in" title={importError}>
+            Import failed
+          </span>
+        )}
+        {!importError && saveFlash && (
           <span className="text-[10px] text-accent-green animate-fade-in">Saved</span>
         )}
-        {!saveFlash && lastSavedAt && (
+        {!importError && !saveFlash && lastSavedAt && (
           <span className="text-[10px] text-text-ghost">Auto-saved</span>
         )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={`.${FILE_EXTENSION},application/json`}
+          onChange={handleImportFile}
+          className="hidden"
+        />
+        <button
+          onClick={handleImportClick}
+          title={`Import .${FILE_EXTENSION} file`}
+          className="p-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded-md transition-all"
+        >
+          <UploadIcon />
+        </button>
         <button
           onClick={handleSave}
           className="p-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded-md transition-all"
@@ -310,6 +374,16 @@ export default function Topbar({
                 <DownloadIcon className="w-3.5 h-3.5" />
                 Download {exportFormat.toUpperCase()}
               </button>
+              <div className="border-t border-border-subtle pt-2">
+                <button
+                  onClick={handleExportProjectFile}
+                  className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 px-2 py-1.5 rounded transition-all"
+                  title="Editable project file"
+                >
+                  <span>Save project file</span>
+                  <span className="text-[10px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
