@@ -22,6 +22,7 @@ export function useAutosave() {
           name: s.projectName,
           elements: s.elements,
           backgroundColor: s.backgroundColor,
+          backgroundGradient: s.backgroundGradient,
           format: s.format,
           createdAt: (await db.projects.get(s.projectId))?.createdAt ?? new Date(),
           updatedAt: new Date(),
@@ -39,6 +40,7 @@ export function useAutosave() {
         const changed =
           state.elements !== prevState.elements ||
           state.backgroundColor !== prevState.backgroundColor ||
+          state.backgroundGradient !== prevState.backgroundGradient ||
           state.format !== prevState.format ||
           state.projectName !== prevState.projectName;
 

@@ -17,6 +17,7 @@ export function useProjectLoader() {
             name: latest.name,
             elements: latest.elements,
             backgroundColor: latest.backgroundColor,
+            backgroundGradient: latest.backgroundGradient ?? null,
             format: latest.format,
           });
         }

@@ -707,9 +707,36 @@ function LayersSection() {
   );
 }
 
+const LINEAR_DIRECTIONS: {
+  label: string;
+  startX: number; startY: number; endX: number; endY: number;
+}[] = [
+  { label: "↓", startX: 0, startY: 0, endX: 0, endY: 1 },
+  { label: "→", startX: 0, startY: 0, endX: 1, endY: 0 },
+  { label: "↘", startX: 0, startY: 0, endX: 1, endY: 1 },
+  { label: "↙", startX: 1, startY: 0, endX: 0, endY: 1 },
+  { label: "↑", startX: 0, startY: 1, endX: 0, endY: 0 },
+  { label: "←", startX: 1, startY: 0, endX: 0, endY: 0 },
+];
+
+const GRADIENT_PRESETS: { name: string; colors: [string, string] }[] = [
+  { name: "Sunset", colors: ["#FF7E5F", "#FEB47B"] },
+  { name: "Ocean", colors: ["#2E3192", "#1BFFFF"] },
+  { name: "Peach", colors: ["#FFD89B", "#FFB199"] },
+  { name: "Mint", colors: ["#A8EDEA", "#FED6E3"] },
+  { name: "Lavender", colors: ["#B721FF", "#21D4FD"] },
+  { name: "Forest", colors: ["#134E5E", "#71B280"] },
+  { name: "Berry", colors: ["#8E2DE2", "#4A00E0"] },
+  { name: "Sand", colors: ["#F5F0E8", "#D5C7B5"] },
+  { name: "Mono", colors: ["#1A1A1A", "#4A4A4A"] },
+  { name: "Coral", colors: ["#FF512F", "#F09819"] },
+];
+
 function BackgroundSection() {
   const backgroundColor = useEditorStore((s) => s.backgroundColor);
+  const backgroundGradient = useEditorStore((s) => s.backgroundGradient);
   const setBackgroundColor = useEditorStore((s) => s.setBackgroundColor);
+  const setBackgroundGradient = useEditorStore((s) => s.setBackgroundGradient);
 
   const BG_SWATCHES = [
     "#FFFFFF", "#F5F5F4", "#FEF3C7", "#F5F0E8", "#E8E0D4",
@@ -717,40 +744,210 @@ function BackgroundSection() {
     "#1A2E1A", "#0F172A", "#1E293B", "#0C0C0C", "#000000",
   ];
 
+  const mode: "solid" | "linear" | "radial" = backgroundGradient
+    ? backgroundGradient.type
+    : "solid";
+
+  const startColor =
+    backgroundGradient && typeof backgroundGradient.colorStops[1] === "string"
+      ? (backgroundGradient.colorStops[1] as string)
+      : "#FF7E5F";
+  const endColor =
+    backgroundGradient && typeof backgroundGradient.colorStops[3] === "string"
+      ? (backgroundGradient.colorStops[3] as string)
+      : "#FEB47B";
+
+  const applyMode = (next: "solid" | "linear" | "radial") => {
+    if (next === "solid") {
+      setBackgroundGradient(null);
+      return;
+    }
+    if (next === "linear") {
+      setBackgroundGradient({
+        type: "linear",
+        startX: 0,
+        startY: 0,
+        endX: 0,
+        endY: 1,
+        colorStops: [0, startColor, 1, endColor],
+      });
+      return;
+    }
+    setBackgroundGradient({
+      type: "radial",
+      startX: 0.5,
+      startY: 0.5,
+      endX: 0.5,
+      endY: 0.5,
+      startRadius: 0,
+      endRadius: 0.7,
+      colorStops: [0, startColor, 1, endColor],
+    });
+  };
+
+  const updateColors = (s: string, e: string) => {
+    if (!backgroundGradient) return;
+    setBackgroundGradient({
+      ...backgroundGradient,
+      colorStops: [0, s, 1, e],
+    });
+  };
+
+  const setLinearDirection = (d: (typeof LINEAR_DIRECTIONS)[number]) => {
+    if (!backgroundGradient || backgroundGradient.type !== "linear") return;
+    setBackgroundGradient({
+      ...backgroundGradient,
+      startX: d.startX,
+      startY: d.startY,
+      endX: d.endX,
+      endY: d.endY,
+    });
+  };
+
+  const activeDirection = LINEAR_DIRECTIONS.findIndex(
+    (d) =>
+      backgroundGradient?.type === "linear" &&
+      d.startX === backgroundGradient.startX &&
+      d.startY === backgroundGradient.startY &&
+      d.endX === backgroundGradient.endX &&
+      d.endY === backgroundGradient.endY
+  );
+
+  const previewStyle = (colors: [string, string]) => ({
+    background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`,
+  });
+
   return (
     <div className="border-b border-border-subtle pb-3 mb-1">
       <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider block py-2">
         Background
       </span>
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={backgroundColor}
-            onChange={(e) => setBackgroundColor(e.target.value)}
-            className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
-          />
-          <input
-            type="text"
-            value={backgroundColor}
-            onChange={(e) => setBackgroundColor(e.target.value)}
-            className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
-          />
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {BG_SWATCHES.map((c) => (
+        <div className="flex bg-surface-2 rounded-md p-0.5 border border-border-subtle">
+          {(["solid", "linear", "radial"] as const).map((m) => (
             <button
-              key={c}
-              onClick={() => setBackgroundColor(c)}
-              className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
-                backgroundColor.toLowerCase() === c.toLowerCase()
-                  ? "border-accent-green scale-110"
-                  : "border-border-subtle"
+              key={m}
+              onClick={() => applyMode(m)}
+              className={`flex-1 py-1 text-[11px] rounded capitalize transition-all ${
+                mode === m
+                  ? "bg-surface-4 text-text-primary"
+                  : "text-text-ghost hover:text-text-tertiary"
               }`}
-              style={{ backgroundColor: c }}
-            />
+            >
+              {m}
+            </button>
           ))}
         </div>
+
+        {mode === "solid" && (
+          <>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={backgroundColor}
+                onChange={(e) => setBackgroundColor(e.target.value)}
+                className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+              />
+              <input
+                type="text"
+                value={backgroundColor}
+                onChange={(e) => setBackgroundColor(e.target.value)}
+                className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+              />
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {BG_SWATCHES.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setBackgroundColor(c)}
+                  className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
+                    backgroundColor.toLowerCase() === c.toLowerCase()
+                      ? "border-accent-green scale-110"
+                      : "border-border-subtle"
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        {(mode === "linear" || mode === "radial") && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <span className="text-[10px] text-text-ghost uppercase block">Start</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="color"
+                    value={startColor}
+                    onChange={(e) => updateColors(e.target.value, endColor)}
+                    className="w-7 h-7 rounded-md border border-border-default cursor-pointer bg-transparent shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={startColor}
+                    onChange={(e) => updateColors(e.target.value, endColor)}
+                    className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[10px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] text-text-ghost uppercase block">End</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="color"
+                    value={endColor}
+                    onChange={(e) => updateColors(startColor, e.target.value)}
+                    className="w-7 h-7 rounded-md border border-border-default cursor-pointer bg-transparent shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={endColor}
+                    onChange={(e) => updateColors(startColor, e.target.value)}
+                    className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[10px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {mode === "linear" && (
+              <div className="space-y-1">
+                <span className="text-[10px] text-text-ghost uppercase block">Direction</span>
+                <div className="grid grid-cols-6 gap-1">
+                  {LINEAR_DIRECTIONS.map((d, i) => (
+                    <button
+                      key={d.label}
+                      onClick={() => setLinearDirection(d)}
+                      className={`h-7 rounded text-sm border transition-all ${
+                        activeDirection === i
+                          ? "border-accent-green bg-surface-3 text-text-primary"
+                          : "border-border-subtle text-text-tertiary hover:text-text-primary hover:bg-surface-2"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <span className="text-[10px] text-text-ghost uppercase block">Presets</span>
+              <div className="grid grid-cols-5 gap-1.5">
+                {GRADIENT_PRESETS.map((p) => (
+                  <button
+                    key={p.name}
+                    onClick={() => updateColors(p.colors[0], p.colors[1])}
+                    title={p.name}
+                    className="aspect-square rounded-md border border-border-subtle hover:border-accent-green/60 hover:scale-105 transition-all"
+                    style={previewStyle(p.colors)}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

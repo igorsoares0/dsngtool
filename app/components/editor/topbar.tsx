@@ -66,6 +66,7 @@ export default function Topbar({
         name: s.projectName,
         elements: s.elements,
         backgroundColor: s.backgroundColor,
+        backgroundGradient: s.backgroundGradient,
         format: s.format,
         createdAt: (await db.projects.get(s.projectId))?.createdAt ?? new Date(),
         updatedAt: new Date(),
@@ -118,6 +119,7 @@ export default function Topbar({
       name: s.projectName,
       format: s.format,
       backgroundColor: s.backgroundColor,
+      backgroundGradient: s.backgroundGradient,
       elements: s.elements,
     });
     setShowExportMenu(false);
@@ -139,6 +141,7 @@ export default function Topbar({
         name: imported.name,
         elements: imported.elements,
         backgroundColor: imported.backgroundColor,
+        backgroundGradient: imported.backgroundGradient,
         format: imported.format,
       });
     } catch (err) {

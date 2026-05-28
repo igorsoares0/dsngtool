@@ -1,4 +1,4 @@
-import type { EditorElement, CanvasFormat } from "../types/editor";
+import type { EditorElement, CanvasFormat, GradientFill } from "../types/editor";
 import { CANVAS_FORMATS } from "../types/editor";
 
 export const FILE_EXTENSION = "dsgn";
@@ -10,6 +10,7 @@ export interface ProjectFile {
   name: string;
   format: CanvasFormat;
   backgroundColor: string;
+  backgroundGradient?: GradientFill | null;
   elements: EditorElement[];
   exportedAt: string;
 }
@@ -18,6 +19,7 @@ export interface ImportedProject {
   name: string;
   format: CanvasFormat;
   backgroundColor: string;
+  backgroundGradient: GradientFill | null;
   elements: EditorElement[];
 }
 
@@ -25,6 +27,7 @@ export function serializeProject(p: {
   name: string;
   format: CanvasFormat;
   backgroundColor: string;
+  backgroundGradient?: GradientFill | null;
   elements: EditorElement[];
 }): string {
   const data: ProjectFile = {
@@ -32,6 +35,7 @@ export function serializeProject(p: {
     name: p.name,
     format: p.format,
     backgroundColor: p.backgroundColor,
+    backgroundGradient: p.backgroundGradient ?? null,
     elements: p.elements,
     exportedAt: new Date().toISOString(),
   };
@@ -42,6 +46,7 @@ export function downloadProjectFile(p: {
   name: string;
   format: CanvasFormat;
   backgroundColor: string;
+  backgroundGradient?: GradientFill | null;
   elements: EditorElement[];
 }) {
   const json = serializeProject(p);
@@ -124,12 +129,25 @@ export async function readProjectFile(file: File): Promise<ImportedProject> {
   const format = validateFormat(data.format);
   const backgroundColor =
     typeof data.backgroundColor === "string" ? data.backgroundColor : "#ffffff";
+  const backgroundGradient = validateGradient(data.backgroundGradient);
   const name = typeof data.name === "string" && data.name.trim() ? data.name : "Imported";
 
   const matchedFormat =
     CANVAS_FORMATS.find((f) => f.width === format.width && f.height === format.height) ?? format;
 
-  return { name, format: matchedFormat, backgroundColor, elements };
+  return { name, format: matchedFormat, backgroundColor, backgroundGradient, elements };
+}
+
+function validateGradient(g: unknown): GradientFill | null {
+  if (!g || typeof g !== "object") return null;
+  const obj = g as Record<string, unknown>;
+  if (obj.type !== "linear" && obj.type !== "radial") return null;
+  const numFields = ["startX", "startY", "endX", "endY"];
+  for (const f of numFields) {
+    if (typeof obj[f] !== "number") return null;
+  }
+  if (!Array.isArray(obj.colorStops)) return null;
+  return obj as unknown as GradientFill;
 }
 
 export { ImportError };

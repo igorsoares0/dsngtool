@@ -539,6 +539,7 @@ export default function CanvasStage({
   const format = useEditorStore((s) => s.format);
   const zoom = useEditorStore((s) => s.zoom);
   const backgroundColor = useEditorStore((s) => s.backgroundColor);
+  const backgroundGradient = useEditorStore((s) => s.backgroundGradient);
   const selectElement = useEditorStore((s) => s.selectElement);
 
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -716,7 +717,39 @@ export default function CanvasStage({
           y={offsetY}
           width={format.width * scale}
           height={format.height * scale}
-          fill={backgroundColor}
+          {...(backgroundGradient
+            ? backgroundGradient.type === "linear"
+              ? {
+                  fillLinearGradientStartPoint: {
+                    x: backgroundGradient.startX * format.width * scale,
+                    y: backgroundGradient.startY * format.height * scale,
+                  },
+                  fillLinearGradientEndPoint: {
+                    x: backgroundGradient.endX * format.width * scale,
+                    y: backgroundGradient.endY * format.height * scale,
+                  },
+                  fillLinearGradientColorStops: backgroundGradient.colorStops,
+                }
+              : {
+                  fillRadialGradientStartPoint: {
+                    x: backgroundGradient.startX * format.width * scale,
+                    y: backgroundGradient.startY * format.height * scale,
+                  },
+                  fillRadialGradientEndPoint: {
+                    x: backgroundGradient.endX * format.width * scale,
+                    y: backgroundGradient.endY * format.height * scale,
+                  },
+                  fillRadialGradientStartRadius:
+                    (backgroundGradient.startRadius ?? 0) *
+                    Math.max(format.width, format.height) *
+                    scale,
+                  fillRadialGradientEndRadius:
+                    (backgroundGradient.endRadius ?? 0.7) *
+                    Math.max(format.width, format.height) *
+                    scale,
+                  fillRadialGradientColorStops: backgroundGradient.colorStops,
+                }
+            : { fill: backgroundColor })}
           shadowColor="rgba(0,0,0,0.5)"
           shadowBlur={40}
           shadowOffsetY={8}

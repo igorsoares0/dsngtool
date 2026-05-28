@@ -5,6 +5,7 @@ import type {
   ImageElement,
   ShapeElement,
   CanvasFormat,
+  GradientFill,
 } from "../types/editor";
 import { CANVAS_FORMATS } from "../types/editor";
 
@@ -16,6 +17,7 @@ function genId() {
 interface HistorySnapshot {
   elements: EditorElement[];
   backgroundColor: string;
+  backgroundGradient: GradientFill | null;
 }
 
 interface EditorState {
@@ -26,6 +28,7 @@ interface EditorState {
   format: CanvasFormat;
   zoom: number;
   backgroundColor: string;
+  backgroundGradient: GradientFill | null;
   lastSavedAt: number | null;
 
   // history
@@ -44,12 +47,13 @@ interface EditorState {
   setFormat: (format: CanvasFormat) => void;
   setZoom: (zoom: number) => void;
   setBackgroundColor: (color: string) => void;
+  setBackgroundGradient: (gradient: GradientFill | null) => void;
   moveElement: (id: string, direction: "up" | "down") => void;
   reorderElements: (fromIndex: number, toIndex: number) => void;
   duplicateElement: (id: string) => void;
   duplicateSelectedElements: () => void;
-  loadTemplate: (template: { elements: (Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">)[]; backgroundColor: string; format?: CanvasFormat }) => void;
-  loadProject: (project: { id: string; name: string; elements: EditorElement[]; backgroundColor: string; format: CanvasFormat }) => void;
+  loadTemplate: (template: { elements: (Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">)[]; backgroundColor: string; backgroundGradient?: GradientFill | null; format?: CanvasFormat }) => void;
+  loadProject: (project: { id: string; name: string; elements: EditorElement[]; backgroundColor: string; backgroundGradient?: GradientFill | null; format: CanvasFormat }) => void;
   newProject: () => void;
   markSaved: () => void;
 
@@ -59,7 +63,14 @@ interface EditorState {
 
 function pushHistory(state: EditorState): Pick<EditorState, "past" | "future"> {
   return {
-    past: [...state.past.slice(-49), { elements: state.elements, backgroundColor: state.backgroundColor }],
+    past: [
+      ...state.past.slice(-49),
+      {
+        elements: state.elements,
+        backgroundColor: state.backgroundColor,
+        backgroundGradient: state.backgroundGradient,
+      },
+    ],
     future: [],
   };
 }
@@ -72,6 +83,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   format: CANVAS_FORMATS[0],
   zoom: 100,
   backgroundColor: "#ffffff",
+  backgroundGradient: null,
   lastSavedAt: null,
 
   past: [],
@@ -156,6 +168,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((s) => ({
       ...pushHistory(s),
       backgroundColor: color,
+      backgroundGradient: null,
+    }));
+  },
+
+  setBackgroundGradient: (gradient) => {
+    set((s) => ({
+      ...pushHistory(s),
+      backgroundGradient: gradient,
     }));
   },
 
@@ -168,6 +188,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...pushHistory(s),
       elements: newElements,
       backgroundColor: template.backgroundColor,
+      backgroundGradient: template.backgroundGradient ?? null,
       format: template.format || s.format,
       selectedIds: [],
     }));
@@ -233,6 +254,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       projectName: project.name,
       elements: project.elements,
       backgroundColor: project.backgroundColor,
+      backgroundGradient: project.backgroundGradient ?? null,
       format: project.format,
       selectedIds: [],
       past: [],
@@ -249,6 +271,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       format: CANVAS_FORMATS[0],
       zoom: 100,
       backgroundColor: "#ffffff",
+      backgroundGradient: null,
       lastSavedAt: null,
       past: [],
       future: [],
@@ -263,9 +286,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const prev = s.past[s.past.length - 1];
       return {
         past: s.past.slice(0, -1),
-        future: [{ elements: s.elements, backgroundColor: s.backgroundColor }, ...s.future.slice(0, 49)],
+        future: [
+          {
+            elements: s.elements,
+            backgroundColor: s.backgroundColor,
+            backgroundGradient: s.backgroundGradient,
+          },
+          ...s.future.slice(0, 49),
+        ],
         elements: prev.elements,
         backgroundColor: prev.backgroundColor,
+        backgroundGradient: prev.backgroundGradient,
         selectedIds: [],
       };
     });
@@ -276,10 +307,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (s.future.length === 0) return s;
       const next = s.future[0];
       return {
-        past: [...s.past, { elements: s.elements, backgroundColor: s.backgroundColor }],
+        past: [
+          ...s.past,
+          {
+            elements: s.elements,
+            backgroundColor: s.backgroundColor,
+            backgroundGradient: s.backgroundGradient,
+          },
+        ],
         future: s.future.slice(1),
         elements: next.elements,
         backgroundColor: next.backgroundColor,
+        backgroundGradient: next.backgroundGradient,
         selectedIds: [],
       };
     });

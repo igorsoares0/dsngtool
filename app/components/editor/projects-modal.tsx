@@ -48,6 +48,7 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
       name: p.name,
       elements: p.elements,
       backgroundColor: p.backgroundColor,
+      backgroundGradient: p.backgroundGradient ?? null,
       format: p.format,
     });
     onClose();
