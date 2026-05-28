@@ -141,9 +141,6 @@ export default function CanvasArea({
         backgroundSize: "24px 24px",
       }}
     >
-      {/* Vignette */}
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_50%,#0c0c0c_100%)] opacity-60 z-10" />
-
       {dims.width > 0 && (
         <CanvasStage
           stageRef={stageRef}
