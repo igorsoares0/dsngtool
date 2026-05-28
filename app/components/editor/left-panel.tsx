@@ -49,20 +49,21 @@ function TemplatesPanel() {
       </div>
       <div className="grid grid-cols-2 gap-2">
         {TEMPLATES.map((t) => {
-          const isStory = t.format.height > t.format.width;
+          const ratio = t.format.width / t.format.height;
+          const aspectClass =
+            ratio === 1 ? "aspect-square" : ratio < 0.6 ? "aspect-[9/16]" : "aspect-[2/3]";
+          const isPortrait = ratio < 1;
           return (
             <button
               key={t.name}
               onClick={() => loadTemplate(t)}
-              className={`group rounded-lg overflow-hidden border border-border-subtle hover:border-accent-green/40 transition-all relative ${
-                isStory ? "aspect-[9/16]" : "aspect-square"
-              }`}
+              className={`group rounded-lg overflow-hidden border border-border-subtle hover:border-accent-green/40 transition-all relative ${aspectClass}`}
               style={{ backgroundColor: t.previewColor }}
             >
               <TemplatePreview
                 bgColor={t.previewColor}
                 accent={t.previewAccent}
-                isStory={isStory}
+                isStory={isPortrait}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
