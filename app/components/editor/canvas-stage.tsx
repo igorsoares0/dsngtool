@@ -115,6 +115,75 @@ function computeSnap(
   };
 }
 
+function snapResize(
+  oldBox: BBox,
+  newBox: BBox,
+  others: BBox[],
+  canvas: { width: number; height: number },
+  threshold: number
+): { box: BBox; guides: Guide[] } {
+  let { x, y, width, height } = newBox;
+  const right = x + width;
+  const bottom = y + height;
+
+  const eps = 0.001;
+  const leftMoved = Math.abs(x - oldBox.x) > eps;
+  const rightMoved = Math.abs(right - (oldBox.x + oldBox.width)) > eps;
+  const topMoved = Math.abs(y - oldBox.y) > eps;
+  const bottomMoved = Math.abs(bottom - (oldBox.y + oldBox.height)) > eps;
+
+  const targetsX: number[] = [0, canvas.width / 2, canvas.width];
+  for (const o of others) targetsX.push(o.x, o.x + o.width / 2, o.x + o.width);
+  const targetsY: number[] = [0, canvas.height / 2, canvas.height];
+  for (const o of others) targetsY.push(o.y, o.y + o.height / 2, o.y + o.height);
+
+  const findBest = (value: number, targets: number[]): number | null => {
+    let best: number | null = null;
+    let bestD = threshold;
+    for (const t of targets) {
+      const d = Math.abs(t - value);
+      if (d <= bestD) {
+        best = t;
+        bestD = d;
+      }
+    }
+    return best;
+  };
+
+  const snapLeft = leftMoved ? findBest(x, targetsX) : null;
+  const snapRight = rightMoved ? findBest(right, targetsX) : null;
+  const snapTop = topMoved ? findBest(y, targetsY) : null;
+  const snapBottom = bottomMoved ? findBest(bottom, targetsY) : null;
+
+  if (snapLeft !== null && snapRight !== null) {
+    x = snapLeft;
+    width = snapRight - snapLeft;
+  } else if (snapLeft !== null) {
+    width = right - snapLeft;
+    x = snapLeft;
+  } else if (snapRight !== null) {
+    width = snapRight - x;
+  }
+
+  if (snapTop !== null && snapBottom !== null) {
+    y = snapTop;
+    height = snapBottom - snapTop;
+  } else if (snapTop !== null) {
+    height = (newBox.y + newBox.height) - snapTop;
+    y = snapTop;
+  } else if (snapBottom !== null) {
+    height = snapBottom - y;
+  }
+
+  const guides: Guide[] = [];
+  if (snapLeft !== null) guides.push({ orientation: "v", pos: snapLeft, start: 0, end: canvas.height });
+  if (snapRight !== null) guides.push({ orientation: "v", pos: snapRight, start: 0, end: canvas.height });
+  if (snapTop !== null) guides.push({ orientation: "h", pos: snapTop, start: 0, end: canvas.width });
+  if (snapBottom !== null) guides.push({ orientation: "h", pos: snapBottom, start: 0, end: canvas.width });
+
+  return { box: { x, y, width, height }, guides };
+}
+
 export interface InlineEditRequest {
   elementId: string;
   x: number;
@@ -673,11 +742,46 @@ export default function CanvasStage({
         ))}
         <Transformer
           ref={transformerRef}
+          onTransformEnd={() => setGuides([])}
           boundBoxFunc={(oldBox, newBox) => {
             if (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5) {
               return oldBox;
             }
-            return newBox;
+            // Skip snap when rotated — bbox geometry gets complex
+            if (Math.abs(newBox.rotation) > 0.01) {
+              return newBox;
+            }
+            const state = useEditorStore.getState();
+            const selectedSet = new Set(state.selectedIds);
+            const others: BBox[] = state.elements
+              .filter((x) => !x.hidden && !selectedSet.has(x.id))
+              .map((x) => ({ x: x.x, y: x.y, width: x.width, height: x.height }));
+            const threshold = 6 / (state.zoom / 100);
+            const result = snapResize(
+              oldBox,
+              newBox,
+              others,
+              { width: format.width, height: format.height },
+              threshold
+            );
+            if (result.box.width < 5 || result.box.height < 5) {
+              setGuides([]);
+              return newBox;
+            }
+            setGuides((prev) => {
+              if (
+                prev.length === result.guides.length &&
+                prev.every(
+                  (g, i) =>
+                    g.orientation === result.guides[i].orientation &&
+                    g.pos === result.guides[i].pos
+                )
+              ) {
+                return prev;
+              }
+              return result.guides;
+            });
+            return { ...result.box, rotation: newBox.rotation };
           }}
           anchorSize={8}
           anchorCornerRadius={2}

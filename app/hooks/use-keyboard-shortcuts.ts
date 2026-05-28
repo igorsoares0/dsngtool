@@ -46,6 +46,32 @@ export function useKeyboardShortcuts() {
           useEditorStore.getState().selectAll();
         }
       }
+
+      if (
+        e.key === "ArrowLeft" ||
+        e.key === "ArrowRight" ||
+        e.key === "ArrowUp" ||
+        e.key === "ArrowDown"
+      ) {
+        const { selectedIds, elements, updateMultipleElements } = useEditorStore.getState();
+        if (selectedIds.length === 0) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        let dx = 0;
+        let dy = 0;
+        if (e.key === "ArrowLeft") dx = -step;
+        if (e.key === "ArrowRight") dx = step;
+        if (e.key === "ArrowUp") dy = -step;
+        if (e.key === "ArrowDown") dy = step;
+        const selectedSet = new Set(selectedIds);
+        const updates = new Map<string, { x: number; y: number }>();
+        for (const el of elements) {
+          if (selectedSet.has(el.id) && !el.locked) {
+            updates.set(el.id, { x: el.x + dx, y: el.y + dy });
+          }
+        }
+        if (updates.size > 0) updateMultipleElements(updates);
+      }
     };
 
     window.addEventListener("keydown", handler);
