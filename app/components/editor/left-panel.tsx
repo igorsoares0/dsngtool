@@ -285,24 +285,141 @@ function AssetsPanel() {
   );
 }
 
+type OverlayPreset = {
+  label: string;
+  preview: string;
+  build: (canvas: { width: number; height: number }) => {
+    type: "shape";
+    shapeType: "rectangle" | "ellipse";
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    opacity: number;
+    fill: string;
+    gradient?: import("../../types/editor").GradientFill;
+  };
+};
+
+const OVERLAY_PRESETS: OverlayPreset[] = [
+  {
+    label: "Purple Glow",
+    preview: "linear-gradient(135deg,#7C3AED 0%,#EC4899 100%)",
+    build: (c) => ({
+      type: "shape",
+      shapeType: "rectangle",
+      x: 0,
+      y: 0,
+      width: c.width,
+      height: c.height,
+      rotation: 0,
+      opacity: 0.55,
+      fill: "#7C3AED",
+      gradient: {
+        type: "linear",
+        startX: 0, startY: 0, endX: 1, endY: 1,
+        colorStops: [0, "#7C3AED", 1, "#EC4899"],
+      },
+    }),
+  },
+  {
+    label: "Sunset",
+    preview: "linear-gradient(180deg,#F97316 0%,#EC4899 60%,#7C3AED 100%)",
+    build: (c) => ({
+      type: "shape",
+      shapeType: "rectangle",
+      x: 0, y: 0, width: c.width, height: c.height,
+      rotation: 0, opacity: 0.6, fill: "#F97316",
+      gradient: {
+        type: "linear",
+        startX: 0, startY: 0, endX: 0, endY: 1,
+        colorStops: [0, "#F97316", 1, "#7C3AED"],
+      },
+    }),
+  },
+  {
+    label: "Ocean",
+    preview: "linear-gradient(135deg,#0EA5E9 0%,#10B981 100%)",
+    build: (c) => ({
+      type: "shape",
+      shapeType: "rectangle",
+      x: 0, y: 0, width: c.width, height: c.height,
+      rotation: 0, opacity: 0.55, fill: "#0EA5E9",
+      gradient: {
+        type: "linear",
+        startX: 0, startY: 0, endX: 1, endY: 1,
+        colorStops: [0, "#0EA5E9", 1, "#10B981"],
+      },
+    }),
+  },
+  {
+    label: "Light Leak",
+    preview: "radial-gradient(circle at 20% 30%,#FBBF24 0%,#F97316 35%,transparent 70%)",
+    build: (c) => ({
+      type: "shape",
+      shapeType: "rectangle",
+      x: 0, y: 0, width: c.width, height: c.height,
+      rotation: 0, opacity: 0.7, fill: "#F97316",
+      gradient: {
+        type: "radial",
+        startX: 0.2, startY: 0.3, endX: 0.2, endY: 0.3,
+        startRadius: 0, endRadius: 0.9,
+        colorStops: [0, "#FBBF24", 0.5, "rgba(249,115,22,0.5)", 1, "rgba(249,115,22,0)"],
+      },
+    }),
+  },
+  {
+    label: "Vignette",
+    preview: "radial-gradient(circle,transparent 40%,#000 100%)",
+    build: (c) => ({
+      type: "shape",
+      shapeType: "rectangle",
+      x: 0, y: 0, width: c.width, height: c.height,
+      rotation: 0, opacity: 1, fill: "#000000",
+      gradient: {
+        type: "radial",
+        startX: 0.5, startY: 0.5, endX: 0.5, endY: 0.5,
+        startRadius: 0.3, endRadius: 0.75,
+        colorStops: [0, "rgba(0,0,0,0)", 1, "rgba(0,0,0,0.85)"],
+      },
+    }),
+  },
+  {
+    label: "Warm Tint",
+    preview: "linear-gradient(0deg,#F59E0B 0%,#F59E0B 100%)",
+    build: (c) => ({
+      type: "shape",
+      shapeType: "rectangle",
+      x: 0, y: 0, width: c.width, height: c.height,
+      rotation: 0, opacity: 0.25, fill: "#F59E0B",
+    }),
+  },
+];
+
 function OverlaysPanel() {
+  const addElement = useEditorStore((s) => s.addElement);
+  const format = useEditorStore((s) => s.format);
+
   return (
     <div className="space-y-4">
       <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
         Overlays
       </h3>
+      <p className="text-[10px] text-text-ghost leading-relaxed">
+        Click any preset to add a full-canvas overlay layer. Adjust opacity and color in the right panel.
+      </p>
       <div className="grid grid-cols-2 gap-2">
-        {[
-          { label: "Gradient", bg: "bg-gradient-to-br from-purple-600/50 to-blue-600/50" },
-          { label: "Light Leak", bg: "bg-gradient-to-tr from-orange-500/40 to-yellow-300/30" },
-          { label: "Grain", bg: "bg-surface-3" },
-          { label: "Blur", bg: "bg-gradient-to-b from-white/10 to-white/5" },
-        ].map((overlay) => (
+        {OVERLAY_PRESETS.map((overlay) => (
           <button
             key={overlay.label}
-            className={`aspect-video ${overlay.bg} rounded-lg border border-border-subtle hover:border-accent-green/40 transition-all flex items-end p-2`}
+            onClick={() => addElement(overlay.build({ width: format.width, height: format.height }))}
+            className="aspect-video rounded-lg border border-border-subtle hover:border-accent-green/40 transition-all flex items-end p-2 overflow-hidden relative group"
+            style={{ background: overlay.preview }}
           >
-            <span className="text-[10px] text-text-secondary">{overlay.label}</span>
+            <span className="text-[10px] text-white font-medium relative z-10 drop-shadow">
+              {overlay.label}
+            </span>
           </button>
         ))}
       </div>

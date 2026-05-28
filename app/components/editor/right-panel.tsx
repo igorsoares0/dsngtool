@@ -22,7 +22,7 @@ import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon } from "./ico
 import { AVAILABLE_FONTS } from "./font-loader";
 import type { EditorElement, TextElement, ShapeElement, ImageElement } from "../../types/editor";
 
-type Section = "position" | "typography" | "textShadow" | "image" | "fill" | "stroke" | "effects" | "layers";
+type Section = "position" | "typography" | "textShadow" | "image" | "imageFilters" | "fill" | "stroke" | "effects" | "layers";
 
 function SectionHeader({
   label,
@@ -353,6 +353,89 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ImageFiltersSection({ el, update }: { el: ImageElement; update: (u: Partial<EditorElement>) => void }) {
+  const FILTER_PRESETS: { label: string; values: Partial<ImageElement> }[] = [
+    { label: "None", values: { filterBlur: 0, filterBrightness: 0, filterContrast: 0, filterSaturation: 0, filterGrayscale: false, filterSepia: false, filterInvert: false } },
+    { label: "B&W", values: { filterGrayscale: true, filterSepia: false, filterContrast: 10 } },
+    { label: "Sepia", values: { filterSepia: true, filterGrayscale: false, filterSaturation: 0 } },
+    { label: "Pop", values: { filterContrast: 20, filterSaturation: 1.5, filterBrightness: 0.05 } },
+    { label: "Faded", values: { filterContrast: -15, filterSaturation: -0.8, filterBrightness: 0.1 } },
+    { label: "Dramatic", values: { filterContrast: 30, filterBrightness: -0.1, filterSaturation: 0.3 } },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <span className="text-[10px] text-text-ghost uppercase block mb-1">Presets</span>
+        <div className="grid grid-cols-3 gap-1">
+          {FILTER_PRESETS.map((p) => (
+            <button
+              key={p.label}
+              onClick={() => update(p.values as Partial<EditorElement>)}
+              className="py-1.5 text-[10px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <NumberField
+          label="Blur"
+          value={el.filterBlur || 0}
+          onChange={(v) => update({ filterBlur: v } as Partial<EditorElement>)}
+          min={0}
+          max={40}
+        />
+        <NumberField
+          label="Brightness"
+          value={Math.round((el.filterBrightness || 0) * 100)}
+          onChange={(v) => update({ filterBrightness: v / 100 } as Partial<EditorElement>)}
+          min={-100}
+          max={100}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <NumberField
+          label="Contrast"
+          value={el.filterContrast || 0}
+          onChange={(v) => update({ filterContrast: v } as Partial<EditorElement>)}
+          min={-100}
+          max={100}
+        />
+        <NumberField
+          label="Saturation"
+          value={Math.round((el.filterSaturation || 0) * 10)}
+          onChange={(v) => update({ filterSaturation: v / 10 } as Partial<EditorElement>)}
+          min={-20}
+          max={100}
+        />
+      </div>
+
+      <div className="flex gap-1.5">
+        {([
+          { key: "filterGrayscale", label: "B&W" },
+          { key: "filterSepia", label: "Sepia" },
+          { key: "filterInvert", label: "Invert" },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => update({ [t.key]: !el[t.key] } as Partial<EditorElement>)}
+            className={`flex-1 py-1.5 text-[10px] rounded border transition-all ${
+              el[t.key]
+                ? "bg-surface-4 text-accent-green border-accent-green/40"
+                : "bg-surface-2 text-text-ghost border-border-subtle hover:text-text-secondary"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -822,6 +905,22 @@ export default function RightPanel() {
             {openSections.has("image") && (
               <div className="pb-2 animate-fade-in">
                 <ImageSection el={selected as ImageElement} update={update} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Image filters — only for images */}
+        {selected?.type === "image" && (
+          <div className="border-b border-border-subtle pb-2">
+            <SectionHeader
+              label="Filters"
+              isOpen={openSections.has("imageFilters")}
+              onToggle={() => toggleSection("imageFilters")}
+            />
+            {openSections.has("imageFilters") && (
+              <div className="pb-2 animate-fade-in">
+                <ImageFiltersSection el={selected as ImageElement} update={update} />
               </div>
             )}
           </div>

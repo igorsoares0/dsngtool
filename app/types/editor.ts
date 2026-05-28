@@ -38,6 +38,24 @@ export interface ImageElement extends BaseElement {
   cornerRadius?: number;
   shadowColor?: string;
   shadowBlur?: number;
+  filterBlur?: number;
+  filterBrightness?: number;
+  filterContrast?: number;
+  filterSaturation?: number;
+  filterGrayscale?: boolean;
+  filterSepia?: boolean;
+  filterInvert?: boolean;
+}
+
+export interface GradientFill {
+  type: "linear" | "radial";
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  startRadius?: number;
+  endRadius?: number;
+  colorStops: Array<number | string>;
 }
 
 export interface ShapeElement extends BaseElement {
@@ -47,6 +65,7 @@ export interface ShapeElement extends BaseElement {
   stroke?: string;
   strokeWidth?: number;
   cornerRadius?: number;
+  gradient?: GradientFill;
 }
 
 export type EditorElement = TextElement | ImageElement | ShapeElement;

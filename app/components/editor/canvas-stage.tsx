@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState } from "react";
 import { Stage, Layer, Rect, Ellipse, Text, Image, Transformer, Line } from "react-konva";
-import type Konva from "konva";
+import Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import type { EditorElement, ShapeElement, TextElement, ImageElement } from "../../types/editor";
 
@@ -208,27 +208,23 @@ interface DragHandlers {
 }
 
 function useImage(src: string): HTMLImageElement | null {
-  const imgRef = useRef<HTMLImageElement | null>(null);
-  const mountedRef = useRef(true);
-
-  if (!imgRef.current && typeof window !== "undefined") {
-    const img = new window.Image();
-    img.crossOrigin = "anonymous";
-    img.src = src;
-    img.onload = () => {
-      if (mountedRef.current) {
-        imgRef.current = img;
-      }
-    };
-  }
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
 
   useEffect(() => {
-    return () => {
-      mountedRef.current = false;
+    if (typeof window === "undefined") return;
+    let cancelled = false;
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (!cancelled) setImage(img);
     };
-  }, []);
+    img.src = src;
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
 
-  return imgRef.current;
+  return image;
 }
 
 function ImageNode({
@@ -247,10 +243,47 @@ function ImageNode({
   const flipSx = el.flipX ? -1 : 1;
   const flipSy = el.flipY ? -1 : 1;
 
+  // Apply Konva filters
+  useEffect(() => {
+    const node = shapeRef.current;
+    if (!node || !image) return;
+    const filters: Parameters<Konva.Node["filters"]>[0] = [];
+    if ((el.filterBlur || 0) > 0) filters.push(Konva.Filters.Blur);
+    if ((el.filterBrightness || 0) !== 0) filters.push(Konva.Filters.Brighten);
+    if ((el.filterContrast || 0) !== 0) filters.push(Konva.Filters.Contrast);
+    if ((el.filterSaturation || 0) !== 0) filters.push(Konva.Filters.HSV);
+    if (el.filterGrayscale) filters.push(Konva.Filters.Grayscale);
+    if (el.filterSepia) filters.push(Konva.Filters.Sepia);
+    if (el.filterInvert) filters.push(Konva.Filters.Invert);
+    if (filters.length > 0) {
+      node.cache();
+      node.filters(filters);
+    } else {
+      node.clearCache();
+      node.filters([]);
+    }
+    node.getLayer()?.batchDraw();
+  }, [
+    image,
+    el.filterBlur,
+    el.filterBrightness,
+    el.filterContrast,
+    el.filterSaturation,
+    el.filterGrayscale,
+    el.filterSepia,
+    el.filterInvert,
+    el.width,
+    el.height,
+  ]);
+
   return (
     <Image
       ref={shapeRef}
       image={image || undefined}
+      blurRadius={el.filterBlur || 0}
+      brightness={el.filterBrightness || 0}
+      contrast={el.filterContrast || 0}
+      saturation={el.filterSaturation || 0}
       id={el.id}
       x={el.x}
       y={el.y}
@@ -308,13 +341,32 @@ function ShapeNode({
 }) {
   const shapeRef = useRef<Konva.Rect | Konva.Ellipse | Konva.Line>(null);
 
+  const g = el.gradient;
+  const gradientProps = g
+    ? g.type === "linear"
+      ? {
+          fillLinearGradientStartPoint: { x: g.startX * el.width, y: g.startY * el.height },
+          fillLinearGradientEndPoint: { x: g.endX * el.width, y: g.endY * el.height },
+          fillLinearGradientColorStops: g.colorStops,
+          fill: undefined,
+        }
+      : {
+          fillRadialGradientStartPoint: { x: g.startX * el.width, y: g.startY * el.height },
+          fillRadialGradientEndPoint: { x: g.endX * el.width, y: g.endY * el.height },
+          fillRadialGradientStartRadius: (g.startRadius ?? 0) * Math.min(el.width, el.height),
+          fillRadialGradientEndRadius: (g.endRadius ?? 0.7) * Math.min(el.width, el.height),
+          fillRadialGradientColorStops: g.colorStops,
+          fill: undefined,
+        }
+    : { fill: el.fill };
+
   const commonProps = {
     id: el.id,
     x: el.x,
     y: el.y,
     rotation: el.rotation,
     opacity: el.opacity,
-    fill: el.fill,
+    ...gradientProps,
     stroke: el.stroke,
     strokeWidth: el.strokeWidth || 0,
     draggable: !el.locked,
