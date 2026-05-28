@@ -23,6 +23,11 @@ export interface TextElement extends BaseElement {
   textTransform?: "none" | "uppercase";
   lineHeight?: number;
   letterSpacing?: number;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  shadowOpacity?: number;
 }
 
 export interface ImageElement extends BaseElement {

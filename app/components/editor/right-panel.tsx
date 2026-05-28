@@ -22,7 +22,7 @@ import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon } from "./ico
 import { AVAILABLE_FONTS } from "./font-loader";
 import type { EditorElement, TextElement, ShapeElement, ImageElement } from "../../types/editor";
 
-type Section = "position" | "typography" | "image" | "fill" | "stroke" | "effects" | "layers";
+type Section = "position" | "typography" | "textShadow" | "image" | "fill" | "stroke" | "effects" | "layers";
 
 function SectionHeader({
   label,
@@ -354,6 +354,92 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function TextShadowSection({ el, update }: { el: TextElement; update: (u: Partial<EditorElement>) => void }) {
+  const blur = el.shadowBlur || 0;
+  const offsetX = el.shadowOffsetX || 0;
+  const offsetY = el.shadowOffsetY || 0;
+  const opacity = el.shadowOpacity ?? 1;
+  const color = el.shadowColor || "#000000";
+  const isEnabled = blur > 0 || offsetX !== 0 || offsetY !== 0;
+
+  const PRESETS = [
+    { label: "None", values: { shadowBlur: 0, shadowOffsetX: 0, shadowOffsetY: 0 } },
+    { label: "Soft", values: { shadowBlur: 12, shadowOffsetX: 0, shadowOffsetY: 4, shadowOpacity: 0.4, shadowColor: "#000000" } },
+    { label: "Hard", values: { shadowBlur: 0, shadowOffsetX: 6, shadowOffsetY: 6, shadowOpacity: 1, shadowColor: "#000000" } },
+    { label: "Glow", values: { shadowBlur: 20, shadowOffsetX: 0, shadowOffsetY: 0, shadowOpacity: 0.8, shadowColor: "#FFFFFF" } },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <span className="text-[10px] text-text-ghost uppercase block mb-1">Presets</span>
+        <div className="grid grid-cols-4 gap-1">
+          {PRESETS.map((p) => (
+            <button
+              key={p.label}
+              onClick={() => update(p.values as Partial<EditorElement>)}
+              className="py-1.5 text-[10px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <NumberField
+          label="Blur"
+          value={blur}
+          onChange={(v) => update({ shadowBlur: v } as Partial<EditorElement>)}
+          min={0}
+          max={100}
+        />
+        <NumberField
+          label="Opacity"
+          value={Math.round(opacity * 100)}
+          onChange={(v) => update({ shadowOpacity: Math.max(0, Math.min(1, v / 100)) } as Partial<EditorElement>)}
+          min={0}
+          max={100}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <NumberField
+          label="Offset X"
+          value={offsetX}
+          onChange={(v) => update({ shadowOffsetX: v } as Partial<EditorElement>)}
+          min={-100}
+          max={100}
+        />
+        <NumberField
+          label="Offset Y"
+          value={offsetY}
+          onChange={(v) => update({ shadowOffsetY: v } as Partial<EditorElement>)}
+          min={-100}
+          max={100}
+        />
+      </div>
+      {isEnabled && (
+        <div>
+          <span className="text-[10px] text-text-ghost uppercase block mb-1">Color</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
+              className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+            />
+            <input
+              type="text"
+              value={color}
+              onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
+              className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -704,6 +790,22 @@ export default function RightPanel() {
             {openSections.has("typography") && (
               <div className="pb-2 animate-fade-in">
                 <TypographySection el={selected as TextElement} update={update} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Text shadow — only for text */}
+        {selected?.type === "text" && (
+          <div className="border-b border-border-subtle pb-2">
+            <SectionHeader
+              label="Text Shadow"
+              isOpen={openSections.has("textShadow")}
+              onToggle={() => toggleSection("textShadow")}
+            />
+            {openSections.has("textShadow") && (
+              <div className="pb-2 animate-fade-in">
+                <TextShadowSection el={selected as TextElement} update={update} />
               </div>
             )}
           </div>

@@ -252,6 +252,16 @@ function TextNode({
       textDecoration={el.textDecoration || ""}
       lineHeight={el.lineHeight || 1.2}
       letterSpacing={el.letterSpacing || 0}
+      shadowColor={el.shadowColor || "#000000"}
+      shadowBlur={el.shadowBlur || 0}
+      shadowOffsetX={el.shadowOffsetX || 0}
+      shadowOffsetY={el.shadowOffsetY || 0}
+      shadowOpacity={el.shadowOpacity ?? 1}
+      shadowEnabled={
+        (el.shadowBlur || 0) > 0 ||
+        (el.shadowOffsetX || 0) !== 0 ||
+        (el.shadowOffsetY || 0) !== 0
+      }
       rotation={el.rotation}
       opacity={isEditing ? 0 : el.opacity}
       draggable={!el.locked && !isEditing}
