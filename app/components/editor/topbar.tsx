@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import { CANVAS_FORMATS } from "../../types/editor";
@@ -56,7 +56,26 @@ export default function Topbar({
   const [isEditingName, setIsEditingName] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [customW, setCustomW] = useState<string>(String(format.width));
+  const [customH, setCustomH] = useState<string>(String(format.height));
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setCustomW(String(format.width));
+    setCustomH(String(format.height));
+  }, [format.width, format.height]);
+
+  const applyCustomFormat = useCallback(() => {
+    const w = Math.round(Number(customW));
+    const h = Math.round(Number(customH));
+    if (!Number.isFinite(w) || !Number.isFinite(h)) return;
+    const clamp = (n: number) => Math.max(50, Math.min(8000, n));
+    const cw = clamp(w);
+    const ch = clamp(h);
+    const matched = CANVAS_FORMATS.find((f) => f.width === cw && f.height === ch);
+    setFormat(matched ?? { label: "Custom", width: cw, height: ch });
+    setShowFormatMenu(false);
+  }, [customW, customH, setFormat]);
 
   const handleSave = useCallback(async () => {
     const s = useEditorStore.getState();
@@ -194,7 +213,7 @@ export default function Topbar({
             <ChevronDownIcon />
           </button>
           {showFormatMenu && (
-            <div className="absolute top-full mt-1 left-0 bg-surface-2 border border-border-default rounded-lg py-1 min-w-[180px] shadow-2xl animate-scale-in">
+            <div className="absolute top-full mt-1 left-0 bg-surface-2 border border-border-default rounded-lg py-1 min-w-[220px] shadow-2xl animate-scale-in">
               {CANVAS_FORMATS.map((fmt) => (
                 <button
                   key={fmt.label}
@@ -212,6 +231,41 @@ export default function Topbar({
                   <span className="text-text-ghost">{fmt.width} × {fmt.height}</span>
                 </button>
               ))}
+              <div className="border-t border-border-subtle mt-1 pt-2 px-3 pb-2 space-y-2">
+                <span className="text-[10px] uppercase tracking-wider text-text-ghost block">
+                  Custom size
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min={50}
+                    max={8000}
+                    value={customW}
+                    onChange={(e) => setCustomW(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && applyCustomFormat()}
+                    className="w-full min-w-0 bg-surface-3 border border-border-subtle text-xs text-text-primary px-2 py-1 rounded outline-none focus:border-accent-green/40 transition-colors tabular-nums"
+                    placeholder="W"
+                  />
+                  <span className="text-text-ghost text-xs">×</span>
+                  <input
+                    type="number"
+                    min={50}
+                    max={8000}
+                    value={customH}
+                    onChange={(e) => setCustomH(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && applyCustomFormat()}
+                    className="w-full min-w-0 bg-surface-3 border border-border-subtle text-xs text-text-primary px-2 py-1 rounded outline-none focus:border-accent-green/40 transition-colors tabular-nums"
+                    placeholder="H"
+                  />
+                  <button
+                    onClick={applyCustomFormat}
+                    className="text-[10px] uppercase font-semibold bg-accent-green hover:bg-accent-green-hover text-surface-0 px-2.5 py-1 rounded transition-all shrink-0"
+                  >
+                    Set
+                  </button>
+                </div>
+                <span className="text-[10px] text-text-ghost block">50 – 8000px</span>
+              </div>
             </div>
           )}
         </div>
