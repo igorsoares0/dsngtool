@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "../../store/editor-store";
 import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon } from "./icons";
 import { AVAILABLE_FONTS } from "./font-loader";
+import ColorPicker from "./color-picker";
 import type { EditorElement, TextElement, ShapeElement, ImageElement } from "../../types/editor";
 
 type Section = "position" | "typography" | "textShadow" | "image" | "imageFilters" | "fill" | "stroke" | "effects" | "layers";
@@ -235,11 +236,9 @@ function FillSection({ el, update }: { el: EditorElement; update: (u: Partial<Ed
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <input
-          type="color"
+        <ColorPicker
           value={fill}
-          onChange={(e) => update({ fill: e.target.value } as Partial<EditorElement>)}
-          className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+          onChange={(hex) => update({ fill: hex } as Partial<EditorElement>)}
         />
         <input
           type="text"
@@ -338,11 +337,9 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
           />
           {(el.shadowBlur || 0) > 0 && (
             <div className="flex items-center gap-2">
-              <input
-                type="color"
+              <ColorPicker
                 value={el.shadowColor || "#000000"}
-                onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
-                className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+                onChange={(hex) => update({ shadowColor: hex } as Partial<EditorElement>)}
               />
               <input
                 type="text"
@@ -508,11 +505,9 @@ function TextShadowSection({ el, update }: { el: TextElement; update: (u: Partia
         <div>
           <span className="text-[10px] text-text-ghost uppercase block mb-1">Color</span>
           <div className="flex items-center gap-2">
-            <input
-              type="color"
+            <ColorPicker
               value={color}
-              onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
-              className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+              onChange={(hex) => update({ shadowColor: hex } as Partial<EditorElement>)}
             />
             <input
               type="text"
@@ -550,11 +545,9 @@ function StrokeSection({ el, update }: { el: ShapeElement; update: (u: Partial<E
       {strokeWidth > 0 && (
         <>
           <div className="flex items-center gap-2">
-            <input
-              type="color"
+            <ColorPicker
               value={stroke}
-              onChange={(e) => update({ stroke: e.target.value } as Partial<EditorElement>)}
-              className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+              onChange={(hex) => update({ stroke: hex } as Partial<EditorElement>)}
             />
             <input
               type="text"
@@ -842,11 +835,9 @@ function BackgroundSection() {
         {mode === "solid" && (
           <>
             <div className="flex items-center gap-2">
-              <input
-                type="color"
+              <ColorPicker
                 value={backgroundColor}
-                onChange={(e) => setBackgroundColor(e.target.value)}
-                className="w-8 h-8 rounded-md border border-border-default cursor-pointer bg-transparent"
+                onChange={(hex) => setBackgroundColor(hex)}
               />
               <input
                 type="text"
@@ -878,11 +869,10 @@ function BackgroundSection() {
               <div className="space-y-1">
                 <span className="text-[10px] text-text-ghost uppercase block">Start</span>
                 <div className="flex items-center gap-1.5">
-                  <input
-                    type="color"
+                  <ColorPicker
                     value={startColor}
-                    onChange={(e) => updateColors(e.target.value, endColor)}
-                    className="w-7 h-7 rounded-md border border-border-default cursor-pointer bg-transparent shrink-0"
+                    size="sm"
+                    onChange={(hex) => updateColors(hex, endColor)}
                   />
                   <input
                     type="text"
@@ -895,11 +885,10 @@ function BackgroundSection() {
               <div className="space-y-1">
                 <span className="text-[10px] text-text-ghost uppercase block">End</span>
                 <div className="flex items-center gap-1.5">
-                  <input
-                    type="color"
+                  <ColorPicker
                     value={endColor}
-                    onChange={(e) => updateColors(startColor, e.target.value)}
-                    className="w-7 h-7 rounded-md border border-border-default cursor-pointer bg-transparent shrink-0"
+                    size="sm"
+                    onChange={(hex) => updateColors(startColor, hex)}
                   />
                   <input
                     type="text"
