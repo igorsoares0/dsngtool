@@ -541,12 +541,21 @@ export default function CanvasStage({
   const backgroundColor = useEditorStore((s) => s.backgroundColor);
   const backgroundGradient = useEditorStore((s) => s.backgroundGradient);
   const selectElement = useEditorStore((s) => s.selectElement);
+  const setSelectedIds = useEditorStore((s) => s.setSelectedIds);
 
   const transformerRef = useRef<Konva.Transformer>(null);
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const dragOrigin = useRef<{ x: number; y: number } | null>(null);
   const snapData = useRef<{ width: number; height: number; others: BBox[] } | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
+  const [marquee, setMarquee] = useState<{
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  } | null>(null);
+  const marqueeBaseSelection = useRef<string[]>([]);
+  const marqueeAdditive = useRef<boolean>(false);
 
   const scale = zoom / 100;
 
@@ -572,14 +581,88 @@ export default function CanvasStage({
     tr.getLayer()?.batchDraw();
   }, [selectedIds, elements, stageRef, editingId]);
 
-  const handleStageClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      if (e.target === e.target.getStage()) {
-        selectElement(null);
-      }
+  const isMarqueeTarget = useCallback(
+    (target: Konva.Node | Konva.Stage): boolean => {
+      const stage = stageRef.current;
+      if (!stage) return false;
+      if (target === stage) return true;
+      if (target instanceof Konva.Node && target.id() === "bg-rect") return true;
+      return false;
     },
-    [selectElement]
+    [stageRef]
   );
+
+  const handleStageMouseDown = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      if (!isMarqueeTarget(e.target)) return;
+      const evt = e.evt as MouseEvent;
+      if ("button" in evt && evt.button !== 0) return;
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+      marqueeAdditive.current = !!evt.shiftKey;
+      marqueeBaseSelection.current = evt.shiftKey
+        ? [...useEditorStore.getState().selectedIds]
+        : [];
+      setMarquee({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
+    },
+    [stageRef, isMarqueeTarget]
+  );
+
+  const handleStageMouseMove = useCallback(() => {
+    if (!marquee) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    const pos = stage.getPointerPosition();
+    if (!pos) return;
+    setMarquee((m) => (m ? { ...m, x2: pos.x, y2: pos.y } : m));
+  }, [marquee, stageRef]);
+
+  const handleStageMouseUp = useCallback(() => {
+    if (!marquee) return;
+    const m = marquee;
+    setMarquee(null);
+
+    const minX = Math.min(m.x1, m.x2);
+    const maxX = Math.max(m.x1, m.x2);
+    const minY = Math.min(m.y1, m.y2);
+    const maxY = Math.max(m.y1, m.y2);
+    const dragDist = Math.hypot(maxX - minX, maxY - minY);
+
+    if (dragDist < 3) {
+      if (!marqueeAdditive.current) selectElement(null);
+      return;
+    }
+
+    const canvasMinX = (minX - offsetX) / scale;
+    const canvasMaxX = (maxX - offsetX) / scale;
+    const canvasMinY = (minY - offsetY) / scale;
+    const canvasMaxY = (maxY - offsetY) / scale;
+
+    const state = useEditorStore.getState();
+    const intersected: string[] = [];
+    for (const el of state.elements) {
+      if (el.hidden) continue;
+      const elMaxX = el.x + el.width;
+      const elMaxY = el.y + el.height;
+      if (
+        el.x < canvasMaxX &&
+        elMaxX > canvasMinX &&
+        el.y < canvasMaxY &&
+        elMaxY > canvasMinY
+      ) {
+        intersected.push(el.id);
+      }
+    }
+
+    if (marqueeAdditive.current) {
+      const merged = new Set([...marqueeBaseSelection.current, ...intersected]);
+      setSelectedIds([...merged]);
+    } else {
+      setSelectedIds(intersected);
+    }
+  }, [marquee, offsetX, offsetY, scale, selectElement, setSelectedIds]);
 
   const handleElementSelect = useCallback(
     (id: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
@@ -707,12 +790,17 @@ export default function CanvasStage({
       ref={stageRef}
       width={containerWidth}
       height={containerHeight}
-      onClick={handleStageClick}
-      onTap={handleStageClick}
+      onMouseDown={handleStageMouseDown}
+      onTouchStart={handleStageMouseDown}
+      onMouseMove={handleStageMouseMove}
+      onTouchMove={handleStageMouseMove}
+      onMouseUp={handleStageMouseUp}
+      onTouchEnd={handleStageMouseUp}
     >
       {/* Background layer */}
       <Layer>
         <Rect
+          id="bg-rect"
           x={offsetX}
           y={offsetY}
           width={format.width * scale}
@@ -886,6 +974,22 @@ export default function CanvasStage({
           ]}
         />
       </Layer>
+
+      {/* Marquee overlay (screen coords) */}
+      {marquee && (
+        <Layer listening={false}>
+          <Rect
+            x={Math.min(marquee.x1, marquee.x2)}
+            y={Math.min(marquee.y1, marquee.y2)}
+            width={Math.abs(marquee.x2 - marquee.x1)}
+            height={Math.abs(marquee.y2 - marquee.y1)}
+            fill="rgba(52, 211, 153, 0.12)"
+            stroke="#34d399"
+            strokeWidth={1}
+            dash={[4, 3]}
+          />
+        </Layer>
+      )}
     </Stage>
   );
 }

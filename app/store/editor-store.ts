@@ -44,6 +44,7 @@ interface EditorState {
   removeElement: (id: string) => void;
   removeSelectedElements: () => void;
   selectElement: (id: string | null, addToSelection?: boolean) => void;
+  setSelectedIds: (ids: string[]) => void;
   selectAll: () => void;
   setFormat: (format: CanvasFormat) => void;
   setZoom: (zoom: number) => void;
@@ -171,6 +172,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     } else {
       set({ selectedIds: [id] });
     }
+  },
+
+  setSelectedIds: (ids) => {
+    set({ selectedIds: ids });
   },
 
   selectAll: () => {
