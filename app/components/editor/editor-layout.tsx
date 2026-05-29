@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type Konva from "konva";
 import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";
+import { useClipboardEvents } from "../../hooks/use-clipboard-events";
 import { useAutosave } from "../../hooks/use-autosave";
 import { useProjectLoader } from "../../hooks/use-project-loader";
 import Topbar from "./topbar";
@@ -30,6 +31,7 @@ export default function EditorLayout() {
   const stageRef = useRef<Konva.Stage>(null);
   const ready = useProjectLoader();
   useKeyboardShortcuts();
+  useClipboardEvents();
   useAutosave();
 
   useEffect(() => {

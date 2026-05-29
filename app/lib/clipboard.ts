@@ -5,44 +5,28 @@ import type {
   ShapeElement,
 } from "../types/editor";
 
-type ElementInput =
+export type ElementInput =
   | Omit<TextElement, "id">
   | Omit<ImageElement, "id">
   | Omit<ShapeElement, "id">;
 
-const CLIPBOARD_MARKER = "dsgntool/v1:";
-const PASTE_OFFSET = 20;
-
-let pasteCount = 0;
-let lastSignature = "";
+export const CLIPBOARD_MARKER = "dsgntool/v1:";
 
 interface ClipboardPayload {
   marker: typeof CLIPBOARD_MARKER;
   elements: EditorElement[];
 }
 
-export async function writeElementsToClipboard(elements: EditorElement[]): Promise<boolean> {
-  if (elements.length === 0) return false;
-  const payload: ClipboardPayload = { marker: CLIPBOARD_MARKER, elements };
-  const text = CLIPBOARD_MARKER + JSON.stringify(payload);
-  try {
-    await navigator.clipboard.writeText(text);
-    lastSignature = text;
-    pasteCount = 0;
-    return true;
-  } catch {
-    return false;
-  }
+export function serializeElements(elements: EditorElement[]): string {
+  const payload: ClipboardPayload = {
+    marker: CLIPBOARD_MARKER,
+    elements,
+  };
+  return CLIPBOARD_MARKER + JSON.stringify(payload);
 }
 
-export async function readElementsFromClipboard(): Promise<ElementInput[] | null> {
-  let text: string;
-  try {
-    text = await navigator.clipboard.readText();
-  } catch {
-    return null;
-  }
-  if (!text.startsWith(CLIPBOARD_MARKER)) return null;
+export function parseClipboardPayload(text: string): EditorElement[] | null {
+  if (!text || !text.startsWith(CLIPBOARD_MARKER)) return null;
   let parsed: ClipboardPayload;
   try {
     parsed = JSON.parse(text.slice(CLIPBOARD_MARKER.length));
@@ -52,16 +36,14 @@ export async function readElementsFromClipboard(): Promise<ElementInput[] | null
   if (!parsed || parsed.marker !== CLIPBOARD_MARKER || !Array.isArray(parsed.elements)) {
     return null;
   }
+  return parsed.elements;
+}
 
-  if (text === lastSignature) {
-    pasteCount += 1;
-  } else {
-    lastSignature = text;
-    pasteCount = 1;
-  }
-  const offset = PASTE_OFFSET * pasteCount;
-
-  return parsed.elements.map((el) => {
+export function stripIdsAndOffset(
+  elements: EditorElement[],
+  offset: number
+): ElementInput[] {
+  return elements.map((el) => {
     const { id: _id, ...rest } = el;
     void _id;
     return { ...rest, x: rest.x + offset, y: rest.y + offset } as ElementInput;

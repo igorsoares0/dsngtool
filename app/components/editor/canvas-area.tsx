@@ -95,6 +95,7 @@ export default function CanvasArea({
   const zoom = useEditorStore((s) => s.zoom);
   const setZoom = useEditorStore((s) => s.setZoom);
   const updateElement = useEditorStore((s) => s.updateElement);
+  const elementCount = useEditorStore((s) => s.elements.length);
 
   const [editReq, setEditReq] = useState<InlineEditRequest | null>(null);
   const lastFitFormatRef = useRef<string | null>(null);
@@ -166,6 +167,38 @@ export default function CanvasArea({
           onStartEditing={handleStartEditing}
           editingId={editReq?.elementId ?? null}
         />
+      )}
+
+      {/* Empty state hint (centered on canvas) */}
+      {elementCount === 0 && !editReq && dims.width > 0 && (
+        <div
+          className="absolute pointer-events-none flex items-center justify-center z-10"
+          style={{
+            left: offsetX,
+            top: offsetY,
+            width: format.width * scale,
+            height: format.height * scale,
+          }}
+        >
+          <div className="text-center max-w-[280px] px-6 py-5 rounded-lg bg-surface-2 border border-border-default shadow-xl animate-fade-in">
+            <div className="text-[13px] font-medium text-text-primary mb-1.5">
+              Start designing
+            </div>
+            <div className="text-[11px] text-text-secondary leading-relaxed">
+              Pick a <span className="text-accent-green">template</span>, add{" "}
+              <span className="text-accent-green">text</span> or{" "}
+              <span className="text-accent-green">shapes</span> from the left
+              sidebar.
+            </div>
+            <div className="mt-2.5 text-[10px] text-text-tertiary">
+              Press{" "}
+              <kbd className="px-1.5 py-px bg-surface-3 border border-border-subtle rounded font-mono text-text-secondary">
+                ?
+              </kbd>{" "}
+              for shortcuts
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Inline text editor overlay */}

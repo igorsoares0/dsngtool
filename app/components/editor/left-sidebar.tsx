@@ -52,6 +52,9 @@ export default function LeftSidebar({
               onClick={() => onToolChange(isActive ? null : tool.id)}
               onMouseEnter={() => setHoveredTool(tool.id)}
               onMouseLeave={() => setHoveredTool(null)}
+              aria-label={tool.label}
+              aria-pressed={isActive}
+              title={tool.label}
               className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150 ${
                 isActive
                   ? "bg-surface-4 text-accent-green shadow-sm"
