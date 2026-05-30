@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 export const AVAILABLE_FONTS = [
   { family: "Playfair Display", category: "serif" },
   { family: "Cormorant Garamond", category: "serif" },
@@ -27,6 +29,17 @@ const GOOGLE_FONTS = AVAILABLE_FONTS
 const GOOGLE_FONTS_URL = `https://fonts.googleapis.com/css2?family=${GOOGLE_FONTS}&display=swap`;
 
 export default function FontLoader() {
+  useEffect(() => {
+    if (typeof document === "undefined" || !("fonts" in document)) return;
+    const webFonts = AVAILABLE_FONTS.filter((f) => f.category !== "system");
+    const weights = ["300", "400", "500", "600", "700"];
+    for (const f of webFonts) {
+      for (const w of weights) {
+        document.fonts.load(`${w} 16px "${f.family}"`).catch(() => {});
+      }
+    }
+  }, []);
+
   return (
     <>
       <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -581,6 +581,20 @@ export default function CanvasStage({
     tr.getLayer()?.batchDraw();
   }, [selectedIds, elements, stageRef, editingId]);
 
+  useEffect(() => {
+    if (typeof document === "undefined" || !("fonts" in document)) return;
+    const refresh = () => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const textNodes = stage.find("Text") as Konva.Text[];
+      for (const t of textNodes) t.text(t.text());
+      stage.batchDraw();
+    };
+    document.fonts.ready.then(refresh);
+    document.fonts.addEventListener("loadingdone", refresh);
+    return () => document.fonts.removeEventListener("loadingdone", refresh);
+  }, [stageRef]);
+
   const isMarqueeTarget = useCallback(
     (target: Konva.Node | Konva.Stage): boolean => {
       const stage = stageRef.current;
