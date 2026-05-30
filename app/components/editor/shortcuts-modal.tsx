@@ -70,6 +70,9 @@ export default function ShortcutsModal({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Keyboard shortcuts"
         className="bg-surface-1 border border-border-default rounded-xl shadow-2xl w-[460px] max-h-[80vh] overflow-y-auto animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >

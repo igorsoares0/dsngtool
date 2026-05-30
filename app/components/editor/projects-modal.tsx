@@ -87,6 +87,9 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="My projects"
         className="relative bg-surface-1 border border-border-default rounded-xl shadow-2xl w-full max-w-lg max-h-[70vh] flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
@@ -105,6 +108,7 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
             </button>
             <button
               onClick={onClose}
+              aria-label="Close"
               className="text-text-ghost hover:text-text-secondary p-1 rounded transition-colors"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -136,12 +140,21 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
               {projects.map((p) => (
                 <div
                   key={p.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer group ${
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open project ${p.name}`}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-green/50 ${
                     p.id === currentProjectId
                       ? "bg-accent-green/10 border border-accent-green/20"
                       : "hover:bg-surface-2 border border-transparent"
                   }`}
                   onClick={() => handleOpen(p)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleOpen(p);
+                    }
+                  }}
                 >
                   {/* Color preview */}
                   <div
@@ -198,7 +211,9 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
                     ) : (
                       <button
                         onClick={() => setDeleteConfirm(p.id)}
-                        className="p-1.5 text-text-ghost hover:text-accent-pink opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-surface-3"
+                        aria-label={`Delete project ${p.name}`}
+                        title="Delete"
+                        className="p-1.5 text-text-ghost hover:text-accent-pink opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all rounded hover:bg-surface-3"
                       >
                         <TrashIcon />
                       </button>

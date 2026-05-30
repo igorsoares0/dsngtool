@@ -60,6 +60,7 @@ function InlineTextEditor({
     <textarea
       ref={textareaRef}
       defaultValue={req.text}
+      aria-label="Edit text"
       onBlur={commit}
       onKeyDown={handleKeyDown}
       className="absolute z-30 outline-none border-2 border-accent-green rounded-sm bg-transparent resize-none overflow-hidden"

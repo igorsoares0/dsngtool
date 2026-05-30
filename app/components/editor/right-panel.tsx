@@ -38,6 +38,7 @@ function SectionHeader({
   return (
     <button
       onClick={onToggle}
+      aria-expanded={isOpen}
       className="w-full flex items-center justify-between py-2 group"
     >
       <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider group-hover:text-text-primary transition-colors">
@@ -115,6 +116,7 @@ function NumberField({
       </span>
       <input
         type="number"
+        aria-label={label}
         value={Math.round(value * 100) / 100}
         step={step}
         min={min}
@@ -163,15 +165,20 @@ function buildKonvaFontStyle(bold: boolean, italic: boolean): string {
 function StyleToggle({
   active,
   onClick,
+  label,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  label: string;
   children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
+      aria-label={label}
+      aria-pressed={active}
+      title={label}
       className={`flex-1 py-1.5 text-[11px] rounded transition-all ${
         active
           ? "bg-surface-4 text-text-primary"
@@ -194,6 +201,7 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
         <span className="text-[10px] text-text-ghost uppercase">Text</span>
         <textarea
           value={el.text}
+          aria-label="Text content"
           onChange={(e) => update({ text: e.target.value })}
           rows={2}
           className="w-full mt-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors resize-none"
@@ -203,6 +211,7 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
         <span className="text-[10px] text-text-ghost uppercase">Font</span>
         <select
           value={el.fontFamily}
+          aria-label="Font family"
           onChange={(e) => update({ fontFamily: e.target.value })}
           className="w-full mt-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors"
         >
@@ -222,24 +231,28 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
         <div className="flex mt-1 bg-surface-2 rounded-md p-0.5 border border-border-subtle">
           <StyleToggle
             active={isBold}
+            label="Bold"
             onClick={() => update({ fontStyle: buildKonvaFontStyle(!isBold, isItalic) } as Partial<EditorElement>)}
           >
             <span className="font-bold">B</span>
           </StyleToggle>
           <StyleToggle
             active={isItalic}
+            label="Italic"
             onClick={() => update({ fontStyle: buildKonvaFontStyle(isBold, !isItalic) } as Partial<EditorElement>)}
           >
             <span className="italic">I</span>
           </StyleToggle>
           <StyleToggle
             active={isUnderline}
+            label="Underline"
             onClick={() => update({ textDecoration: isUnderline ? "" : "underline" } as Partial<EditorElement>)}
           >
             <span className="underline">U</span>
           </StyleToggle>
           <StyleToggle
             active={isUppercase}
+            label="Uppercase"
             onClick={() => update({ textTransform: isUppercase ? "none" : "uppercase" } as Partial<EditorElement>)}
           >
             <span className="text-[10px]">Aa</span>
@@ -253,6 +266,8 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
             <button
               key={a}
               onClick={() => update({ align: a })}
+              aria-label={`Align ${a}`}
+              aria-pressed={el.align === a}
               className={`flex-1 py-1.5 text-[10px] rounded capitalize transition-all ${
                 el.align === a
                   ? "bg-surface-4 text-text-primary"
@@ -287,6 +302,7 @@ function FillSection({ el, update }: { el: EditorElement; update: (u: Partial<Ed
         <input
           type="text"
           value={fill}
+          aria-label="Fill color hex"
           onChange={(e) => update({ fill: e.target.value } as Partial<EditorElement>)}
           className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
         />
@@ -296,6 +312,8 @@ function FillSection({ el, update }: { el: EditorElement; update: (u: Partial<Ed
           <button
             key={c}
             onClick={() => update({ fill: c } as Partial<EditorElement>)}
+            aria-label={`Fill ${c}`}
+            aria-pressed={fill === c}
             className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
               fill === c ? "border-accent-green scale-110" : "border-border-subtle"
             }`}
@@ -388,6 +406,7 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
               <input
                 type="text"
                 value={el.shadowColor || "#000000"}
+                aria-label="Shadow color hex"
                 onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
                 className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
               />
@@ -556,6 +575,7 @@ function TextShadowSection({ el, update }: { el: TextElement; update: (u: Partia
             <input
               type="text"
               value={color}
+              aria-label="Shadow color hex"
               onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
               className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
             />
@@ -596,6 +616,7 @@ function StrokeSection({ el, update }: { el: ShapeElement; update: (u: Partial<E
             <input
               type="text"
               value={stroke}
+              aria-label="Stroke color hex"
               onChange={(e) => update({ stroke: e.target.value } as Partial<EditorElement>)}
               className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
             />
@@ -605,6 +626,8 @@ function StrokeSection({ el, update }: { el: ShapeElement; update: (u: Partial<E
               <button
                 key={c}
                 onClick={() => update({ stroke: c } as Partial<EditorElement>)}
+                aria-label={`Stroke ${c}`}
+                aria-pressed={stroke.toLowerCase() === c.toLowerCase()}
                 className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
                   stroke.toLowerCase() === c.toLowerCase() ? "border-accent-green scale-110" : "border-border-subtle"
                 }`}
@@ -666,7 +689,7 @@ function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: 
           : "hover:bg-surface-2 border border-transparent"
       }`}
     >
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-0.5">
+      <div {...attributes} {...listeners} aria-label="Drag to reorder" className="cursor-grab active:cursor-grabbing p-0.5">
         <DragHandleIcon />
       </div>
       <div className="w-5 h-5 rounded bg-surface-3 flex items-center justify-center shrink-0">
@@ -680,18 +703,26 @@ function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: 
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={(e) => { e.stopPropagation(); updateElement(el.id, { hidden: !el.hidden }); }}
+          aria-label={el.hidden ? "Show layer" : "Hide layer"}
+          aria-pressed={el.hidden}
+          title={el.hidden ? "Show" : "Hide"}
           className={`p-0.5 ${el.hidden ? "text-accent-pink" : "text-text-ghost hover:text-text-tertiary"}`}
         >
           <EyeIcon />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); updateElement(el.id, { locked: !el.locked }); }}
+          aria-label={el.locked ? "Unlock layer" : "Lock layer"}
+          aria-pressed={el.locked}
+          title={el.locked ? "Unlock" : "Lock"}
           className={`p-0.5 ${el.locked ? "text-accent-blue" : "text-text-ghost hover:text-text-tertiary"}`}
         >
           <LockIcon />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); removeElement(el.id); toastDeleted(1); }}
+          aria-label="Delete layer"
+          title="Delete"
           className="p-0.5 text-text-ghost hover:text-accent-pink"
         >
           <TrashIcon />
@@ -886,6 +917,7 @@ function BackgroundSection() {
               <input
                 type="text"
                 value={backgroundColor}
+                aria-label="Background color hex"
                 onChange={(e) => setBackgroundColor(e.target.value)}
                 className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
               />
@@ -895,6 +927,8 @@ function BackgroundSection() {
                 <button
                   key={c}
                   onClick={() => setBackgroundColor(c)}
+                  aria-label={`Background ${c}`}
+                  aria-pressed={backgroundColor.toLowerCase() === c.toLowerCase()}
                   className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
                     backgroundColor.toLowerCase() === c.toLowerCase()
                       ? "border-accent-green scale-110"
@@ -921,6 +955,7 @@ function BackgroundSection() {
                   <input
                     type="text"
                     value={startColor}
+                    aria-label="Gradient start color"
                     onChange={(e) => updateColors(e.target.value, endColor)}
                     className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[10px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
                   />
@@ -937,6 +972,7 @@ function BackgroundSection() {
                   <input
                     type="text"
                     value={endColor}
+                    aria-label="Gradient end color"
                     onChange={(e) => updateColors(startColor, e.target.value)}
                     className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[10px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
                   />
@@ -948,19 +984,27 @@ function BackgroundSection() {
               <div className="space-y-1">
                 <span className="text-[10px] text-text-ghost uppercase block">Direction</span>
                 <div className="grid grid-cols-6 gap-1">
-                  {LINEAR_DIRECTIONS.map((d, i) => (
-                    <button
-                      key={d.label}
-                      onClick={() => setLinearDirection(d)}
-                      className={`h-7 rounded text-sm border transition-all ${
-                        activeDirection === i
-                          ? "border-accent-green bg-surface-3 text-text-primary"
-                          : "border-border-subtle text-text-tertiary hover:text-text-primary hover:bg-surface-2"
-                      }`}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
+                  {LINEAR_DIRECTIONS.map((d, i) => {
+                    const DIR_NAMES: Record<string, string> = {
+                      "↓": "down", "→": "right", "↘": "down-right",
+                      "↙": "down-left", "↑": "up", "←": "left",
+                    };
+                    return (
+                      <button
+                        key={d.label}
+                        onClick={() => setLinearDirection(d)}
+                        aria-label={`Gradient direction ${DIR_NAMES[d.label] ?? ""}`}
+                        aria-pressed={activeDirection === i}
+                        className={`h-7 rounded text-sm border transition-all ${
+                          activeDirection === i
+                            ? "border-accent-green bg-surface-3 text-text-primary"
+                            : "border-border-subtle text-text-tertiary hover:text-text-primary hover:bg-surface-2"
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

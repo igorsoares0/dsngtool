@@ -209,7 +209,7 @@ export default function Topbar({
       {/* Left */}
       <div className="flex items-center gap-3 min-w-[200px]">
         <div className="flex items-center gap-2.5">
-          <button onClick={onOpenProjects} className="hover:opacity-80 transition-opacity" title="My Projects">
+          <button onClick={onOpenProjects} className="hover:opacity-80 transition-opacity" title="My Projects" aria-label="My projects">
             <LogoIcon className="w-6 h-6" />
           </button>
           {isEditingName ? (
@@ -225,6 +225,7 @@ export default function Topbar({
           ) : (
             <button
               onClick={() => setIsEditingName(true)}
+              aria-label={`Rename project (current: ${projectName})`}
               className="text-sm text-text-primary hover:text-white transition-colors font-medium font-[family-name:var(--font-dm-sans)]"
             >
               {projectName}
@@ -241,6 +242,9 @@ export default function Topbar({
         <div className="relative" ref={formatMenuRef}>
           <button
             onClick={() => setShowFormatMenu(!showFormatMenu)}
+            aria-label={`Canvas size: ${format.width} by ${format.height}. Change`}
+            aria-haspopup="menu"
+            aria-expanded={showFormatMenu}
             className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary bg-surface-2 hover:bg-surface-3 px-2.5 py-1.5 rounded-md transition-all"
           >
             <span>{format.width} × {format.height}</span>
@@ -309,6 +313,9 @@ export default function Topbar({
         <div className="flex items-center bg-surface-2 rounded-md p-0.5">
           <button
             onClick={() => setActiveTool("cursor")}
+            aria-label="Select tool"
+            aria-pressed={activeTool === "cursor"}
+            title="Select"
             className={`p-1.5 rounded transition-all ${
               activeTool === "cursor"
                 ? "bg-surface-4 text-text-primary shadow-sm"
@@ -319,6 +326,9 @@ export default function Topbar({
           </button>
           <button
             onClick={() => setActiveTool("hand")}
+            aria-label="Hand tool (pan)"
+            aria-pressed={activeTool === "hand"}
+            title="Hand (pan)"
             className={`p-1.5 rounded transition-all ${
               activeTool === "hand"
                 ? "bg-surface-4 text-text-primary shadow-sm"
@@ -335,6 +345,8 @@ export default function Topbar({
           <button
             onClick={undo}
             disabled={past.length === 0}
+            aria-label="Undo"
+            title="Undo"
             className="p-1.5 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <UndoIcon />
@@ -342,6 +354,8 @@ export default function Topbar({
           <button
             onClick={redo}
             disabled={future.length === 0}
+            aria-label="Redo"
+            title="Redo"
             className="p-1.5 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <RedoIcon />
@@ -353,15 +367,23 @@ export default function Topbar({
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => setZoom(zoom - 10)}
+            aria-label="Zoom out"
+            title="Zoom out"
             className="p-1.5 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded transition-all"
           >
             <ZoomOutIcon />
           </button>
-          <span className="text-xs text-text-secondary tabular-nums min-w-[40px] text-center">
+          <span
+            className="text-xs text-text-secondary tabular-nums min-w-[40px] text-center"
+            aria-label={`Zoom ${zoom} percent`}
+            aria-live="polite"
+          >
             {zoom}%
           </span>
           <button
             onClick={() => setZoom(zoom + 10)}
+            aria-label="Zoom in"
+            title="Zoom in"
             className="p-1.5 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded transition-all"
           >
             <ZoomInIcon />
@@ -384,6 +406,7 @@ export default function Topbar({
         <button
           onClick={onOpenShortcuts}
           title="Keyboard shortcuts (?)"
+          aria-label="Keyboard shortcuts"
           className="p-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded-md transition-all"
         >
           <KeyboardIcon />
@@ -397,6 +420,9 @@ export default function Topbar({
               setShowFileMenu((v) => !v);
             }}
             title="File"
+            aria-label="File and project options"
+            aria-haspopup="menu"
+            aria-expanded={showFileMenu}
             className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary bg-surface-2 hover:bg-surface-3 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all"
           >
             <FolderIcon className="w-3.5 h-3.5" />
@@ -465,6 +491,9 @@ export default function Topbar({
               setShowFileMenu(false);
               setShowExportMenu((v) => !v);
             }}
+            aria-label="Export image"
+            aria-haspopup="menu"
+            aria-expanded={showExportMenu}
             className="flex items-center gap-1.5 bg-accent-green hover:bg-accent-green-hover text-surface-0 text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all"
           >
             <DownloadIcon className="w-3.5 h-3.5" />

@@ -249,6 +249,8 @@ function ShapesPanel() {
           <button
             key={shape.id}
             onClick={() => addShape(shape.id)}
+            aria-label={`Add ${shape.id}`}
+            title={`Add ${shape.id}`}
             className="aspect-square bg-surface-2 border border-border-subtle rounded-lg flex items-center justify-center hover:border-accent-green/40 hover:bg-surface-3 transition-all group"
           >
             {shape.id === "triangle" ? (
@@ -279,6 +281,7 @@ function ImagesPanel() {
       <input
         type="text"
         placeholder="Search free images..."
+        aria-label="Search free images"
         className="w-full bg-surface-2 border border-border-subtle text-xs text-text-primary placeholder:text-text-ghost px-3 py-2 rounded-md outline-none focus:border-accent-green/40 transition-colors"
       />
       <p className="text-[11px] text-text-ghost text-center py-6">
@@ -297,6 +300,7 @@ function AssetsPanel() {
       <input
         type="text"
         placeholder="Search stickers & icons..."
+        aria-label="Search stickers and icons"
         className="w-full bg-surface-2 border border-border-subtle text-xs text-text-primary placeholder:text-text-ghost px-3 py-2 rounded-md outline-none focus:border-accent-green/40 transition-colors"
       />
       <p className="text-[11px] text-text-ghost text-center py-6">
