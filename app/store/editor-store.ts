@@ -27,6 +27,10 @@ interface EditorState {
   selectedIds: string[];
   format: CanvasFormat;
   zoom: number;
+  panX: number;
+  panY: number;
+  activeTool: "cursor" | "hand";
+  spaceHeld: boolean;
   backgroundColor: string;
   backgroundGradient: GradientFill | null;
   lastSavedAt: number | null;
@@ -48,6 +52,10 @@ interface EditorState {
   selectAll: () => void;
   setFormat: (format: CanvasFormat) => void;
   setZoom: (zoom: number) => void;
+  setPan: (x: number, y: number) => void;
+  resetPan: () => void;
+  setActiveTool: (tool: "cursor" | "hand") => void;
+  setSpaceHeld: (held: boolean) => void;
   setBackgroundColor: (color: string) => void;
   setBackgroundGradient: (gradient: GradientFill | null) => void;
   moveElement: (id: string, direction: "up" | "down") => void;
@@ -84,6 +92,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedIds: [],
   format: CANVAS_FORMATS[0],
   zoom: 100,
+  panX: 0,
+  panY: 0,
+  activeTool: "cursor",
+  spaceHeld: false,
   backgroundColor: "#ffffff",
   backgroundGradient: null,
   lastSavedAt: null,
@@ -186,6 +198,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setZoom: (zoom) => set({ zoom: Math.max(10, Math.min(400, zoom)) }),
 
+  setPan: (x, y) => set({ panX: x, panY: y }),
+
+  resetPan: () => set({ panX: 0, panY: 0 }),
+
+  setActiveTool: (tool) => set({ activeTool: tool }),
+
+  setSpaceHeld: (held) => set({ spaceHeld: held }),
+
   setBackgroundColor: (color) => {
     set((s) => ({
       ...pushHistory(s),
@@ -213,6 +233,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       backgroundGradient: template.backgroundGradient ?? null,
       format: template.format || s.format,
       selectedIds: [],
+      panX: 0,
+      panY: 0,
     }));
   },
 
@@ -281,6 +303,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedIds: [],
       past: [],
       future: [],
+      panX: 0,
+      panY: 0,
     });
   },
 
@@ -292,6 +316,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedIds: [],
       format: CANVAS_FORMATS[0],
       zoom: 100,
+      panX: 0,
+      panY: 0,
       backgroundColor: "#ffffff",
       backgroundGradient: null,
       lastSavedAt: null,

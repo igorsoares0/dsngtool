@@ -46,13 +46,14 @@ export default function Topbar({
   const projectName = useEditorStore((s) => s.projectName);
   const setProjectName = useEditorStore((s) => s.setProjectName);
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const setActiveTool = useEditorStore((s) => s.setActiveTool);
 
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportFormat, setExportFormat] = useState<"png" | "jpeg">("png");
   const [exportQuality, setExportQuality] = useState(90);
   const [transparentBg, setTransparentBg] = useState(false);
-  const [activeTool, setActiveTool] = useState<"cursor" | "hand">("cursor");
   const [isEditingName, setIsEditingName] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);

@@ -231,11 +231,13 @@ function ImageNode({
   el,
   onSelect,
   drag,
+  disableDrag,
 }: {
   el: ImageElement;
   isSelected: boolean;
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   drag: DragHandlers;
+  disableDrag: boolean;
 }) {
   const shapeRef = useRef<Konva.Image>(null);
   const image = useImage(el.src);
@@ -300,7 +302,7 @@ function ImageNode({
       shadowBlur={el.shadowBlur || 0}
       shadowEnabled={(el.shadowBlur || 0) > 0}
       shadowOpacity={0.4}
-      draggable={!el.locked}
+      draggable={!el.locked && !disableDrag}
       onClick={onSelect}
       onTap={onSelect}
       onDragStart={drag.onDragStart}
@@ -333,11 +335,13 @@ function ShapeNode({
   el,
   onSelect,
   drag,
+  disableDrag,
 }: {
   el: ShapeElement;
   isSelected: boolean;
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   drag: DragHandlers;
+  disableDrag: boolean;
 }) {
   const shapeRef = useRef<Konva.Rect | Konva.Ellipse | Konva.Line>(null);
 
@@ -369,7 +373,7 @@ function ShapeNode({
     ...gradientProps,
     stroke: el.stroke,
     strokeWidth: el.strokeWidth || 0,
-    draggable: !el.locked,
+    draggable: !el.locked && !disableDrag,
     onClick: onSelect,
     onTap: onSelect,
     onDragStart: drag.onDragStart,
@@ -434,6 +438,7 @@ function TextNode({
   drag,
   onStartEditing,
   isEditing,
+  disableDrag,
 }: {
   el: TextElement;
   isSelected: boolean;
@@ -441,6 +446,7 @@ function TextNode({
   drag: DragHandlers;
   onStartEditing: (req: InlineEditRequest) => void;
   isEditing: boolean;
+  disableDrag: boolean;
 }) {
   const shapeRef = useRef<Konva.Text>(null);
 
@@ -494,7 +500,7 @@ function TextNode({
       }
       rotation={el.rotation}
       opacity={isEditing ? 0 : el.opacity}
-      draggable={!el.locked && !isEditing}
+      draggable={!el.locked && !isEditing && !disableDrag}
       onClick={onSelect}
       onTap={onSelect}
       onDragStart={drag.onDragStart}
@@ -538,6 +544,10 @@ export default function CanvasStage({
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const format = useEditorStore((s) => s.format);
   const zoom = useEditorStore((s) => s.zoom);
+  const panX = useEditorStore((s) => s.panX);
+  const panY = useEditorStore((s) => s.panY);
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const spaceHeld = useEditorStore((s) => s.spaceHeld);
   const backgroundColor = useEditorStore((s) => s.backgroundColor);
   const backgroundGradient = useEditorStore((s) => s.backgroundGradient);
   const selectElement = useEditorStore((s) => s.selectElement);
@@ -556,11 +566,18 @@ export default function CanvasStage({
   } | null>(null);
   const marqueeBaseSelection = useRef<string[]>([]);
   const marqueeAdditive = useRef<boolean>(false);
+  const panStart = useRef<{
+    clientX: number;
+    clientY: number;
+    panX: number;
+    panY: number;
+  } | null>(null);
 
+  const handMode = activeTool === "hand" || spaceHeld;
   const scale = zoom / 100;
 
-  const offsetX = (containerWidth - format.width * scale) / 2;
-  const offsetY = (containerHeight - format.height * scale) / 2;
+  const offsetX = (containerWidth - format.width * scale) / 2 + panX;
+  const offsetY = (containerHeight - format.height * scale) / 2 + panY;
 
   useEffect(() => {
     const tr = transformerRef.current;
@@ -580,6 +597,39 @@ export default function CanvasStage({
     tr.nodes([]);
     tr.getLayer()?.batchDraw();
   }, [selectedIds, elements, stageRef, editingId]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    if (panStart.current) return;
+    stage.container().style.cursor = handMode ? "grab" : "default";
+  }, [handMode, stageRef]);
+
+  // Window-level pan move/end (catches releases outside the stage)
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!panStart.current) return;
+      const dx = e.clientX - panStart.current.clientX;
+      const dy = e.clientY - panStart.current.clientY;
+      useEditorStore
+        .getState()
+        .setPan(panStart.current.panX + dx, panStart.current.panY + dy);
+    };
+    const onUp = () => {
+      if (!panStart.current) return;
+      panStart.current = null;
+      const stage = stageRef.current;
+      if (stage) {
+        stage.container().style.cursor = handMode ? "grab" : "default";
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [handMode, stageRef]);
 
   useEffect(() => {
     if (typeof document === "undefined" || !("fonts" in document)) return;
@@ -610,8 +660,24 @@ export default function CanvasStage({
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       const stage = stageRef.current;
       if (!stage) return;
-      if (!isMarqueeTarget(e.target)) return;
       const evt = e.evt as MouseEvent;
+      const isMiddleClick = "button" in evt && evt.button === 1;
+
+      if (handMode || isMiddleClick) {
+        if ("button" in evt && evt.button !== 0 && !isMiddleClick) return;
+        evt.preventDefault?.();
+        const state = useEditorStore.getState();
+        panStart.current = {
+          clientX: evt.clientX,
+          clientY: evt.clientY,
+          panX: state.panX,
+          panY: state.panY,
+        };
+        stage.container().style.cursor = "grabbing";
+        return;
+      }
+
+      if (!isMarqueeTarget(e.target)) return;
       if ("button" in evt && evt.button !== 0) return;
       const pos = stage.getPointerPosition();
       if (!pos) return;
@@ -621,19 +687,39 @@ export default function CanvasStage({
         : [];
       setMarquee({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
     },
-    [stageRef, isMarqueeTarget]
+    [stageRef, isMarqueeTarget, handMode]
   );
 
-  const handleStageMouseMove = useCallback(() => {
-    if (!marquee) return;
-    const stage = stageRef.current;
-    if (!stage) return;
-    const pos = stage.getPointerPosition();
-    if (!pos) return;
-    setMarquee((m) => (m ? { ...m, x2: pos.x, y2: pos.y } : m));
-  }, [marquee, stageRef]);
+  const handleStageMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      if (panStart.current) {
+        const evt = e.evt as MouseEvent;
+        const dx = evt.clientX - panStart.current.clientX;
+        const dy = evt.clientY - panStart.current.clientY;
+        useEditorStore
+          .getState()
+          .setPan(panStart.current.panX + dx, panStart.current.panY + dy);
+        return;
+      }
+      if (!marquee) return;
+      const stage = stageRef.current;
+      if (!stage) return;
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+      setMarquee((m) => (m ? { ...m, x2: pos.x, y2: pos.y } : m));
+    },
+    [marquee, stageRef]
+  );
 
   const handleStageMouseUp = useCallback(() => {
+    if (panStart.current) {
+      panStart.current = null;
+      const stage = stageRef.current;
+      if (stage) {
+        stage.container().style.cursor = handMode ? "grab" : "default";
+      }
+      return;
+    }
     if (!marquee) return;
     const m = marquee;
     setMarquee(null);
@@ -676,14 +762,15 @@ export default function CanvasStage({
     } else {
       setSelectedIds(intersected);
     }
-  }, [marquee, offsetX, offsetY, scale, selectElement, setSelectedIds]);
+  }, [marquee, offsetX, offsetY, scale, selectElement, setSelectedIds, handMode, stageRef]);
 
   const handleElementSelect = useCallback(
     (id: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      if (handMode) return;
       const evt = e.evt as MouseEvent;
       selectElement(id, evt.shiftKey);
     },
-    [selectElement]
+    [selectElement, handMode]
   );
 
   const makeDragHandlers = useCallback(
@@ -885,6 +972,7 @@ export default function CanvasStage({
                   isSelected={isSelected}
                   onSelect={onSelect}
                   drag={drag}
+                  disableDrag={handMode}
                 />
               );
             case "text":
@@ -897,6 +985,7 @@ export default function CanvasStage({
                   drag={drag}
                   onStartEditing={onStartEditing}
                   isEditing={editingId === el.id}
+                  disableDrag={handMode}
                 />
               );
             case "image":
@@ -907,6 +996,7 @@ export default function CanvasStage({
                   isSelected={isSelected}
                   onSelect={onSelect}
                   drag={drag}
+                  disableDrag={handMode}
                 />
               );
             default:

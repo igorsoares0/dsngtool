@@ -94,6 +94,10 @@ export default function CanvasArea({
   const format = useEditorStore((s) => s.format);
   const zoom = useEditorStore((s) => s.zoom);
   const setZoom = useEditorStore((s) => s.setZoom);
+  const panX = useEditorStore((s) => s.panX);
+  const panY = useEditorStore((s) => s.panY);
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const spaceHeld = useEditorStore((s) => s.spaceHeld);
   const updateElement = useEditorStore((s) => s.updateElement);
   const elementCount = useEditorStore((s) => s.elements.length);
 
@@ -101,8 +105,11 @@ export default function CanvasArea({
   const lastFitFormatRef = useRef<string | null>(null);
 
   const scale = zoom / 100;
-  const offsetX = (dims.width - format.width * scale) / 2;
-  const offsetY = (dims.height - format.height * scale) / 2;
+  const offsetX = (dims.width - format.width * scale) / 2 + panX;
+  const offsetY = (dims.height - format.height * scale) / 2 + panY;
+
+  const handMode = activeTool === "hand" || spaceHeld;
+  const cursorStyle = handMode ? "grab" : "default";
 
   const measure = useCallback(() => {
     if (containerRef.current) {
@@ -120,19 +127,70 @@ export default function CanvasArea({
     return () => ro.disconnect();
   }, [measure]);
 
-  // Ctrl/Cmd + wheel → zoom canvas (intercept browser zoom)
+  // Ctrl/Cmd + wheel → zoom canvas around cursor (intercept browser zoom)
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
+      const state = useEditorStore.getState();
+      const current = state.zoom;
       const factor = Math.exp(-e.deltaY * 0.005);
-      const current = useEditorStore.getState().zoom;
-      useEditorStore.getState().setZoom(Math.round(current * factor));
+      const next = Math.max(10, Math.min(400, Math.round(current * factor)));
+      if (next === current) return;
+      const oldScale = current / 100;
+      const newScale = next / 100;
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const oldOffsetX = (rect.width - state.format.width * oldScale) / 2 + state.panX;
+      const oldOffsetY = (rect.height - state.format.height * oldScale) / 2 + state.panY;
+      const canvasPtX = (cx - oldOffsetX) / oldScale;
+      const canvasPtY = (cy - oldOffsetY) / oldScale;
+      const newOffsetX = cx - canvasPtX * newScale;
+      const newOffsetY = cy - canvasPtY * newScale;
+      const newPanX = newOffsetX - (rect.width - state.format.width * newScale) / 2;
+      const newPanY = newOffsetY - (rect.height - state.format.height * newScale) / 2;
+      state.setZoom(next);
+      state.setPan(newPanX, newPanY);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // Space key → temporary hand-tool override
+  useEffect(() => {
+    const isInteractiveTarget = (t: EventTarget | null) => {
+      if (!(t instanceof HTMLElement)) return false;
+      const tag = t.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        tag === "BUTTON" ||
+        t.isContentEditable
+      );
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat) return;
+      if (isInteractiveTarget(e.target)) return;
+      e.preventDefault();
+      useEditorStore.getState().setSpaceHeld(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      useEditorStore.getState().setSpaceHeld(false);
+    };
+    const onBlur = () => useEditorStore.getState().setSpaceHeld(false);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
   }, []);
 
   // Auto-fit zoom on first render and whenever format changes
@@ -147,6 +205,7 @@ export default function CanvasArea({
       1
     );
     setZoom(Math.max(10, Math.floor(fitScale * 100)));
+    useEditorStore.getState().resetPan();
     lastFitFormatRef.current = formatKey;
   }, [dims, format, setZoom]);
 
@@ -172,6 +231,7 @@ export default function CanvasArea({
         backgroundImage:
           "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)",
         backgroundSize: "24px 24px",
+        cursor: cursorStyle,
       }}
     >
       {dims.width > 0 && (
