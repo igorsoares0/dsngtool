@@ -640,8 +640,10 @@ export default function CanvasStage({
   const setSelectedIds = useEditorStore((s) => s.setSelectedIds);
 
   const transformerRef = useRef<Konva.Transformer>(null);
-  const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
-  const dragOrigin = useRef<{ x: number; y: number } | null>(null);
+  // Multi-select drags are moved as a unit by Konva's Transformer (its built-in
+  // proxy drag), so every dragged node fires dragend. This guards the final
+  // commit so we write all positions to the store exactly once per gesture.
+  const groupCommitScheduled = useRef(false);
   const snapData = useRef<{ width: number; height: number; others: BBox[] } | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [marquee, setMarquee] = useState<{
@@ -958,15 +960,22 @@ export default function CanvasStage({
 
   const makeDragHandlers = useCallback(
     (elId: string): DragHandlers => ({
-      onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => {
+      onDragStart: () => {
         isInteractingRef.current = true;
         onSelectionRectRef.current?.(null);
         const state = useEditorStore.getState();
+        // For a multi-select drag, Konva's Transformer moves every selected
+        // node together (proxy drag). We let it own the motion — computing our
+        // own deltas here would fight it and scatter the elements. Snapping is
+        // disabled in that case so the group never diverges from the pointer.
+        if (state.selectedIds.length > 1 && state.selectedIds.includes(elId)) {
+          snapData.current = null;
+          return;
+        }
         const draggedEl = state.elements.find((x) => x.id === elId);
         if (draggedEl) {
-          const selectedSet = new Set(state.selectedIds);
           const others: BBox[] = state.elements
-            .filter((x) => !x.hidden && !selectedSet.has(x.id) && x.id !== elId)
+            .filter((x) => !x.hidden && x.id !== elId)
             .map((x) => ({ x: x.x, y: x.y, width: x.width, height: x.height }));
           snapData.current = {
             width: draggedEl.width,
@@ -974,98 +983,76 @@ export default function CanvasStage({
             others,
           };
         }
-
-        const ids = state.selectedIds;
-        if (!ids.includes(elId) || ids.length <= 1) {
-          dragOrigin.current = { x: e.target.x(), y: e.target.y() };
-          return;
-        }
-        const stage = stageRef.current;
-        if (!stage) return;
-        const positions = new Map<string, { x: number; y: number }>();
-        for (const id of ids) {
-          if (id === elId) continue;
-          const node = stage.findOne(`#${id}`);
-          if (node) positions.set(id, { x: node.x(), y: node.y() });
-        }
-        dragStartPositions.current = positions;
-        dragOrigin.current = { x: e.target.x(), y: e.target.y() };
       },
       onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
-        // Snap (works for both single and multi-select)
-        if (snapData.current) {
-          const proposed: BBox = {
-            x: e.target.x(),
-            y: e.target.y(),
-            width: snapData.current.width,
-            height: snapData.current.height,
-          };
-          const z = useEditorStore.getState().zoom / 100;
-          const threshold = 6 / z;
-          const snap = computeSnap(
-            proposed,
-            snapData.current.others,
-            { width: format.width, height: format.height },
-            threshold
-          );
-          if (snap.x !== proposed.x || snap.y !== proposed.y) {
-            e.target.position({ x: snap.x, y: snap.y });
-          }
-          setGuides((prev) => {
-            if (
-              prev.length === snap.guides.length &&
-              prev.every(
-                (g, i) =>
-                  g.orientation === snap.guides[i].orientation &&
-                  g.pos === snap.guides[i].pos
-              )
-            ) {
-              return prev;
-            }
-            return snap.guides;
-          });
+        // Snapping only runs for single-element drags (snapData is null while a
+        // group is being dragged — see onDragStart).
+        if (!snapData.current) return;
+        const proposed: BBox = {
+          x: e.target.x(),
+          y: e.target.y(),
+          width: snapData.current.width,
+          height: snapData.current.height,
+        };
+        const z = useEditorStore.getState().zoom / 100;
+        const threshold = 6 / z;
+        const snap = computeSnap(
+          proposed,
+          snapData.current.others,
+          { width: format.width, height: format.height },
+          threshold
+        );
+        if (snap.x !== proposed.x || snap.y !== proposed.y) {
+          e.target.position({ x: snap.x, y: snap.y });
         }
-
-        // Group drag — move other selected nodes by the (snapped) delta
-        const ids = useEditorStore.getState().selectedIds;
-        if (!ids.includes(elId) || ids.length <= 1 || !dragOrigin.current) return;
-        const dx = e.target.x() - dragOrigin.current.x;
-        const dy = e.target.y() - dragOrigin.current.y;
-        const stage = stageRef.current;
-        if (!stage) return;
-        for (const [id, pos] of dragStartPositions.current) {
-          const other = stage.findOne(`#${id}`);
-          if (other) {
-            other.x(pos.x + dx);
-            other.y(pos.y + dy);
+        setGuides((prev) => {
+          if (
+            prev.length === snap.guides.length &&
+            prev.every(
+              (g, i) =>
+                g.orientation === snap.guides[i].orientation &&
+                g.pos === snap.guides[i].pos
+            )
+          ) {
+            return prev;
           }
-        }
-        stage.batchDraw();
+          return snap.guides;
+        });
       },
       onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
         setGuides([]);
         snapData.current = null;
         isInteractingRef.current = false;
         requestAnimationFrame(() => reportRef.current());
+
         const ids = useEditorStore.getState().selectedIds;
-        if (!ids.includes(elId) || ids.length <= 1 || !dragOrigin.current) {
-          useEditorStore.getState().updateElement(elId, {
-            x: e.target.x(),
-            y: e.target.y(),
+        if (ids.length > 1 && ids.includes(elId)) {
+          // Every node in the group fires its own dragend; commit them all in a
+          // single batched update so undo treats the move as one step. The
+          // guard + rAF dedupe the concurrent dragends into one commit that
+          // reads each node's actual final position straight from Konva.
+          if (groupCommitScheduled.current) return;
+          groupCommitScheduled.current = true;
+          requestAnimationFrame(() => {
+            groupCommitScheduled.current = false;
+            const stage = stageRef.current;
+            if (!stage) return;
+            const updates = new Map<string, Partial<EditorElement>>();
+            for (const id of useEditorStore.getState().selectedIds) {
+              const node = stage.findOne(`#${id}`);
+              if (node) updates.set(id, { x: node.x(), y: node.y() });
+            }
+            if (updates.size > 0) {
+              useEditorStore.getState().updateMultipleElements(updates);
+            }
           });
-          dragOrigin.current = null;
           return;
         }
-        const dx = e.target.x() - dragOrigin.current.x;
-        const dy = e.target.y() - dragOrigin.current.y;
-        const updates = new Map<string, Partial<EditorElement>>();
-        updates.set(elId, { x: e.target.x(), y: e.target.y() });
-        for (const [id, pos] of dragStartPositions.current) {
-          updates.set(id, { x: pos.x + dx, y: pos.y + dy });
-        }
-        useEditorStore.getState().updateMultipleElements(updates);
-        dragStartPositions.current.clear();
-        dragOrigin.current = null;
+
+        useEditorStore.getState().updateElement(elId, {
+          x: e.target.x(),
+          y: e.target.y(),
+        });
       },
     }),
     [stageRef, format.width, format.height]
@@ -1210,6 +1197,10 @@ export default function CanvasStage({
         ))}
         <Transformer
           ref={transformerRef}
+          // With >1 element selected, make the whole selection bounding box a
+          // drag handle so the user can grab the group anywhere inside it
+          // (including empty gaps) instead of having to hit an element exactly.
+          shouldOverdrawWholeArea={selectedIds.length > 1}
           onTransformStart={() => {
             isInteractingRef.current = true;
             onSelectionRectRef.current?.(null);
