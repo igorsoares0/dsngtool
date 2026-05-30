@@ -1112,21 +1112,24 @@ export default function RightPanel() {
           </div>
         )}
 
-        {/* Fill — for text + shapes */}
-        {selected && (selected.type === "text" || selected.type === "shape") && (
-          <div className="border-b border-border-subtle pb-2">
-            <SectionHeader
-              label="Fill & Color"
-              isOpen={openSections.has("fill")}
-              onToggle={() => toggleSection("fill")}
-            />
-            {openSections.has("fill") && (
-              <div className="pb-2 animate-fade-in">
-                <FillSection el={selected} update={update} />
-              </div>
-            )}
-          </div>
-        )}
+        {/* Fill — for text + shapes (lines use stroke only) */}
+        {selected &&
+          (selected.type === "text" ||
+            (selected.type === "shape" &&
+              (selected as ShapeElement).shapeType !== "line")) && (
+            <div className="border-b border-border-subtle pb-2">
+              <SectionHeader
+                label="Fill & Color"
+                isOpen={openSections.has("fill")}
+                onToggle={() => toggleSection("fill")}
+              />
+              {openSections.has("fill") && (
+                <div className="pb-2 animate-fade-in">
+                  <FillSection el={selected} update={update} />
+                </div>
+              )}
+            </div>
+          )}
 
         {/* Stroke — only for shapes */}
         {selected?.type === "shape" && (

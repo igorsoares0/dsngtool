@@ -421,6 +421,23 @@ function ShapeNode({
     );
   }
 
+  if (el.shapeType === "line") {
+    return (
+      <Line
+        ref={shapeRef as React.RefObject<Konva.Line | null>}
+        {...commonProps}
+        fill={undefined}
+        points={[0, el.height / 2, el.width, el.height / 2]}
+        stroke={el.stroke || "#000000"}
+        strokeWidth={el.strokeWidth || 4}
+        lineCap="round"
+        hitStrokeWidth={Math.max(el.strokeWidth || 4, 12)}
+        width={el.width}
+        height={el.height}
+      />
+    );
+  }
+
   return (
     <Rect
       ref={shapeRef as React.RefObject<Konva.Rect | null>}

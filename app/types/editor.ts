@@ -60,7 +60,7 @@ export interface GradientFill {
 
 export interface ShapeElement extends BaseElement {
   type: "shape";
-  shapeType: "rectangle" | "ellipse" | "triangle";
+  shapeType: "rectangle" | "ellipse" | "triangle" | "line";
   fill: string;
   stroke?: string;
   strokeWidth?: number;

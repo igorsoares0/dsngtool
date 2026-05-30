@@ -201,7 +201,25 @@ function ShapesPanel() {
   const addElement = useEditorStore((s) => s.addElement);
   const format = useEditorStore((s) => s.format);
 
-  const addShape = (shapeType: "rectangle" | "ellipse" | "triangle") => {
+  const addShape = (shapeType: "rectangle" | "ellipse" | "triangle" | "line") => {
+    if (shapeType === "line") {
+      const length = Math.min(format.width, format.height) * 0.4;
+      const thickness = 4;
+      addElement({
+        type: "shape",
+        shapeType: "line",
+        fill: "#000000",
+        stroke: "#000000",
+        strokeWidth: thickness,
+        x: (format.width - length) / 2,
+        y: (format.height - thickness) / 2,
+        width: length,
+        height: thickness,
+        rotation: 0,
+        opacity: 1,
+      });
+      return;
+    }
     const size = Math.min(format.width, format.height) * 0.25;
     addElement({
       type: "shape",
@@ -226,6 +244,7 @@ function ShapesPanel() {
           { id: "rectangle" as const, preview: "rounded-sm" },
           { id: "ellipse" as const, preview: "rounded-full" },
           { id: "triangle" as const, preview: "" },
+          { id: "line" as const, preview: "" },
         ]).map((shape) => (
           <button
             key={shape.id}
@@ -237,6 +256,8 @@ function ShapesPanel() {
                 className="w-8 h-8 bg-text-tertiary group-hover:bg-accent-green transition-colors"
                 style={{ clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)" }}
               />
+            ) : shape.id === "line" ? (
+              <div className="w-8 h-[3px] bg-text-tertiary group-hover:bg-accent-green transition-colors rounded-full" />
             ) : (
               <div
                 className={`w-8 h-8 bg-text-tertiary group-hover:bg-accent-green transition-colors ${shape.preview}`}
