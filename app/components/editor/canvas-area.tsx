@@ -287,15 +287,6 @@ export default function CanvasArea({
         />
       )}
 
-      {/* Info pill */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-surface-2/80 backdrop-blur-sm border border-border-subtle rounded-full px-3 py-1.5 z-20">
-        <span className="text-[10px] text-text-ghost tabular-nums">
-          {format.width} × {format.height}
-        </span>
-        <span className="text-[10px] text-text-ghost tabular-nums">
-          {zoom}%
-        </span>
-      </div>
     </div>
   );
 }
