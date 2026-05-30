@@ -1,8 +1,11 @@
-import type { TextElement, ShapeElement } from "../types/editor";
+import type { TextElement, ShapeElement, ImageElement } from "../types/editor";
 import { CANVAS_FORMATS } from "../types/editor";
 import type { CanvasFormat } from "../types/editor";
 
-type TemplateElement = Omit<TextElement, "id"> | Omit<ShapeElement, "id">;
+type TemplateElement =
+  | Omit<TextElement, "id">
+  | Omit<ShapeElement, "id">
+  | Omit<ImageElement, "id">;
 
 export interface Template {
   name: string;
@@ -1478,6 +1481,233 @@ export const TEMPLATES: Template[] = [
         y: 1333,
         rotation: 0,
         opacity: 1,
+      },
+    ],
+  },
+
+  // ── Template: "Polaroid" — photo card with caption on warm cream ──
+  {
+    name: "Polaroid",
+    category: "Photo",
+    backgroundColor: "#EFE7DA",
+    format: IGPost,
+    previewColor: "#EFE7DA",
+    previewAccent: "#2D2A26",
+    elements: [
+      // Soft drop shadow under polaroid
+      {
+        type: "shape",
+        shapeType: "rectangle",
+        fill: "#2D2A26",
+        x: 200,
+        y: 145,
+        width: 660,
+        height: 800,
+        rotation: -4,
+        opacity: 0.12,
+      },
+      // White polaroid card
+      {
+        type: "shape",
+        shapeType: "rectangle",
+        fill: "#FFFFFF",
+        x: 190,
+        y: 130,
+        width: 660,
+        height: 800,
+        rotation: -4,
+        opacity: 1,
+      },
+      // Image inside the polaroid frame
+      {
+        type: "image",
+        src: "/imgplace.jpg",
+        x: 235,
+        y: 175,
+        width: 570,
+        height: 570,
+        rotation: -4,
+        opacity: 1,
+      },
+      // Handwritten-style caption
+      {
+        type: "text",
+        text: "weekend\nmemories",
+        fontSize: 64,
+        fontFamily: "Cormorant Garamond",
+        fontStyle: "italic",
+        fill: "#2D2A26",
+        align: "center",
+        x: 220,
+        y: 770,
+        width: 600,
+        height: 160,
+        rotation: -4,
+        opacity: 1,
+        lineHeight: 1.05,
+      },
+      // Date stamp at canvas bottom
+      {
+        type: "text",
+        text: "—  05 / 2026  —",
+        fontSize: 16,
+        fontFamily: "DM Sans",
+        fontStyle: "500",
+        fill: "#7A6F60",
+        align: "center",
+        x: 390,
+        y: 1010,
+        width: 300,
+        height: 24,
+        rotation: 0,
+        opacity: 1,
+        letterSpacing: 6,
+        textTransform: "uppercase",
+      },
+    ],
+  },
+
+  // ── Template: "Wanderlust" — magazine-style travel cover (IG Story) ──
+  {
+    name: "Wanderlust",
+    category: "Story",
+    backgroundColor: "#0F0E0C",
+    format: IGStory,
+    previewColor: "#0F0E0C",
+    previewAccent: "#E8DCC4",
+    elements: [
+      // Full-width hero image
+      {
+        type: "image",
+        src: "/imgplace.jpg",
+        x: 0,
+        y: 0,
+        width: 1080,
+        height: 1320,
+        rotation: 0,
+        opacity: 1,
+      },
+      // Gradient fade from image into dark background
+      {
+        type: "shape",
+        shapeType: "rectangle",
+        fill: "#0F0E0C",
+        x: 0,
+        y: 900,
+        width: 1080,
+        height: 440,
+        rotation: 0,
+        opacity: 1,
+        gradient: {
+          type: "linear",
+          startX: 0,
+          startY: 0,
+          endX: 0,
+          endY: 1,
+          colorStops: [
+            0, "rgba(15,14,12,0)",
+            0.55, "rgba(15,14,12,0.85)",
+            1, "rgba(15,14,12,1)",
+          ],
+        },
+      },
+      // Top-left issue label
+      {
+        type: "text",
+        text: "Issue 01  ·  Vol. III",
+        fontSize: 20,
+        fontFamily: "DM Sans",
+        fontStyle: "500",
+        fill: "#E8DCC4",
+        align: "left",
+        x: 80,
+        y: 90,
+        width: 600,
+        height: 30,
+        rotation: 0,
+        opacity: 0.9,
+        letterSpacing: 4,
+        textTransform: "uppercase",
+      },
+      // Top-right wordmark
+      {
+        type: "text",
+        text: "modo",
+        fontSize: 28,
+        fontFamily: "Playfair Display",
+        fontStyle: "italic",
+        fill: "#E8DCC4",
+        align: "right",
+        x: 600,
+        y: 80,
+        width: 400,
+        height: 36,
+        rotation: 0,
+        opacity: 0.9,
+      },
+      // Section divider above title
+      {
+        type: "shape",
+        shapeType: "rectangle",
+        fill: "#E8DCC4",
+        x: 80,
+        y: 1430,
+        width: 80,
+        height: 2,
+        rotation: 0,
+        opacity: 0.7,
+      },
+      // Section label
+      {
+        type: "text",
+        text: "Travel Journal",
+        fontSize: 18,
+        fontFamily: "DM Sans",
+        fontStyle: "500",
+        fill: "#E8DCC4",
+        align: "left",
+        x: 80,
+        y: 1455,
+        width: 600,
+        height: 26,
+        rotation: 0,
+        opacity: 0.7,
+        letterSpacing: 4,
+        textTransform: "uppercase",
+      },
+      // Main editorial title
+      {
+        type: "text",
+        text: "Wanderlust\n& Wonder",
+        fontSize: 128,
+        fontFamily: "Playfair Display",
+        fontStyle: "italic",
+        fill: "#E8DCC4",
+        align: "left",
+        x: 80,
+        y: 1510,
+        width: 940,
+        height: 320,
+        rotation: 0,
+        opacity: 1,
+        lineHeight: 1,
+      },
+      // Bottom location / season
+      {
+        type: "text",
+        text: "Kyoto  /  Spring",
+        fontSize: 24,
+        fontFamily: "DM Sans",
+        fontStyle: "400",
+        fill: "#E8DCC4",
+        align: "left",
+        x: 80,
+        y: 1830,
+        width: 600,
+        height: 30,
+        rotation: 0,
+        opacity: 0.8,
+        letterSpacing: 3,
       },
     ],
   },
