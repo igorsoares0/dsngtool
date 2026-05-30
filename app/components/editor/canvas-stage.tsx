@@ -449,6 +449,23 @@ function ShapeNode({
   );
 }
 
+// Measure the natural (unconstrained) width of a text element using an
+// offscreen Konva.Text — same engine as the canvas, so it stays accurate.
+function measureTextWidth(el: TextElement): number {
+  const node = new Konva.Text({
+    text: el.textTransform === "uppercase" ? el.text.toUpperCase() : el.text,
+    fontSize: el.fontSize,
+    fontFamily: el.fontFamily,
+    fontStyle: el.fontStyle || "normal",
+    lineHeight: el.lineHeight || 1.2,
+    letterSpacing: el.letterSpacing || 0,
+    padding: 0,
+  });
+  const w = node.width();
+  node.destroy();
+  return w;
+}
+
 function TextNode({
   el,
   onSelect,
@@ -466,6 +483,32 @@ function TextNode({
   disableDrag: boolean;
 }) {
   const shapeRef = useRef<Konva.Text>(null);
+
+  // Auto-width: keep the element box hugging the measured text. Adjusts x so the
+  // alignment anchor (left/center/right) stays put. Silent — no history/loops.
+  // Skipped when the user has set an explicit width (autoWidth === false).
+  useEffect(() => {
+    if (el.autoWidth === false) return;
+    const measured = Math.ceil(measureTextWidth(el));
+    if (measured > 0 && Math.abs(measured - el.width) > 1) {
+      const factor = el.align === "center" ? 0.5 : el.align === "right" ? 1 : 0;
+      const dx = (el.width - measured) * factor;
+      useEditorStore.getState().updateElementSilent(el.id, {
+        width: measured,
+        x: el.x + dx,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    el.text,
+    el.fontSize,
+    el.fontFamily,
+    el.fontStyle,
+    el.lineHeight,
+    el.letterSpacing,
+    el.textTransform,
+    el.align,
+  ]);
 
   const handleDblClick = () => {
     const node = shapeRef.current;
@@ -530,13 +573,27 @@ function TextNode({
         const scaleY = node.scaleY();
         node.scaleX(1);
         node.scaleY(1);
-        useEditorStore.getState().updateElement(el.id, {
-          x: node.x(),
-          y: node.y(),
-          width: Math.max(5, node.width() * scaleX),
-          fontSize: Math.max(8, el.fontSize * scaleY),
-          rotation: node.rotation(),
-        });
+        // Side handle (width only, height untouched) → fixed-width text that
+        // wraps. Corner handle (uniform scale) → scale the font, stay auto-width.
+        const widthOnly =
+          Math.abs(scaleY - 1) < 0.01 && Math.abs(scaleX - 1) > 0.01;
+        if (widthOnly) {
+          useEditorStore.getState().updateElement(el.id, {
+            x: node.x(),
+            y: node.y(),
+            width: Math.max(5, node.width() * scaleX),
+            rotation: node.rotation(),
+            autoWidth: false,
+          });
+        } else {
+          useEditorStore.getState().updateElement(el.id, {
+            x: node.x(),
+            y: node.y(),
+            width: Math.max(5, node.width() * scaleX),
+            fontSize: Math.max(8, el.fontSize * scaleY),
+            rotation: node.rotation(),
+          });
+        }
       }}
       onDblClick={handleDblClick}
       onDblTap={handleDblClick}
@@ -727,6 +784,20 @@ export default function CanvasStage({
       const textNodes = stage.find("Text") as Konva.Text[];
       for (const t of textNodes) t.text(t.text());
       stage.batchDraw();
+      // Re-fit auto-width text now that the real fonts are available.
+      const state = useEditorStore.getState();
+      for (const elx of state.elements) {
+        if (elx.type !== "text") continue;
+        if ((elx as TextElement).autoWidth === false) continue;
+        const measured = Math.ceil(measureTextWidth(elx as TextElement));
+        if (measured > 0 && Math.abs(measured - elx.width) > 1) {
+          const factor = elx.align === "center" ? 0.5 : elx.align === "right" ? 1 : 0;
+          state.updateElementSilent(elx.id, {
+            width: measured,
+            x: elx.x + (elx.width - measured) * factor,
+          });
+        }
+      }
     };
     document.fonts.ready.then(refresh);
     document.fonts.addEventListener("loadingdone", refresh);
@@ -1000,6 +1071,9 @@ export default function CanvasStage({
   );
 
   const visibleElements = elements.filter((el) => !el.hidden);
+  const singleSelected =
+    selectedIds.length === 1 ? elements.find((e) => e.id === selectedIds[0]) : null;
+  const isSingleText = singleSelected?.type === "text";
 
   return (
     <Stage
@@ -1190,16 +1264,27 @@ export default function CanvasStage({
           anchorStroke="#34d399"
           anchorFill="#0c0c0c"
           rotateAnchorOffset={20}
-          enabledAnchors={[
-            "top-left",
-            "top-right",
-            "bottom-left",
-            "bottom-right",
-            "middle-left",
-            "middle-right",
-            "top-center",
-            "bottom-center",
-          ]}
+          enabledAnchors={
+            isSingleText
+              ? [
+                  "top-left",
+                  "top-right",
+                  "bottom-left",
+                  "bottom-right",
+                  "middle-left",
+                  "middle-right",
+                ]
+              : [
+                  "top-left",
+                  "top-right",
+                  "bottom-left",
+                  "bottom-right",
+                  "middle-left",
+                  "middle-right",
+                  "top-center",
+                  "bottom-center",
+                ]
+          }
         />
       </Layer>
 

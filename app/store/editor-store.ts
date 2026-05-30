@@ -45,6 +45,7 @@ interface EditorState {
   addElement: (el: Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">) => void;
   addMultipleElements: (els: (Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">)[]) => void;
   updateElement: (id: string, updates: Partial<EditorElement>) => void;
+  updateElementSilent: (id: string, updates: Partial<EditorElement>) => void;
   updateMultipleElements: (updates: Map<string, Partial<EditorElement>>) => void;
   removeElement: (id: string) => void;
   removeSelectedElements: () => void;
@@ -162,6 +163,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         ),
       };
     });
+  },
+
+  // Layout sync (e.g. text auto-width) — never touches history.
+  updateElementSilent: (id, updates) => {
+    set((s) => ({
+      elements: s.elements.map((el) =>
+        el.id === id ? ({ ...el, ...updates } as EditorElement) : el
+      ),
+    }));
   },
 
   updateMultipleElements: (updates) => {

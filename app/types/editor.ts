@@ -23,6 +23,9 @@ export interface TextElement extends BaseElement {
   textTransform?: "none" | "uppercase";
   lineHeight?: number;
   letterSpacing?: number;
+  // When false, the user set an explicit width (text wraps to it). Otherwise the
+  // box auto-fits the text. Defaults to auto (undefined === auto).
+  autoWidth?: boolean;
   shadowColor?: string;
   shadowBlur?: number;
   shadowOffsetX?: number;

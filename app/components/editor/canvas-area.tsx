@@ -25,11 +25,19 @@ function InlineTextEditor({
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const autoSize = (ta: HTMLTextAreaElement) => {
+    ta.style.width = "0px";
+    ta.style.height = "0px";
+    ta.style.width = `${ta.scrollWidth + 2}px`;
+    ta.style.height = `${ta.scrollHeight}px`;
+  };
+
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.focus();
     ta.select();
+    autoSize(ta);
   }, []);
 
   const commit = () => {
@@ -61,8 +69,10 @@ function InlineTextEditor({
       ref={textareaRef}
       defaultValue={req.text}
       aria-label="Edit text"
+      wrap="off"
       onBlur={commit}
       onKeyDown={handleKeyDown}
+      onInput={(e) => autoSize(e.currentTarget)}
       className="absolute z-30 outline-none border-2 border-accent-green rounded-sm bg-transparent resize-none overflow-hidden"
       style={{
         left,
@@ -77,6 +87,7 @@ function InlineTextEditor({
         textAlign: req.align,
         lineHeight,
         letterSpacing: req.letterSpacing * scale,
+        whiteSpace: "pre",
         transformOrigin: "top left",
         transform: `rotate(${req.rotation}deg)`,
         padding: 0,
