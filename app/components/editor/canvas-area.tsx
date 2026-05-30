@@ -4,7 +4,8 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
-import type { InlineEditRequest } from "./canvas-stage";
+import type { InlineEditRequest, SelectionRect } from "./canvas-stage";
+import SelectionToolbar from "./selection-toolbar";
 
 const CanvasStage = dynamic(() => import("./canvas-stage"), { ssr: false });
 
@@ -102,6 +103,7 @@ export default function CanvasArea({
   const elementCount = useEditorStore((s) => s.elements.length);
 
   const [editReq, setEditReq] = useState<InlineEditRequest | null>(null);
+  const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
   const lastFitFormatRef = useRef<string | null>(null);
 
   const scale = zoom / 100;
@@ -241,7 +243,13 @@ export default function CanvasArea({
           containerHeight={dims.height}
           onStartEditing={handleStartEditing}
           editingId={editReq?.elementId ?? null}
+          onSelectionRect={setSelectionRect}
         />
+      )}
+
+      {/* Contextual toolbar anchored to the selection */}
+      {selectionRect && !editReq && (
+        <SelectionToolbar rect={selectionRect} containerWidth={dims.width} />
       )}
 
       {/* Empty state hint (centered on canvas) */}

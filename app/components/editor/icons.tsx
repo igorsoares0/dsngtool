@@ -215,6 +215,33 @@ export function KeyboardIcon({ className = "w-4 h-4" }: { className?: string }) 
   );
 }
 
+export function DuplicateIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+export function BringForwardIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="3.5" width="11" height="11" rx="2" opacity="0.4" />
+      <rect x="9.5" y="9.5" width="11" height="11" rx="2" />
+    </svg>
+  );
+}
+
+export function SendBackwardIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9.5" y="9.5" width="11" height="11" rx="2" opacity="0.4" />
+      <rect x="3.5" y="3.5" width="11" height="11" rx="2" />
+    </svg>
+  );
+}
+
 export function CloseIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

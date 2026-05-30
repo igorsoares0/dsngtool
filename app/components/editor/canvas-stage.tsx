@@ -544,18 +544,27 @@ function TextNode({
   );
 }
 
+export interface SelectionRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export default function CanvasStage({
   stageRef,
   containerWidth,
   containerHeight,
   onStartEditing,
   editingId,
+  onSelectionRect,
 }: {
   stageRef: React.RefObject<Konva.Stage | null>;
   containerWidth: number;
   containerHeight: number;
   onStartEditing: (req: InlineEditRequest) => void;
   editingId: string | null;
+  onSelectionRect?: (rect: SelectionRect | null) => void;
 }) {
   const elements = useEditorStore((s) => s.elements);
   const selectedIds = useEditorStore((s) => s.selectedIds);
@@ -614,6 +623,64 @@ export default function CanvasStage({
     tr.nodes([]);
     tr.getLayer()?.batchDraw();
   }, [selectedIds, elements, stageRef, editingId]);
+
+  // Report the screen-space bounding box of the current selection so the
+  // contextual toolbar (a DOM overlay) can anchor itself to it. Hidden while
+  // the user is dragging/resizing, panning, or editing text inline.
+  const onSelectionRectRef = useRef(onSelectionRect);
+  onSelectionRectRef.current = onSelectionRect;
+  const isInteractingRef = useRef(false);
+
+  const reportSelectionRect = useCallback(() => {
+    const cb = onSelectionRectRef.current;
+    if (!cb) return;
+    const stage = stageRef.current;
+    const state = useEditorStore.getState();
+    if (
+      !stage ||
+      isInteractingRef.current ||
+      state.selectedIds.length === 0 ||
+      editingId ||
+      handMode
+    ) {
+      cb(null);
+      return;
+    }
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const id of state.selectedIds) {
+      const node = stage.findOne(`#${id}`);
+      if (!node) continue;
+      const r = node.getClientRect({ relativeTo: stage, skipShadow: true });
+      minX = Math.min(minX, r.x);
+      minY = Math.min(minY, r.y);
+      maxX = Math.max(maxX, r.x + r.width);
+      maxY = Math.max(maxY, r.y + r.height);
+    }
+    if (!Number.isFinite(minX)) {
+      cb(null);
+      return;
+    }
+    cb({ x: minX, y: minY, width: maxX - minX, height: maxY - minY });
+  }, [stageRef, editingId, handMode]);
+
+  const reportRef = useRef(reportSelectionRect);
+  reportRef.current = reportSelectionRect;
+
+  useEffect(() => {
+    reportSelectionRect();
+  }, [
+    reportSelectionRect,
+    selectedIds,
+    elements,
+    zoom,
+    panX,
+    panY,
+    containerWidth,
+    containerHeight,
+  ]);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -793,6 +860,8 @@ export default function CanvasStage({
   const makeDragHandlers = useCallback(
     (elId: string): DragHandlers => ({
       onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => {
+        isInteractingRef.current = true;
+        onSelectionRectRef.current?.(null);
         const state = useEditorStore.getState();
         const draggedEl = state.elements.find((x) => x.id === elId);
         if (draggedEl) {
@@ -877,6 +946,8 @@ export default function CanvasStage({
       onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
         setGuides([]);
         snapData.current = null;
+        isInteractingRef.current = false;
+        requestAnimationFrame(() => reportRef.current());
         const ids = useEditorStore.getState().selectedIds;
         if (!ids.includes(elId) || ids.length <= 1 || !dragOrigin.current) {
           useEditorStore.getState().updateElement(elId, {
@@ -1036,7 +1107,15 @@ export default function CanvasStage({
         ))}
         <Transformer
           ref={transformerRef}
-          onTransformEnd={() => setGuides([])}
+          onTransformStart={() => {
+            isInteractingRef.current = true;
+            onSelectionRectRef.current?.(null);
+          }}
+          onTransformEnd={() => {
+            setGuides([]);
+            isInteractingRef.current = false;
+            requestAnimationFrame(() => reportRef.current());
+          }}
           boundBoxFunc={(oldBox, newBox) => {
             if (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5) {
               return oldBox;
