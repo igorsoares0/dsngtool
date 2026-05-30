@@ -37,9 +37,9 @@ function ToolbarButton({
       aria-label={title}
       aria-pressed={active}
       onClick={onClick}
-      className={`p-1.5 rounded-md transition-all ${
+      className={`p-1.5 rounded-lg transition-all ${
         danger
-          ? "text-text-tertiary hover:text-accent-pink hover:bg-surface-3"
+          ? "text-text-tertiary hover:text-accent-pink hover:bg-accent-pink/10"
           : active
           ? "bg-surface-4 text-accent-green"
           : "text-text-secondary hover:text-text-primary hover:bg-surface-3"
@@ -84,14 +84,28 @@ export default function SelectionToolbar({
     }
   }, [selectedIds.length, allLocked]);
 
-  const gap = 14;
-  const half = size.width / 2;
+  // The rotate handle now lives at the bottom-center of the selection
+  // (Transformer rotateAnchorAngle=180), so the top is clear for the toolbar.
+  // Above: only clear the resize anchors (~4px protrusion). Below: clear the
+  // rotate handle (~24px). Handles are fixed screen pixels, so this is
+  // zoom-independent.
+  const gap = 12;
+  const aboveOffset = gap + 6;
+  const belowOffset = gap + 26;
   const centerX = rect.x + rect.width / 2;
-  const left = Math.max(8 + half, Math.min(containerWidth - 8 - half, centerX));
 
-  const placeBelow = rect.y - gap - size.height < 8;
-  const top = placeBelow ? rect.y + rect.height + gap : rect.y - gap;
-  const transform = placeBelow ? "translate(-50%, 0)" : "translate(-50%, -100%)";
+  // Position by final edges — NOT via a CSS transform. The entrance animation
+  // (animate-fade-in) animates `transform`, which would override an inline
+  // transform and break both the centering and the vertical flip. Size is
+  // measured in useLayoutEffect, so edges are exact before paint.
+  const left = Math.max(
+    8,
+    Math.min(containerWidth - size.width - 8, centerX - size.width / 2)
+  );
+  const placeBelow = rect.y - aboveOffset - size.height < 8;
+  const top = placeBelow
+    ? rect.y + rect.height + belowOffset
+    : rect.y - aboveOffset - size.height;
 
   const toggleLock = () => {
     if (isSingle && single) {
@@ -109,8 +123,8 @@ export default function SelectionToolbar({
       role="toolbar"
       aria-label="Selection actions"
       onMouseDown={(e) => e.stopPropagation()}
-      className="absolute z-20 flex items-center gap-0.5 bg-surface-2 border border-border-default rounded-lg shadow-2xl px-1 py-1 animate-fade-in"
-      style={{ left, top, transform }}
+      className="absolute z-20 flex items-center gap-0.5 bg-surface-2/95 backdrop-blur-md border border-border-strong rounded-xl shadow-2xl px-1.5 py-1 animate-fade-in"
+      style={{ left, top }}
     >
       {isSingle && (
         <>

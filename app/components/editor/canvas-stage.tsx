@@ -1264,6 +1264,7 @@ export default function CanvasStage({
           anchorStroke="#34d399"
           anchorFill="#0c0c0c"
           rotateAnchorOffset={20}
+          rotateAnchorAngle={180}
           enabledAnchors={
             isSingleText
               ? [
