@@ -120,6 +120,21 @@ export default function CanvasArea({
     return () => ro.disconnect();
   }, [measure]);
 
+  // Ctrl/Cmd + wheel → zoom canvas (intercept browser zoom)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const factor = Math.exp(-e.deltaY * 0.005);
+      const current = useEditorStore.getState().zoom;
+      useEditorStore.getState().setZoom(Math.round(current * factor));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
   // Auto-fit zoom on first render and whenever format changes
   useEffect(() => {
     if (dims.width === 0 || dims.height === 0) return;
