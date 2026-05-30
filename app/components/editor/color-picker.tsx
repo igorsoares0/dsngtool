@@ -7,6 +7,7 @@ import {
   useCallback,
   useLayoutEffect,
 } from "react";
+import { createPortal } from "react-dom";
 
 interface HSV {
   h: number; // 0-360
@@ -260,7 +261,7 @@ export default function ColorPicker({
         className={`${dim} rounded-md border border-border-default cursor-pointer shrink-0 transition-shadow hover:shadow-md`}
         style={{ backgroundColor: value }}
       />
-      {open && (
+      {open && createPortal(
         <div
           ref={popoverRef}
           className="fixed z-[200] w-[248px] bg-surface-1 border border-border-default rounded-lg shadow-2xl p-3 animate-fade-in"
@@ -343,7 +344,8 @@ export default function ColorPicker({
               />
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
