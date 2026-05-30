@@ -25,6 +25,8 @@ import {
   ChevronDownIcon,
   UploadIcon,
   KeyboardIcon,
+  FolderIcon,
+  TemplatesIcon,
 } from "./icons";
 
 export default function Topbar({
@@ -52,6 +54,7 @@ export default function Topbar({
 
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showFileMenu, setShowFileMenu] = useState(false);
   const [exportFormat, setExportFormat] = useState<"png" | "jpeg">("png");
   const [exportQuality, setExportQuality] = useState(90);
   const [transparentBg, setTransparentBg] = useState(false);
@@ -59,11 +62,41 @@ export default function Topbar({
   const [customW, setCustomW] = useState<string>(String(format.width));
   const [customH, setCustomH] = useState<string>(String(format.height));
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formatMenuRef = useRef<HTMLDivElement>(null);
+  const fileMenuRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCustomW(String(format.width));
     setCustomH(String(format.height));
   }, [format.width, format.height]);
+
+  // Close any open dropdown on outside click or Escape.
+  useEffect(() => {
+    if (!showFormatMenu && !showFileMenu && !showExportMenu) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (formatMenuRef.current?.contains(t)) return;
+      if (fileMenuRef.current?.contains(t)) return;
+      if (exportMenuRef.current?.contains(t)) return;
+      setShowFormatMenu(false);
+      setShowFileMenu(false);
+      setShowExportMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowFormatMenu(false);
+        setShowFileMenu(false);
+        setShowExportMenu(false);
+      }
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [showFormatMenu, showFileMenu, showExportMenu]);
 
   const applyCustomFormat = useCallback(() => {
     const w = Math.round(Number(customW));
@@ -205,7 +238,7 @@ export default function Topbar({
       {/* Center */}
       <div className="flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
         {/* Format selector */}
-        <div className="relative">
+        <div className="relative" ref={formatMenuRef}>
           <button
             onClick={() => setShowFormatMenu(!showFormatMenu)}
             className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary bg-surface-2 hover:bg-surface-3 px-2.5 py-1.5 rounded-md transition-all"
@@ -355,22 +388,83 @@ export default function Topbar({
         >
           <KeyboardIcon />
         </button>
-        <button
-          onClick={handleImportClick}
-          title={`Import .${FILE_EXTENSION} file`}
-          className="p-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded-md transition-all"
-        >
-          <UploadIcon />
-        </button>
-        <button
-          onClick={handleSave}
-          className="p-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded-md transition-all"
-        >
-          <SaveIcon />
-        </button>
-        <div className="relative">
+
+        {/* File / project menu */}
+        <div className="relative" ref={fileMenuRef}>
           <button
-            onClick={() => setShowExportMenu(!showExportMenu)}
+            onClick={() => {
+              setShowExportMenu(false);
+              setShowFileMenu((v) => !v);
+            }}
+            title="File"
+            className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary bg-surface-2 hover:bg-surface-3 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all"
+          >
+            <FolderIcon className="w-3.5 h-3.5" />
+            File
+            <ChevronDownIcon className="w-3 h-3" />
+          </button>
+          {showFileMenu && (
+            <div className="absolute top-full mt-1 right-0 bg-surface-2 border border-border-default rounded-lg py-1 min-w-[220px] shadow-2xl animate-scale-in z-50">
+              <button
+                onClick={() => {
+                  handleSave();
+                  setShowFileMenu(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
+              >
+                <SaveIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                Save to browser
+              </button>
+              <button
+                onClick={() => {
+                  onOpenProjects();
+                  setShowFileMenu(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
+              >
+                <TemplatesIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                My projects…
+              </button>
+              <div className="border-t border-border-subtle my-1" />
+              <span className="text-[10px] uppercase tracking-wider text-text-ghost px-3 py-1 block">
+                Project file
+              </span>
+              <button
+                onClick={() => {
+                  handleExportProjectFile();
+                  setShowFileMenu(false);
+                }}
+                className="w-full flex items-center justify-between gap-2.5 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
+              >
+                <span className="flex items-center gap-2.5">
+                  <DownloadIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                  Download project
+                </span>
+                <span className="text-[10px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleImportClick();
+                  setShowFileMenu(false);
+                }}
+                className="w-full flex items-center justify-between gap-2.5 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
+              >
+                <span className="flex items-center gap-2.5">
+                  <UploadIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                  Import project
+                </span>
+                <span className="text-[10px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="relative" ref={exportMenuRef}>
+          <button
+            onClick={() => {
+              setShowFileMenu(false);
+              setShowExportMenu((v) => !v);
+            }}
             className="flex items-center gap-1.5 bg-accent-green hover:bg-accent-green-hover text-surface-0 text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all"
           >
             <DownloadIcon className="w-3.5 h-3.5" />
@@ -379,6 +473,9 @@ export default function Topbar({
           </button>
           {showExportMenu && (
             <div className="absolute top-full mt-1 right-0 bg-surface-2 border border-border-default rounded-lg p-3 min-w-[220px] shadow-2xl animate-scale-in space-y-3 z-50">
+              <span className="text-[11px] font-semibold text-text-primary block">
+                Export image
+              </span>
               <div>
                 <span className="text-[10px] text-text-ghost uppercase block mb-1">Format</span>
                 <div className="flex bg-surface-3 rounded-md p-0.5 border border-border-subtle">
@@ -434,16 +531,6 @@ export default function Topbar({
                 <DownloadIcon className="w-3.5 h-3.5" />
                 Download {exportFormat.toUpperCase()}
               </button>
-              <div className="border-t border-border-subtle pt-2">
-                <button
-                  onClick={handleExportProjectFile}
-                  className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 px-2 py-1.5 rounded transition-all"
-                  title="Editable project file"
-                >
-                  <span>Save project file</span>
-                  <span className="text-[10px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
-                </button>
-              </div>
             </div>
           )}
         </div>
