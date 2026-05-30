@@ -21,7 +21,6 @@ type SidebarTool =
   | "uploads"
   | "text"
   | "shapes"
-  | "images"
   | "assets"
   | "overlays";
 

@@ -10,7 +10,6 @@ type PanelType =
   | "uploads"
   | "text"
   | "shapes"
-  | "images"
   | "assets"
   | "overlays";
 
@@ -272,25 +271,6 @@ function ShapesPanel() {
   );
 }
 
-function ImagesPanel() {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-        Images
-      </h3>
-      <input
-        type="text"
-        placeholder="Search free images..."
-        aria-label="Search free images"
-        className="w-full bg-surface-2 border border-border-subtle text-xs text-text-primary placeholder:text-text-ghost px-3 py-2 rounded-md outline-none focus:border-accent-green/40 transition-colors"
-      />
-      <p className="text-[11px] text-text-ghost text-center py-6">
-        Image search coming soon
-      </p>
-    </div>
-  );
-}
-
 function AssetsPanel() {
   return (
     <div className="space-y-4">
@@ -457,7 +437,6 @@ const PANELS: Record<PanelType, () => React.JSX.Element> = {
   uploads: UploadsPanel,
   text: TextPanel,
   shapes: ShapesPanel,
-  images: ImagesPanel,
   assets: AssetsPanel,
   overlays: OverlaysPanel,
 };

@@ -8,7 +8,6 @@ import {
   ShapesIcon,
   AssetsIcon,
   OverlaysIcon,
-  ImageIcon,
 } from "./icons";
 
 type SidebarTool =
@@ -16,7 +15,6 @@ type SidebarTool =
   | "uploads"
   | "text"
   | "shapes"
-  | "images"
   | "assets"
   | "overlays";
 
@@ -24,7 +22,6 @@ const TOOLS: { id: SidebarTool; icon: typeof TemplatesIcon; label: string }[] = 
   { id: "templates", icon: TemplatesIcon, label: "Templates" },
   { id: "uploads", icon: UploadIcon, label: "Uploads" },
   { id: "text", icon: TextIcon, label: "Text" },
-  { id: "images", icon: ImageIcon, label: "Images" },
   { id: "shapes", icon: ShapesIcon, label: "Shapes" },
   { id: "assets", icon: AssetsIcon, label: "Assets" },
   { id: "overlays", icon: OverlaysIcon, label: "Overlays" },
