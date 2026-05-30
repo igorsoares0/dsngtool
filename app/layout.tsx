@@ -1,6 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter_Tight, DM_Sans } from "next/font/google";
 import "./globals.css";
+import SwRegister from "./components/sw-register";
+import { FONT_VARIABLES } from "./lib/fonts";
 
 const interTight = Inter_Tight({
   variable: "--font-inter-tight",
@@ -15,8 +17,17 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "DesignTool — Visual Editor",
+  title: "Modo — Visual Editor",
   description: "Browser-based visual design editor",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Modo",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0c0c0c",
 };
 
 export default function RootLayout({
@@ -27,10 +38,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${interTight.variable} ${dmSans.variable} h-full`}
+      className={`${interTight.variable} ${dmSans.variable} ${FONT_VARIABLES} h-full`}
     >
       <body className="h-full font-[family-name:var(--font-inter-tight)]">
         {children}
+        <SwRegister />
       </body>
     </html>
   );

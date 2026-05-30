@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
+import { resolveFontFamily } from "../../lib/fonts";
 import type { InlineEditRequest, SelectionRect } from "./canvas-stage";
 import SelectionToolbar from "./selection-toolbar";
 import ContextMenu, { type ContextMenuRequest } from "./context-menu";
@@ -80,7 +81,7 @@ function InlineTextEditor({
         width,
         minHeight: fontSize * lineHeight + 4,
         fontSize,
-        fontFamily: req.fontFamily,
+        fontFamily: resolveFontFamily(req.fontFamily),
         fontWeight,
         fontStyle: fontStyleCss,
         color: req.fill,

@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { Stage, Layer, Rect, Ellipse, Text, Image, Transformer, Line } from "react-konva";
 import Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
+import { resolveFontFamily } from "../../lib/fonts";
 import type { EditorElement, ShapeElement, TextElement, ImageElement } from "../../types/editor";
 
 interface Guide {
@@ -455,7 +456,7 @@ function measureTextWidth(el: TextElement): number {
   const node = new Konva.Text({
     text: el.textTransform === "uppercase" ? el.text.toUpperCase() : el.text,
     fontSize: el.fontSize,
-    fontFamily: el.fontFamily,
+    fontFamily: resolveFontFamily(el.fontFamily),
     fontStyle: el.fontStyle || "normal",
     lineHeight: el.lineHeight || 1.2,
     letterSpacing: el.letterSpacing || 0,
@@ -541,7 +542,7 @@ function TextNode({
       width={el.width}
       text={el.textTransform === "uppercase" ? el.text.toUpperCase() : el.text}
       fontSize={el.fontSize}
-      fontFamily={el.fontFamily}
+      fontFamily={resolveFontFamily(el.fontFamily)}
       fill={el.fill}
       align={el.align}
       fontStyle={el.fontStyle || "normal"}

@@ -15,6 +15,7 @@ import FontLoader from "./font-loader";
 import ProjectsModal from "./projects-modal";
 import ShortcutsModal from "./shortcuts-modal";
 import Toaster from "./toaster";
+import IosInstallHint from "./ios-install-hint";
 
 type SidebarTool =
   | "templates"
@@ -75,6 +76,7 @@ export default function EditorLayout() {
       {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
       <Toaster />
+      <IosInstallHint />
     </div>
   );
 }

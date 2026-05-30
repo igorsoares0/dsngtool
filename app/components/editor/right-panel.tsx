@@ -20,7 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "../../store/editor-store";
 import { toastDeleted } from "../../store/toast-store";
 import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon, CursorIcon } from "./icons";
-import { AVAILABLE_FONTS } from "./font-loader";
+import { AVAILABLE_FONTS, resolveFontFamily } from "../../lib/fonts";
 import ColorPicker from "./color-picker";
 import type { EditorElement, TextElement, ShapeElement, ImageElement } from "../../types/editor";
 
@@ -216,7 +216,7 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
           className="w-full mt-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors"
         >
           {AVAILABLE_FONTS.map((f) => (
-            <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>
+            <option key={f.family} value={f.family} style={{ fontFamily: resolveFontFamily(f.family) }}>
               {f.family}
             </option>
           ))}

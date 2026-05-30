@@ -6,6 +6,7 @@ import { useEditorStore } from "../../store/editor-store";
 import { CANVAS_FORMATS } from "../../types/editor";
 import { db } from "../../lib/db";
 import { toast } from "../../store/toast-store";
+import { useInstallPrompt } from "../../hooks/use-install-prompt";
 import {
   downloadProjectFile,
   readProjectFile,
@@ -27,6 +28,7 @@ import {
   KeyboardIcon,
   FolderIcon,
   TemplatesIcon,
+  InstallIcon,
 } from "./icons";
 
 export default function Topbar({
@@ -51,6 +53,7 @@ export default function Topbar({
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
+  const { canInstall, promptInstall } = useInstallPrompt();
 
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -403,6 +406,18 @@ export default function Topbar({
           onChange={handleImportFile}
           className="hidden"
         />
+        {canInstall && (
+          <button
+            onClick={promptInstall}
+            title="Install Modo as an app"
+            aria-label="Install app"
+            className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary bg-surface-2 hover:bg-surface-3 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all"
+          >
+            <InstallIcon className="w-3.5 h-3.5" />
+            Install app
+          </button>
+        )}
+
         <button
           onClick={onOpenShortcuts}
           title="Keyboard shortcuts (?)"

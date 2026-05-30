@@ -115,6 +115,17 @@ export function DownloadIcon({ className = "w-4 h-4" }: { className?: string }) 
   );
 }
 
+export function InstallIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="14" rx="2" />
+      <line x1="2" y1="21" x2="22" y2="21" />
+      <polyline points="9 8 12 11 15 8" />
+      <line x1="12" y1="4" x2="12" y2="11" />
+    </svg>
+  );
+}
+
 export function SaveIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
