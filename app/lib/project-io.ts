@@ -1,7 +1,7 @@
 import type { EditorElement, CanvasFormat, GradientFill } from "../types/editor";
 import { CANVAS_FORMATS } from "../types/editor";
 
-export const FILE_EXTENSION = "dsgn";
+export const FILE_EXTENSION = "modo";
 export const FILE_MIME = "application/json";
 export const FILE_SCHEMA_VERSION = 1;
 
