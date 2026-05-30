@@ -19,7 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "../../store/editor-store";
 import { toastDeleted } from "../../store/toast-store";
-import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon } from "./icons";
+import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon, CursorIcon } from "./icons";
 import { AVAILABLE_FONTS } from "./font-loader";
 import ColorPicker from "./color-picker";
 import type { EditorElement, TextElement, ShapeElement, ImageElement } from "../../types/editor";
@@ -1089,6 +1089,22 @@ function MultiSelectionInfo() {
   );
 }
 
+function EmptyState() {
+  return (
+    <div className="border border-dashed border-border-default rounded-lg px-3 py-5 flex flex-col items-center text-center gap-2.5 mb-2 animate-fade-in">
+      <div className="w-9 h-9 rounded-full bg-surface-2 flex items-center justify-center">
+        <CursorIcon className="w-4 h-4 text-text-tertiary" />
+      </div>
+      <div className="space-y-1">
+        <p className="text-xs text-text-secondary font-medium">Nothing selected</p>
+        <p className="text-[11px] text-text-ghost leading-relaxed">
+          Click an element on the canvas to edit it. Adjust the document background and layers below.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function RightPanel() {
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const elements = useEditorStore((s) => s.elements);
@@ -1120,6 +1136,9 @@ export default function RightPanel() {
         <h2 className="text-xs font-bold text-text-primary font-[family-name:var(--font-dm-sans)] mb-3">
           Properties
         </h2>
+
+        {/* Empty state — nothing selected; document-level controls remain below */}
+        {selectedIds.length === 0 && <EmptyState />}
 
         {/* Multi-selection info */}
         {selectedIds.length > 1 && <MultiSelectionInfo />}
@@ -1255,12 +1274,6 @@ export default function RightPanel() {
 
         {/* Background color — always visible */}
         <BackgroundSection />
-
-        {selectedIds.length === 0 && (
-          <p className="text-[11px] text-text-ghost text-center py-4">
-            Select an element to edit properties
-          </p>
-        )}
       </div>
     </aside>
   );
