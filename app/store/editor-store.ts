@@ -90,6 +90,20 @@ function pushHistory(state: EditorState): Pick<EditorState, "past" | "future"> {
   };
 }
 
+// Rapid, consecutive edits to the same field (slider drags, drag-to-scrub,
+// fast typing) collapse into a single undo step instead of flooding history.
+const COALESCE_MS = 500;
+let lastEditAt = 0;
+let lastEditKey = "";
+
+function shouldCoalesce(key: string): boolean {
+  const now = Date.now();
+  const coalesce = now - lastEditAt < COALESCE_MS && lastEditKey === key;
+  lastEditAt = now;
+  lastEditKey = key;
+  return coalesce;
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   projectId: `proj_${Date.now()}`,
   projectName: "Untitled",
@@ -138,22 +152,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   updateElement: (id, updates) => {
-    set((s) => ({
-      ...pushHistory(s),
-      elements: s.elements.map((el) =>
-        el.id === id ? ({ ...el, ...updates } as EditorElement) : el
-      ),
-    }));
+    set((s) => {
+      const key = `one:${id}:${Object.keys(updates).sort().join(",")}`;
+      const history = shouldCoalesce(key) ? {} : pushHistory(s);
+      return {
+        ...history,
+        elements: s.elements.map((el) =>
+          el.id === id ? ({ ...el, ...updates } as EditorElement) : el
+        ),
+      };
+    });
   },
 
   updateMultipleElements: (updates) => {
-    set((s) => ({
-      ...pushHistory(s),
-      elements: s.elements.map((el) => {
-        const u = updates.get(el.id);
-        return u ? ({ ...el, ...u } as EditorElement) : el;
-      }),
-    }));
+    set((s) => {
+      const ids = [...updates.keys()].sort().join("|");
+      const fields = new Set<string>();
+      for (const u of updates.values()) for (const k of Object.keys(u)) fields.add(k);
+      const key = `many:${ids}:${[...fields].sort().join(",")}`;
+      const history = shouldCoalesce(key) ? {} : pushHistory(s);
+      return {
+        ...history,
+        elements: s.elements.map((el) => {
+          const u = updates.get(el.id);
+          return u ? ({ ...el, ...u } as EditorElement) : el;
+        }),
+      };
+    });
   },
 
   removeElement: (id) => {

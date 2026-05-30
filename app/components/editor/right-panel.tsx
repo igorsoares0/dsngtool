@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -67,9 +67,52 @@ function NumberField({
   min?: number;
   max?: number;
 }) {
+  const scrub = useRef<{ startX: number; startVal: number; moved: boolean } | null>(null);
+
+  const clamp = (v: number) => {
+    let r = v;
+    if (min !== undefined) r = Math.max(min, r);
+    if (max !== undefined) r = Math.min(max, r);
+    return r;
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    scrub.current = { startX: e.clientX, startVal: value, moved: false };
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLSpanElement>) => {
+    const s = scrub.current;
+    if (!s) return;
+    const dx = e.clientX - s.startX;
+    if (Math.abs(dx) > 2) s.moved = true;
+    // 1px ≈ one step; Shift = ×10 (coarse), Alt = ×0.1 (fine).
+    const mult = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+    const steps = Math.round(dx * mult);
+    const next = clamp(Number((s.startVal + steps * step).toFixed(4)));
+    if (next !== value) onChange(next);
+  };
+
+  const endScrub = (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (!scrub.current) return;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    scrub.current = null;
+  };
+
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] text-text-ghost uppercase">{label}</span>
+      <span
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endScrub}
+        onPointerCancel={endScrub}
+        title="Drag to adjust"
+        className="text-[10px] text-text-ghost uppercase cursor-ew-resize select-none w-fit hover:text-text-tertiary transition-colors"
+      >
+        {label}
+      </span>
       <input
         type="number"
         value={Math.round(value * 100) / 100}
@@ -947,7 +990,7 @@ function MultiSelectionInfo() {
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const removeSelectedElements = useEditorStore((s) => s.removeSelectedElements);
   const duplicateSelectedElements = useEditorStore((s) => s.duplicateSelectedElements);
-  const updateElement = useEditorStore((s) => s.updateElement);
+  const updateMultipleElements = useEditorStore((s) => s.updateMultipleElements);
   const elements = useEditorStore((s) => s.elements);
 
   const selectedEls = elements.filter((el) => selectedIds.includes(el.id));
@@ -972,9 +1015,9 @@ function MultiSelectionInfo() {
             value={Math.round((selectedEls[0]?.opacity ?? 1) * 100)}
             onChange={(e) => {
               const val = Number(e.target.value) / 100;
-              for (const id of selectedIds) {
-                updateElement(id, { opacity: val });
-              }
+              const updates = new Map<string, { opacity: number }>();
+              for (const id of selectedIds) updates.set(id, { opacity: val });
+              updateMultipleElements(updates);
             }}
             className="w-full accent-accent-green h-1"
           />
