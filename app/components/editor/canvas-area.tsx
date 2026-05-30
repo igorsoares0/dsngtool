@@ -298,7 +298,7 @@ export default function CanvasArea({
               <span className="text-accent-green">shapes</span> from the left
               sidebar.
             </div>
-            <div className="mt-2.5 text-[10px] text-text-tertiary">
+            <div className="mt-2.5 text-[11px] text-text-tertiary">
               Press{" "}
               <kbd className="px-1.5 py-px bg-surface-3 border border-border-subtle rounded font-mono text-text-secondary">
                 ?

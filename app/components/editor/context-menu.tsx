@@ -226,7 +226,7 @@ export default function ContextMenu({
           >
             <span>{entry.label}</span>
             {entry.kbd && (
-              <span className="text-[10px] text-text-ghost tabular-nums">{entry.kbd}</span>
+              <span className="text-[11px] text-text-ghost tabular-nums">{entry.kbd}</span>
             )}
           </button>
         )

@@ -110,7 +110,7 @@ function NumberField({
         onPointerUp={endScrub}
         onPointerCancel={endScrub}
         title="Drag to adjust"
-        className="text-[10px] text-text-ghost uppercase cursor-ew-resize select-none w-fit hover:text-text-tertiary transition-colors"
+        className="text-[11px] text-text-ghost uppercase cursor-ew-resize select-none w-fit hover:text-text-tertiary transition-colors"
       >
         {label}
       </span>
@@ -198,7 +198,7 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
   return (
     <div className="space-y-3">
       <div>
-        <span className="text-[10px] text-text-ghost uppercase">Text</span>
+        <span className="text-[11px] text-text-ghost uppercase">Text</span>
         <textarea
           value={el.text}
           aria-label="Text content"
@@ -208,7 +208,7 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
         />
       </div>
       <div>
-        <span className="text-[10px] text-text-ghost uppercase">Font</span>
+        <span className="text-[11px] text-text-ghost uppercase">Font</span>
         <select
           value={el.fontFamily}
           aria-label="Font family"
@@ -227,7 +227,7 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
         <NumberField label="Line H." value={el.lineHeight || 1.2} onChange={(v) => update({ lineHeight: v })} step={0.1} min={0.5} max={4} />
       </div>
       <div>
-        <span className="text-[10px] text-text-ghost uppercase">Style</span>
+        <span className="text-[11px] text-text-ghost uppercase">Style</span>
         <div className="flex mt-1 bg-surface-2 rounded-md p-0.5 border border-border-subtle">
           <StyleToggle
             active={isBold}
@@ -255,12 +255,12 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
             label="Uppercase"
             onClick={() => update({ textTransform: isUppercase ? "none" : "uppercase" } as Partial<EditorElement>)}
           >
-            <span className="text-[10px]">Aa</span>
+            <span className="text-[11px]">Aa</span>
           </StyleToggle>
         </div>
       </div>
       <div>
-        <span className="text-[10px] text-text-ghost uppercase">Align</span>
+        <span className="text-[11px] text-text-ghost uppercase">Align</span>
         <div className="flex mt-1 bg-surface-2 rounded-md p-0.5 border border-border-subtle">
           {(["left", "center", "right"] as const).map((a) => (
             <button
@@ -268,7 +268,7 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
               onClick={() => update({ align: a })}
               aria-label={`Align ${a}`}
               aria-pressed={el.align === a}
-              className={`flex-1 py-1.5 text-[10px] rounded capitalize transition-all ${
+              className={`flex-1 py-1.5 text-[11px] rounded capitalize transition-all ${
                 el.align === a
                   ? "bg-surface-4 text-text-primary"
                   : "text-text-ghost hover:text-text-tertiary"
@@ -350,7 +350,7 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
     <div className="space-y-3">
       {/* Flip */}
       <div>
-        <span className="text-[10px] text-text-ghost uppercase block mb-1">Flip</span>
+        <span className="text-[11px] text-text-ghost uppercase block mb-1">Flip</span>
         <div className="flex gap-2">
           <button
             onClick={() => update({ flipX: !el.flipX } as Partial<EditorElement>)}
@@ -388,7 +388,7 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
 
       {/* Shadow */}
       <div>
-        <span className="text-[10px] text-text-ghost uppercase block mb-1">Shadow</span>
+        <span className="text-[11px] text-text-ghost uppercase block mb-1">Shadow</span>
         <div className="space-y-2">
           <NumberField
             label="Blur"
@@ -431,13 +431,13 @@ function ImageFiltersSection({ el, update }: { el: ImageElement; update: (u: Par
   return (
     <div className="space-y-3">
       <div>
-        <span className="text-[10px] text-text-ghost uppercase block mb-1">Presets</span>
+        <span className="text-[11px] text-text-ghost uppercase block mb-1">Presets</span>
         <div className="grid grid-cols-3 gap-1">
           {FILTER_PRESETS.map((p) => (
             <button
               key={p.label}
               onClick={() => update(p.values as Partial<EditorElement>)}
-              className="py-1.5 text-[10px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
+              className="py-1.5 text-[11px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
             >
               {p.label}
             </button>
@@ -487,7 +487,7 @@ function ImageFiltersSection({ el, update }: { el: ImageElement; update: (u: Par
           <button
             key={t.key}
             onClick={() => update({ [t.key]: !el[t.key] } as Partial<EditorElement>)}
-            className={`flex-1 py-1.5 text-[10px] rounded border transition-all ${
+            className={`flex-1 py-1.5 text-[11px] rounded border transition-all ${
               el[t.key]
                 ? "bg-surface-4 text-accent-green border-accent-green/40"
                 : "bg-surface-2 text-text-ghost border-border-subtle hover:text-text-secondary"
@@ -519,13 +519,13 @@ function TextShadowSection({ el, update }: { el: TextElement; update: (u: Partia
   return (
     <div className="space-y-3">
       <div>
-        <span className="text-[10px] text-text-ghost uppercase block mb-1">Presets</span>
+        <span className="text-[11px] text-text-ghost uppercase block mb-1">Presets</span>
         <div className="grid grid-cols-4 gap-1">
           {PRESETS.map((p) => (
             <button
               key={p.label}
               onClick={() => update(p.values as Partial<EditorElement>)}
-              className="py-1.5 text-[10px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
+              className="py-1.5 text-[11px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
             >
               {p.label}
             </button>
@@ -566,7 +566,7 @@ function TextShadowSection({ el, update }: { el: TextElement; update: (u: Partia
       </div>
       {isEnabled && (
         <div>
-          <span className="text-[10px] text-text-ghost uppercase block mb-1">Color</span>
+          <span className="text-[11px] text-text-ghost uppercase block mb-1">Color</span>
           <div className="flex items-center gap-2">
             <ColorPicker
               value={color}
@@ -693,7 +693,7 @@ function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: 
         <DragHandleIcon />
       </div>
       <div className="w-5 h-5 rounded bg-surface-3 flex items-center justify-center shrink-0">
-        <span className="text-[9px] text-text-ghost uppercase">
+        <span className="text-[10px] text-text-ghost uppercase">
           {el.type[0]}
         </span>
       </div>
@@ -945,7 +945,7 @@ function BackgroundSection() {
           <>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <span className="text-[10px] text-text-ghost uppercase block">Start</span>
+                <span className="text-[11px] text-text-ghost uppercase block">Start</span>
                 <div className="flex items-center gap-1.5">
                   <ColorPicker
                     value={startColor}
@@ -957,12 +957,12 @@ function BackgroundSection() {
                     value={startColor}
                     aria-label="Gradient start color"
                     onChange={(e) => updateColors(e.target.value, endColor)}
-                    className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[10px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+                    className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[11px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] text-text-ghost uppercase block">End</span>
+                <span className="text-[11px] text-text-ghost uppercase block">End</span>
                 <div className="flex items-center gap-1.5">
                   <ColorPicker
                     value={endColor}
@@ -974,7 +974,7 @@ function BackgroundSection() {
                     value={endColor}
                     aria-label="Gradient end color"
                     onChange={(e) => updateColors(startColor, e.target.value)}
-                    className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[10px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+                    className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[11px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
                   />
                 </div>
               </div>
@@ -982,7 +982,7 @@ function BackgroundSection() {
 
             {mode === "linear" && (
               <div className="space-y-1">
-                <span className="text-[10px] text-text-ghost uppercase block">Direction</span>
+                <span className="text-[11px] text-text-ghost uppercase block">Direction</span>
                 <div className="grid grid-cols-6 gap-1">
                   {LINEAR_DIRECTIONS.map((d, i) => {
                     const DIR_NAMES: Record<string, string> = {
@@ -1010,7 +1010,7 @@ function BackgroundSection() {
             )}
 
             <div className="space-y-1">
-              <span className="text-[10px] text-text-ghost uppercase block">Presets</span>
+              <span className="text-[11px] text-text-ghost uppercase block">Presets</span>
               <div className="grid grid-cols-5 gap-1.5">
                 {GRADIENT_PRESETS.map((p) => (
                   <button
@@ -1051,7 +1051,7 @@ function MultiSelectionInfo() {
       </div>
       <div className="space-y-2">
         <div>
-          <span className="text-[10px] text-text-ghost uppercase block mb-1">Opacity</span>
+          <span className="text-[11px] text-text-ghost uppercase block mb-1">Opacity</span>
           <input
             type="range"
             min={0}

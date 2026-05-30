@@ -270,7 +270,7 @@ export default function Topbar({
                 </button>
               ))}
               <div className="border-t border-border-subtle mt-1 pt-2 px-3 pb-2 space-y-2">
-                <span className="text-[10px] uppercase tracking-wider text-text-ghost block">
+                <span className="text-[11px] uppercase tracking-wider text-text-ghost block">
                   Custom size
                 </span>
                 <div className="flex items-center gap-1.5">
@@ -297,12 +297,12 @@ export default function Topbar({
                   />
                   <button
                     onClick={applyCustomFormat}
-                    className="text-[10px] uppercase font-semibold bg-accent-green hover:bg-accent-green-hover text-surface-0 px-2.5 py-1 rounded transition-all shrink-0"
+                    className="text-[11px] uppercase font-semibold bg-accent-green hover:bg-accent-green-hover text-surface-0 px-2.5 py-1 rounded transition-all shrink-0"
                   >
                     Set
                   </button>
                 </div>
-                <span className="text-[10px] text-text-ghost block">50 – 8000px</span>
+                <span className="text-[11px] text-text-ghost block">50 – 8000px</span>
               </div>
             </div>
           )}
@@ -394,7 +394,7 @@ export default function Topbar({
       {/* Right */}
       <div className="flex items-center gap-2 min-w-[200px] justify-end">
         {lastSavedAt && (
-          <span className="text-[10px] text-text-ghost">Auto-saved</span>
+          <span className="text-[11px] text-text-ghost">Auto-saved</span>
         )}
         <input
           ref={fileInputRef}
@@ -452,7 +452,7 @@ export default function Topbar({
                 My projects…
               </button>
               <div className="border-t border-border-subtle my-1" />
-              <span className="text-[10px] uppercase tracking-wider text-text-ghost px-3 py-1 block">
+              <span className="text-[11px] uppercase tracking-wider text-text-ghost px-3 py-1 block">
                 Project file
               </span>
               <button
@@ -466,7 +466,7 @@ export default function Topbar({
                   <DownloadIcon className="w-3.5 h-3.5 text-text-tertiary" />
                   Download project
                 </span>
-                <span className="text-[10px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
+                <span className="text-[11px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
               </button>
               <button
                 onClick={() => {
@@ -479,7 +479,7 @@ export default function Topbar({
                   <UploadIcon className="w-3.5 h-3.5 text-text-tertiary" />
                   Import project
                 </span>
-                <span className="text-[10px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
+                <span className="text-[11px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
               </button>
             </div>
           )}
@@ -506,7 +506,7 @@ export default function Topbar({
                 Export image
               </span>
               <div>
-                <span className="text-[10px] text-text-ghost uppercase block mb-1">Format</span>
+                <span className="text-[11px] text-text-ghost uppercase block mb-1">Format</span>
                 <div className="flex bg-surface-3 rounded-md p-0.5 border border-border-subtle">
                   {(["png", "jpeg"] as const).map((f) => (
                     <button
@@ -525,7 +525,7 @@ export default function Topbar({
               </div>
               {exportFormat === "jpeg" && (
                 <div>
-                  <span className="text-[10px] text-text-ghost uppercase block mb-1">
+                  <span className="text-[11px] text-text-ghost uppercase block mb-1">
                     Quality — {exportQuality}%
                   </span>
                   <input
@@ -550,7 +550,7 @@ export default function Topbar({
                   <span className="text-xs text-text-secondary">Transparent background</span>
                 </label>
               )}
-              <div className="text-[10px] text-text-ghost">
+              <div className="text-[11px] text-text-ghost">
                 {format.width} × {format.height}px
               </div>
               <button

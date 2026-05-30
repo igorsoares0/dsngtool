@@ -42,7 +42,7 @@ function TemplatesPanel() {
         <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
           Templates
         </h3>
-        <span className="text-[10px] text-text-ghost bg-surface-3 px-1.5 py-0.5 rounded">
+        <span className="text-[11px] text-text-ghost bg-surface-3 px-1.5 py-0.5 rounded">
           {TEMPLATES.length}
         </span>
       </div>
@@ -66,10 +66,10 @@ function TemplatesPanel() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[10px] text-white font-medium block">
+                <span className="text-[11px] text-white font-medium block">
                   {t.name}
                 </span>
-                <span className="text-[9px] text-white/60">
+                <span className="text-[10px] text-white/60">
                   {t.format.width}×{t.format.height}
                 </span>
               </div>
@@ -123,7 +123,7 @@ function UploadsPanel() {
           <PlusIcon className="w-5 h-5" />
         </div>
         <span className="text-xs">Upload image</span>
-        <span className="text-[10px] text-text-ghost">or drag & drop</span>
+        <span className="text-[11px] text-text-ghost">or drag & drop</span>
         <input
           type="file"
           accept="image/*"
@@ -411,7 +411,7 @@ function OverlaysPanel() {
       <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
         Overlays
       </h3>
-      <p className="text-[10px] text-text-ghost leading-relaxed">
+      <p className="text-[11px] text-text-ghost leading-relaxed">
         Click any preset to add a full-canvas overlay layer. Adjust opacity and color in the right panel.
       </p>
       <div className="grid grid-cols-2 gap-2">
@@ -422,7 +422,7 @@ function OverlaysPanel() {
             className="aspect-video rounded-lg border border-border-subtle hover:border-accent-green/40 transition-all flex items-end p-2 overflow-hidden relative group"
             style={{ background: overlay.preview }}
           >
-            <span className="text-[10px] text-white font-medium relative z-10 drop-shadow">
+            <span className="text-[11px] text-white font-medium relative z-10 drop-shadow">
               {overlay.label}
             </span>
           </button>

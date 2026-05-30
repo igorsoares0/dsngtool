@@ -89,7 +89,7 @@ export default function ShortcutsModal({ onClose }: { onClose: () => void }) {
         <div className="p-5 space-y-5">
           {GROUPS.map((group) => (
             <div key={group.title}>
-              <h3 className="text-[10px] uppercase tracking-wider text-text-ghost mb-2">
+              <h3 className="text-[11px] uppercase tracking-wider text-text-ghost mb-2">
                 {group.title}
               </h3>
               <div className="space-y-1.5">
@@ -103,7 +103,7 @@ export default function ShortcutsModal({ onClose }: { onClose: () => void }) {
                       {s.keys.map((k, i) => (
                         <kbd
                           key={i}
-                          className="px-1.5 py-0.5 bg-surface-3 border border-border-subtle rounded text-[10px] font-mono text-text-primary min-w-[20px] text-center"
+                          className="px-1.5 py-0.5 bg-surface-3 border border-border-subtle rounded text-[11px] font-mono text-text-primary min-w-[20px] text-center"
                         >
                           {k}
                         </kbd>
@@ -115,7 +115,7 @@ export default function ShortcutsModal({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
-        <div className="px-5 py-3 border-t border-border-subtle text-[10px] text-text-ghost">
+        <div className="px-5 py-3 border-t border-border-subtle text-[11px] text-text-ghost">
           Press <kbd className="px-1 bg-surface-3 border border-border-subtle rounded font-mono">?</kbd> any time to open this dialog
         </div>
       </div>

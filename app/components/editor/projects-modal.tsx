@@ -175,17 +175,17 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
                         {p.name}
                       </span>
                       {p.id === currentProjectId && (
-                        <span className="text-[9px] text-accent-green bg-accent-green/10 px-1.5 py-0.5 rounded-full">
+                        <span className="text-[10px] text-accent-green bg-accent-green/10 px-1.5 py-0.5 rounded-full">
                           Current
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-text-ghost">
+                      <span className="text-[11px] text-text-ghost">
                         {p.elements.length} element{p.elements.length !== 1 ? "s" : ""}
                       </span>
-                      <span className="text-[10px] text-text-ghost">·</span>
-                      <span className="text-[10px] text-text-ghost">
+                      <span className="text-[11px] text-text-ghost">·</span>
+                      <span className="text-[11px] text-text-ghost">
                         {formatDate(p.updatedAt)}
                       </span>
                     </div>
@@ -197,13 +197,13 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleDelete(p.id)}
-                          className="text-[10px] text-accent-pink bg-accent-pink/10 px-2 py-1 rounded hover:bg-accent-pink/20 transition-colors"
+                          className="text-[11px] text-accent-pink bg-accent-pink/10 px-2 py-1 rounded hover:bg-accent-pink/20 transition-colors"
                         >
                           Delete
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(null)}
-                          className="text-[10px] text-text-ghost px-2 py-1 rounded hover:bg-surface-3 transition-colors"
+                          className="text-[11px] text-text-ghost px-2 py-1 rounded hover:bg-surface-3 transition-colors"
                         >
                           Cancel
                         </button>
