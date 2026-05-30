@@ -9,6 +9,18 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+interface EyeDropperResult {
+  sRGBHex: string;
+}
+interface EyeDropperInstance {
+  open: (options?: { signal?: AbortSignal }) => Promise<EyeDropperResult>;
+}
+declare global {
+  interface Window {
+    EyeDropper?: { new (): EyeDropperInstance };
+  }
+}
+
 interface HSV {
   h: number; // 0-360
   s: number; // 0-100
@@ -157,7 +169,7 @@ export default function ColorPicker({
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const popoverWidth = 248;
-    const popoverHeight = 360;
+    const popoverHeight = 396;
     let left = align === "right"
       ? rect.left
       : rect.right - popoverWidth;
@@ -248,6 +260,20 @@ export default function ColorPicker({
     }
   };
 
+  const [supportsEyedropper] = useState(
+    () => typeof window !== "undefined" && "EyeDropper" in window
+  );
+
+  const pickWithEyedropper = async () => {
+    if (typeof window === "undefined" || !window.EyeDropper) return;
+    try {
+      const result = await new window.EyeDropper().open();
+      commitHex(result.sRGBHex);
+    } catch {
+      // User cancelled (Escape) — ignore.
+    }
+  };
+
   const dim = size === "sm" ? "w-7 h-7" : "w-8 h-8";
 
   return (
@@ -258,22 +284,22 @@ export default function ColorPicker({
         onClick={() => setOpen((o) => !o)}
         aria-label="Pick color"
         aria-expanded={open}
-        className={`${dim} rounded-md border border-border-default cursor-pointer shrink-0 transition-shadow hover:shadow-md`}
+        className={`${dim} rounded-md border border-border-strong cursor-pointer shrink-0 transition-all hover:scale-105 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-green/50`}
         style={{ backgroundColor: value }}
       />
       {open && createPortal(
         <div
           ref={popoverRef}
-          className="fixed z-[200] w-[248px] bg-surface-1 border border-border-default rounded-lg shadow-2xl p-3 animate-fade-in"
+          className="fixed z-[200] w-[248px] bg-surface-1 border border-border-default rounded-xl shadow-2xl p-3 animate-fade-in"
           style={{ left: pos.left, top: pos.top }}
           onPointerDown={(e) => e.stopPropagation()}
         >
           {/* SV square + hue slider */}
-          <div className="flex gap-2">
+          <div className="flex gap-2.5">
             <div
               ref={svRef}
               onPointerDown={startDrag("sv")}
-              className="relative flex-1 h-[140px] rounded-md overflow-hidden cursor-crosshair touch-none select-none"
+              className="relative flex-1 h-[150px] rounded-lg cursor-crosshair touch-none select-none"
               style={{
                 backgroundColor: `hsl(${hsv.h}, 100%, 50%)`,
                 backgroundImage:
@@ -281,68 +307,103 @@ export default function ColorPicker({
               }}
             >
               <div
-                className="absolute w-3 h-3 rounded-full border-2 border-white shadow pointer-events-none"
+                className="absolute w-4 h-4 rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"
                 style={{
-                  left: `calc(${hsv.s}% - 6px)`,
-                  top: `calc(${100 - hsv.v}% - 6px)`,
+                  left: `${hsv.s}%`,
+                  top: `${100 - hsv.v}%`,
                   backgroundColor: hsvToHex(hsv.h, hsv.s, hsv.v),
+                  boxShadow:
+                    "0 0 0 2px #fff, 0 0 0 3px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.45)",
                 }}
               />
             </div>
             <div
               ref={hueRef}
               onPointerDown={startDrag("hue")}
-              className="relative w-3 h-[140px] rounded-md overflow-hidden cursor-pointer touch-none select-none"
+              className="relative w-3.5 h-[150px] rounded-full cursor-pointer touch-none select-none"
               style={{
                 backgroundImage:
                   "linear-gradient(to bottom, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)",
               }}
             >
               <div
-                className="absolute left-[-2px] right-[-2px] h-1 border border-white shadow pointer-events-none"
-                style={{ top: `calc(${(hsv.h / 360) * 100}% - 2px)` }}
+                className="absolute left-1/2 w-[19px] h-[7px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  top: `${(hsv.h / 360) * 100}%`,
+                  backgroundColor: `hsl(${hsv.h}, 100%, 50%)`,
+                  boxShadow:
+                    "0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.45)",
+                }}
               />
             </div>
           </div>
 
-          {/* Hex input + preview */}
+          {/* Hex input + preview + eyedropper */}
           <div className="flex items-center gap-2 mt-3">
             <div
-              className="w-7 h-7 rounded-md border border-border-subtle shrink-0"
+              className="w-8 h-8 rounded-md border border-border-strong shrink-0"
               style={{ backgroundColor: hexInput }}
             />
-            <input
-              type="text"
-              value={hexInput}
-              onChange={(e) => setHexInput(e.target.value.toUpperCase())}
-              onBlur={(e) => commitHex(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  commitHex((e.target as HTMLInputElement).value);
-                  (e.target as HTMLInputElement).blur();
-                }
-              }}
-              spellCheck={false}
-              className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 font-mono uppercase"
-            />
+            <div className="flex-1 flex items-center bg-surface-2 border border-border-subtle rounded-md focus-within:border-accent-green/40 transition-colors">
+              <span className="pl-2 text-text-ghost text-xs font-mono select-none">#</span>
+              <input
+                type="text"
+                value={hexInput.replace(/^#/, "")}
+                onChange={(e) => setHexInput(("#" + e.target.value.replace(/#/g, "")).toUpperCase())}
+                onBlur={(e) => commitHex(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitHex((e.target as HTMLInputElement).value);
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                spellCheck={false}
+                aria-label="Hex color value"
+                className="w-full bg-transparent text-xs text-text-primary pl-1 pr-2 py-1.5 rounded-md outline-none font-mono uppercase tracking-wide"
+              />
+            </div>
+            {supportsEyedropper && (
+              <button
+                type="button"
+                onClick={pickWithEyedropper}
+                aria-label="Pick color from screen"
+                title="Pick from screen"
+                className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md bg-surface-2 border border-border-subtle text-text-tertiary hover:text-text-primary hover:bg-surface-3 transition-all"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m2 22 1-1h3l9-9" />
+                  <path d="M3 21v-3l9-9" />
+                  <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z" />
+                </svg>
+              </button>
+            )}
           </div>
 
-          {/* Palette */}
-          <div className="grid grid-cols-9 gap-1 mt-3">
-            {PALETTE.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => commitHex(c)}
-                aria-label={c}
-                className={`aspect-square rounded border transition-transform hover:scale-110 ${
-                  value.toLowerCase() === c.toLowerCase()
-                    ? "border-accent-green"
-                    : "border-border-subtle"
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
+          {/* Swatches */}
+          <div className="mt-3">
+            <span className="text-[11px] text-text-ghost uppercase tracking-wider block mb-1.5">
+              Swatches
+            </span>
+            <div className="grid grid-cols-9 gap-1">
+              {PALETTE.map((c) => {
+                const isActive = value.toLowerCase() === c.toLowerCase();
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => commitHex(c)}
+                    aria-label={c}
+                    aria-pressed={isActive}
+                    className={`aspect-square rounded-md transition-transform hover:scale-110 ${
+                      isActive
+                        ? "ring-2 ring-accent-green ring-offset-1 ring-offset-surface-1 scale-110"
+                        : "ring-1 ring-inset ring-border-subtle"
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>,
         document.body
