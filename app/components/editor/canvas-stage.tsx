@@ -558,6 +558,7 @@ export default function CanvasStage({
   onStartEditing,
   editingId,
   onSelectionRect,
+  onContextMenu,
 }: {
   stageRef: React.RefObject<Konva.Stage | null>;
   containerWidth: number;
@@ -565,6 +566,7 @@ export default function CanvasStage({
   onStartEditing: (req: InlineEditRequest) => void;
   editingId: string | null;
   onSelectionRect?: (rect: SelectionRect | null) => void;
+  onContextMenu?: (req: { x: number; y: number; targetId: string | null }) => void;
 }) {
   const elements = useEditorStore((s) => s.elements);
   const selectedIds = useEditorStore((s) => s.selectedIds);
@@ -629,6 +631,8 @@ export default function CanvasStage({
   // the user is dragging/resizing, panning, or editing text inline.
   const onSelectionRectRef = useRef(onSelectionRect);
   onSelectionRectRef.current = onSelectionRect;
+  const onContextMenuRef = useRef(onContextMenu);
+  onContextMenuRef.current = onContextMenu;
   const isInteractingRef = useRef(false);
 
   const reportSelectionRect = useCallback(() => {
@@ -857,6 +861,29 @@ export default function CanvasStage({
     [selectElement, handMode]
   );
 
+  const handleContextMenu = useCallback(
+    (e: Konva.KonvaEventObject<PointerEvent>) => {
+      e.evt.preventDefault();
+      const cb = onContextMenuRef.current;
+      if (!cb || handMode) return;
+      const stage = stageRef.current;
+      if (!stage) return;
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+      let targetId: string | null = null;
+      const node = e.target;
+      if (node && node !== stage) {
+        const id = node.id();
+        if (id && id !== "bg-rect") targetId = id;
+      }
+      if (targetId && !useEditorStore.getState().selectedIds.includes(targetId)) {
+        selectElement(targetId, false);
+      }
+      cb({ x: pos.x, y: pos.y, targetId });
+    },
+    [handMode, stageRef, selectElement]
+  );
+
   const makeDragHandlers = useCallback(
     (elId: string): DragHandlers => ({
       onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -985,6 +1012,7 @@ export default function CanvasStage({
       onTouchMove={handleStageMouseMove}
       onMouseUp={handleStageMouseUp}
       onTouchEnd={handleStageMouseUp}
+      onContextMenu={handleContextMenu}
     >
       {/* Background layer */}
       <Layer>

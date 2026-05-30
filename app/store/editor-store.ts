@@ -34,6 +34,7 @@ interface EditorState {
   backgroundColor: string;
   backgroundGradient: GradientFill | null;
   lastSavedAt: number | null;
+  clipboard: EditorElement[] | null;
 
   // history
   past: HistorySnapshot[];
@@ -62,6 +63,10 @@ interface EditorState {
   reorderElements: (fromIndex: number, toIndex: number) => void;
   duplicateElement: (id: string) => void;
   duplicateSelectedElements: () => void;
+  copySelection: () => void;
+  pasteClipboard: () => void;
+  bringToFront: (id: string) => void;
+  sendToBack: (id: string) => void;
   loadTemplate: (template: { elements: (Omit<TextElement, "id"> | Omit<ImageElement, "id"> | Omit<ShapeElement, "id">)[]; backgroundColor: string; backgroundGradient?: GradientFill | null; format?: CanvasFormat }) => void;
   loadProject: (project: { id: string; name: string; elements: EditorElement[]; backgroundColor: string; backgroundGradient?: GradientFill | null; format: CanvasFormat }) => void;
   newProject: () => void;
@@ -99,6 +104,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   backgroundColor: "#ffffff",
   backgroundGradient: null,
   lastSavedAt: null,
+  clipboard: null,
 
   past: [],
   future: [],
@@ -290,6 +296,55 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       elements: [...s.elements, ...newEls],
       selectedIds: newIds,
     }));
+  },
+
+  copySelection: () => {
+    const s = get();
+    if (s.selectedIds.length === 0) return;
+    const idSet = new Set(s.selectedIds);
+    const copied = s.elements
+      .filter((el) => idSet.has(el.id))
+      .map((el) => ({ ...el }));
+    set({ clipboard: copied });
+  },
+
+  pasteClipboard: () => {
+    const s = get();
+    if (!s.clipboard || s.clipboard.length === 0) return;
+    const newEls: EditorElement[] = [];
+    const newIds: string[] = [];
+    for (const el of s.clipboard) {
+      const id = genId();
+      newEls.push({ ...el, id, x: el.x + 20, y: el.y + 20 } as EditorElement);
+      newIds.push(id);
+    }
+    set((st) => ({
+      ...pushHistory(st),
+      elements: [...st.elements, ...newEls],
+      selectedIds: newIds,
+    }));
+  },
+
+  bringToFront: (id) => {
+    set((s) => {
+      const idx = s.elements.findIndex((el) => el.id === id);
+      if (idx === -1 || idx === s.elements.length - 1) return s;
+      const arr = [...s.elements];
+      const [moved] = arr.splice(idx, 1);
+      arr.push(moved);
+      return { ...pushHistory(s), elements: arr };
+    });
+  },
+
+  sendToBack: (id) => {
+    set((s) => {
+      const idx = s.elements.findIndex((el) => el.id === id);
+      if (idx <= 0) return s;
+      const arr = [...s.elements];
+      const [moved] = arr.splice(idx, 1);
+      arr.unshift(moved);
+      return { ...pushHistory(s), elements: arr };
+    });
   },
 
   loadProject: (project) => {

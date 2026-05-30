@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useEditorStore } from "../store/editor-store";
+import { toastDeleted } from "../store/toast-store";
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
@@ -27,7 +28,9 @@ export function useKeyboardShortcuts() {
         const { selectedIds, removeSelectedElements } = useEditorStore.getState();
         if (selectedIds.length > 0) {
           e.preventDefault();
+          const count = selectedIds.length;
           removeSelectedElements();
+          toastDeleted(count);
         }
       }
 

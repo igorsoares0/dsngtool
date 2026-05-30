@@ -6,6 +6,7 @@ import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import type { InlineEditRequest, SelectionRect } from "./canvas-stage";
 import SelectionToolbar from "./selection-toolbar";
+import ContextMenu, { type ContextMenuRequest } from "./context-menu";
 
 const CanvasStage = dynamic(() => import("./canvas-stage"), { ssr: false });
 
@@ -104,6 +105,7 @@ export default function CanvasArea({
 
   const [editReq, setEditReq] = useState<InlineEditRequest | null>(null);
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
+  const [menuReq, setMenuReq] = useState<ContextMenuRequest | null>(null);
   const lastFitFormatRef = useRef<string | null>(null);
 
   const scale = zoom / 100;
@@ -244,12 +246,23 @@ export default function CanvasArea({
           onStartEditing={handleStartEditing}
           editingId={editReq?.elementId ?? null}
           onSelectionRect={setSelectionRect}
+          onContextMenu={setMenuReq}
         />
       )}
 
       {/* Contextual toolbar anchored to the selection */}
-      {selectionRect && !editReq && (
+      {selectionRect && !editReq && !menuReq && (
         <SelectionToolbar rect={selectionRect} containerWidth={dims.width} />
+      )}
+
+      {/* Right-click context menu */}
+      {menuReq && (
+        <ContextMenu
+          req={menuReq}
+          containerWidth={dims.width}
+          containerHeight={dims.height}
+          onClose={() => setMenuReq(null)}
+        />
       )}
 
       {/* Empty state hint (centered on canvas) */}

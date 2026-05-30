@@ -14,6 +14,7 @@ import RightPanel from "./right-panel";
 import FontLoader from "./font-loader";
 import ProjectsModal from "./projects-modal";
 import ShortcutsModal from "./shortcuts-modal";
+import Toaster from "./toaster";
 
 type SidebarTool =
   | "templates"
@@ -74,6 +75,7 @@ export default function EditorLayout() {
       </div>
       {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+      <Toaster />
     </div>
   );
 }

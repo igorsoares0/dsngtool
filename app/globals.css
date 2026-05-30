@@ -68,6 +68,15 @@ body {
   animation: canvas-appear 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .canvas-grid {
   background-image:
     radial-gradient(circle, #ffffff06 1px, transparent 1px);

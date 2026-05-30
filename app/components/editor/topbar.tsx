@@ -5,6 +5,7 @@ import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import { CANVAS_FORMATS } from "../../types/editor";
 import { db } from "../../lib/db";
+import { toast } from "../../store/toast-store";
 import {
   downloadProjectFile,
   readProjectFile,
@@ -55,8 +56,6 @@ export default function Topbar({
   const [exportQuality, setExportQuality] = useState(90);
   const [transparentBg, setTransparentBg] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [saveFlash, setSaveFlash] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
   const [customW, setCustomW] = useState<string>(String(format.width));
   const [customH, setCustomH] = useState<string>(String(format.height));
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,10 +91,9 @@ export default function Topbar({
         updatedAt: new Date(),
       });
       s.markSaved();
-      setSaveFlash(true);
-      setTimeout(() => setSaveFlash(false), 1500);
+      toast.success("Project saved");
     } catch {
-      // silent
+      toast.error("Couldn't save project");
     }
   }, []);
 
@@ -127,10 +125,12 @@ export default function Topbar({
     if (transparentBg && bgRect) bgRect.show();
 
     const link = document.createElement("a");
-    link.download = `${projectName || "design"}.${exportFormat}`;
+    const fileName = `${projectName || "design"}.${exportFormat}`;
+    link.download = fileName;
     link.href = dataUrl;
     link.click();
     setShowExportMenu(false);
+    toast.success(`Exported ${fileName}`);
   }, [stageRef, zoom, format, projectName, exportFormat, exportQuality, transparentBg]);
 
   const handleExportProjectFile = useCallback(() => {
@@ -143,10 +143,10 @@ export default function Topbar({
       elements: s.elements,
     });
     setShowExportMenu(false);
+    toast.success("Project file downloaded");
   }, []);
 
   const handleImportClick = useCallback(() => {
-    setImportError(null);
     fileInputRef.current?.click();
   }, []);
 
@@ -164,10 +164,10 @@ export default function Topbar({
         backgroundGradient: imported.backgroundGradient,
         format: imported.format,
       });
+      toast.success(`Imported "${imported.name}"`);
     } catch (err) {
       const msg = err instanceof ImportError ? err.message : "Could not import file";
-      setImportError(msg);
-      setTimeout(() => setImportError(null), 4000);
+      toast.error(msg);
     }
   }, []);
 
@@ -338,15 +338,7 @@ export default function Topbar({
 
       {/* Right */}
       <div className="flex items-center gap-2 min-w-[200px] justify-end">
-        {importError && (
-          <span className="text-[10px] text-red-400 animate-fade-in" title={importError}>
-            Import failed
-          </span>
-        )}
-        {!importError && saveFlash && (
-          <span className="text-[10px] text-accent-green animate-fade-in">Saved</span>
-        )}
-        {!importError && !saveFlash && lastSavedAt && (
+        {lastSavedAt && (
           <span className="text-[10px] text-text-ghost">Auto-saved</span>
         )}
         <input

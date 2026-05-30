@@ -18,6 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "../../store/editor-store";
+import { toastDeleted } from "../../store/toast-store";
 import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon } from "./icons";
 import { AVAILABLE_FONTS } from "./font-loader";
 import ColorPicker from "./color-picker";
@@ -647,7 +648,7 @@ function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: 
           <LockIcon />
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); removeElement(el.id); }}
+          onClick={(e) => { e.stopPropagation(); removeElement(el.id); toastDeleted(1); }}
           className="p-0.5 text-text-ghost hover:text-accent-pink"
         >
           <TrashIcon />
@@ -986,7 +987,11 @@ function MultiSelectionInfo() {
             Duplicate All
           </button>
           <button
-            onClick={removeSelectedElements}
+            onClick={() => {
+              const count = selectedIds.length;
+              removeSelectedElements();
+              toastDeleted(count);
+            }}
             className="flex-1 py-1.5 text-[11px] text-accent-pink bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-md transition-all"
           >
             Delete All

@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { useEditorStore } from "../../store/editor-store";
+import { toastDeleted } from "../../store/toast-store";
 import {
   DuplicateIcon,
   BringForwardIcon,
@@ -139,7 +140,15 @@ export default function SelectionToolbar({
         <LockIcon className="w-4 h-4" />
       </ToolbarButton>
       <Divider />
-      <ToolbarButton title="Delete" danger onClick={removeSelectedElements}>
+      <ToolbarButton
+        title="Delete"
+        danger
+        onClick={() => {
+          const count = selectedIds.length;
+          removeSelectedElements();
+          toastDeleted(count);
+        }}
+      >
         <TrashIcon className="w-4 h-4" />
       </ToolbarButton>
     </div>

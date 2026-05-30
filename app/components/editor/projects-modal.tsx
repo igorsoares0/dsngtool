@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { db, type Project } from "../../lib/db";
 import { useEditorStore } from "../../store/editor-store";
+import { toast } from "../../store/toast-store";
 import { PlusIcon, TrashIcon } from "./icons";
 
 function formatDate(date: Date) {
@@ -60,14 +61,21 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
   };
 
   const handleDelete = async (id: string) => {
+    const removed = projects.find((p) => p.id === id);
     try {
       await db.projects.delete(id);
       setProjects((prev) => prev.filter((p) => p.id !== id));
       if (id === currentProjectId) {
         newProject();
       }
+      if (removed) {
+        toast.action("Project deleted", "Undo", async () => {
+          await db.projects.put(removed);
+          loadProjects();
+        });
+      }
     } catch {
-      // silent
+      toast.error("Couldn't delete project");
     }
     setDeleteConfirm(null);
   };
