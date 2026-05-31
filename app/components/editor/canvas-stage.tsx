@@ -645,6 +645,13 @@ export default function CanvasStage({
   // commit so we write all positions to the store exactly once per gesture.
   const groupCommitScheduled = useRef(false);
   const snapData = useRef<{ width: number; height: number; others: BBox[] } | null>(null);
+  // Snap context for multi-select drags: dimensions of each selected element
+  // (positions are read live from Konva) plus the non-selected elements to
+  // align against. Built once at drag start.
+  const groupSnap = useRef<{
+    dims: Map<string, { width: number; height: number }>;
+    others: BBox[];
+  } | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [marquee, setMarquee] = useState<{
     x1: number;
@@ -966,10 +973,23 @@ export default function CanvasStage({
         const state = useEditorStore.getState();
         // For a multi-select drag, Konva's Transformer moves every selected
         // node together (proxy drag). We let it own the motion — computing our
-        // own deltas here would fight it and scatter the elements. Snapping is
-        // disabled in that case so the group never diverges from the pointer.
+        // own per-element deltas would fight it and scatter the elements.
+        // Instead we snap the whole group's bounding box as a unit (see
+        // onDragMove), so cache the alignment context here.
         if (state.selectedIds.length > 1 && state.selectedIds.includes(elId)) {
           snapData.current = null;
+          const selectedSet = new Set(state.selectedIds);
+          const dims = new Map<string, { width: number; height: number }>();
+          const others: BBox[] = [];
+          for (const x of state.elements) {
+            if (x.hidden) continue;
+            if (selectedSet.has(x.id)) {
+              dims.set(x.id, { width: x.width, height: x.height });
+            } else {
+              others.push({ x: x.x, y: x.y, width: x.width, height: x.height });
+            }
+          }
+          groupSnap.current = { dims, others };
           return;
         }
         const draggedEl = state.elements.find((x) => x.id === elId);
@@ -985,8 +1005,71 @@ export default function CanvasStage({
         }
       },
       onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
-        // Snapping only runs for single-element drags (snapData is null while a
-        // group is being dragged — see onDragStart).
+        const setSnapGuides = (snapGuides: Guide[]) =>
+          setGuides((prev) => {
+            if (
+              prev.length === snapGuides.length &&
+              prev.every(
+                (g, i) =>
+                  g.orientation === snapGuides[i].orientation &&
+                  g.pos === snapGuides[i].pos
+              )
+            ) {
+              return prev;
+            }
+            return snapGuides;
+          });
+
+        // Multi-select: snap the group's combined bounding box and shift every
+        // selected node by the same delta so they stay locked together.
+        if (groupSnap.current) {
+          const stage = stageRef.current;
+          if (!stage) return;
+          const ids = useEditorStore.getState().selectedIds;
+          // Konva positions every dragging node before firing any dragmove
+          // (DragAndDrop._drag), so by now all siblings are at their new spot.
+          // Let only the first dragging node drive the snap — once per frame.
+          const driver = ids.find((id) => stage.findOne(`#${id}`)?.isDragging());
+          if (driver !== elId) return;
+
+          const nodes: Konva.Node[] = [];
+          let minX = Infinity;
+          let minY = Infinity;
+          let maxX = -Infinity;
+          let maxY = -Infinity;
+          for (const id of ids) {
+            const node = stage.findOne(`#${id}`);
+            const dim = groupSnap.current.dims.get(id);
+            if (!node || !dim) continue;
+            nodes.push(node);
+            minX = Math.min(minX, node.x());
+            minY = Math.min(minY, node.y());
+            maxX = Math.max(maxX, node.x() + dim.width);
+            maxY = Math.max(maxY, node.y() + dim.height);
+          }
+          if (!Number.isFinite(minX)) return;
+
+          const z = useEditorStore.getState().zoom / 100;
+          const snap = computeSnap(
+            { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+            groupSnap.current.others,
+            { width: format.width, height: format.height },
+            6 / z
+          );
+          const dx = snap.x - minX;
+          const dy = snap.y - minY;
+          if (dx !== 0 || dy !== 0) {
+            for (const node of nodes) {
+              node.x(node.x() + dx);
+              node.y(node.y() + dy);
+            }
+            stage.batchDraw();
+          }
+          setSnapGuides(snap.guides);
+          return;
+        }
+
+        // Single-select snap (snapData is null during a group drag).
         if (!snapData.current) return;
         const proposed: BBox = {
           x: e.target.x(),
@@ -995,33 +1078,21 @@ export default function CanvasStage({
           height: snapData.current.height,
         };
         const z = useEditorStore.getState().zoom / 100;
-        const threshold = 6 / z;
         const snap = computeSnap(
           proposed,
           snapData.current.others,
           { width: format.width, height: format.height },
-          threshold
+          6 / z
         );
         if (snap.x !== proposed.x || snap.y !== proposed.y) {
           e.target.position({ x: snap.x, y: snap.y });
         }
-        setGuides((prev) => {
-          if (
-            prev.length === snap.guides.length &&
-            prev.every(
-              (g, i) =>
-                g.orientation === snap.guides[i].orientation &&
-                g.pos === snap.guides[i].pos
-            )
-          ) {
-            return prev;
-          }
-          return snap.guides;
-        });
+        setSnapGuides(snap.guides);
       },
       onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
         setGuides([]);
         snapData.current = null;
+        groupSnap.current = null;
         isInteractingRef.current = false;
         requestAnimationFrame(() => reportRef.current());
 
