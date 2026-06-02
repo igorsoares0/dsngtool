@@ -2,6 +2,7 @@
 
 import { useEditorStore } from "../../store/editor-store";
 import { TEMPLATES } from "../../data/templates";
+import { ASSETS } from "../../data/assets";
 import { PlusIcon } from "./icons";
 import type { EditorElement } from "../../types/editor";
 
@@ -272,20 +273,54 @@ function ShapesPanel() {
 }
 
 function AssetsPanel() {
+  const addElement = useEditorStore((s) => s.addElement);
+  const format = useEditorStore((s) => s.format);
+
+  const addAsset = (src: string) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const maxW = format.width * 0.6;
+      const ratio = img.width / img.height;
+      const w = Math.min(img.width, maxW);
+      const h = w / ratio;
+      addElement({
+        type: "image",
+        src,
+        x: (format.width - w) / 2,
+        y: (format.height - h) / 2,
+        width: w,
+        height: h,
+        rotation: 0,
+        opacity: 1,
+      });
+    };
+    img.src = src;
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
         Assets
       </h3>
-      <input
-        type="text"
-        placeholder="Search stickers & icons..."
-        aria-label="Search stickers and icons"
-        className="w-full bg-surface-2 border border-border-subtle text-xs text-text-primary placeholder:text-text-ghost px-3 py-2 rounded-md outline-none focus:border-accent-green/40 transition-colors"
-      />
-      <p className="text-[11px] text-text-ghost text-center py-6">
-        Asset library coming soon
-      </p>
+      <div className="grid grid-cols-3 gap-2">
+        {ASSETS.map((asset) => (
+          <button
+            key={asset.id}
+            onClick={() => addAsset(asset.src)}
+            aria-label="Add asset"
+            title="Add to canvas"
+            className="aspect-square bg-surface-2 border border-border-subtle rounded-lg overflow-hidden flex items-center justify-center hover:border-accent-green/40 hover:bg-surface-3 transition-all"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={asset.src}
+              alt=""
+              className="w-full h-full object-contain p-1"
+              loading="lazy"
+            />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
