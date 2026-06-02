@@ -6,6 +6,7 @@ import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";
 import { useClipboardEvents } from "../../hooks/use-clipboard-events";
 import { useAutosave } from "../../hooks/use-autosave";
 import { useProjectLoader } from "../../hooks/use-project-loader";
+import { useLicense } from "../../hooks/use-license";
 import Topbar from "./topbar";
 import LeftSidebar from "./left-sidebar";
 import LeftPanel from "./left-panel";
@@ -14,6 +15,7 @@ import RightPanel from "./right-panel";
 import FontLoader from "./font-loader";
 import ProjectsModal from "./projects-modal";
 import ShortcutsModal from "./shortcuts-modal";
+import LicenseModal from "./license-modal";
 import Toaster from "./toaster";
 import IosInstallHint from "./ios-install-hint";
 
@@ -34,6 +36,7 @@ export default function EditorLayout() {
   useKeyboardShortcuts();
   useClipboardEvents();
   useAutosave();
+  useLicense();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -75,6 +78,7 @@ export default function EditorLayout() {
       </div>
       {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+      <LicenseModal />
       <Toaster />
       <IosInstallHint />
     </div>

@@ -1,0 +1,51 @@
+// Prisma schema for dsgntool licensing (Paddle now, AppSumo later).
+// Runtime uses DATABASE_URL (Neon pooled); migrations use DIRECT_URL (Neon direct).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LicenseSource {
+  paddle
+  appsumo
+}
+
+enum LicenseStatus {
+  active
+  refunded
+  deactivated
+}
+
+model License {
+  id              String        @id @default(cuid())
+  key             String        @unique
+  source          LicenseSource
+  status          LicenseStatus @default(active)
+  // Single tier ("pro") today; kept as a string for AppSumo tier stacking later.
+  tier            String        @default("pro")
+  email           String?
+  // Paddle transaction id (txn_...) or AppSumo uuid. Unique => idempotent fulfillment.
+  externalId      String        @unique
+  maxActivations  Int           @default(3)
+  activationCount Int           @default(0)
+  raw             Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  activations Activation[]
+}
+
+model Activation {
+  id        String   @id @default(cuid())
+  licenseId String
+  deviceId  String
+  createdAt DateTime @default(now())
+
+  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@unique([licenseId, deviceId])
+}

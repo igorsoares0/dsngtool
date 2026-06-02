@@ -15,6 +15,8 @@ export interface Template {
   previewColor: string;
   previewAccent: string;
   elements: TemplateElement[];
+  /** Premium templates require a Pro license to apply (free shows a lock). */
+  premium?: boolean;
 }
 
 const IGPost = CANVAS_FORMATS[0]; // 1080x1080
@@ -609,6 +611,7 @@ export const TEMPLATES: Template[] = [
   // ── Template 5: "Big Sale" — Post, bold promo ──
   {
     name: "Big Sale",
+    premium: true,
     category: "Promo",
     backgroundColor: "#0F0F0F",
     format: IGPost,
@@ -4472,6 +4475,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Before & After" — beauty transformation split (IG Post) ──
   {
     name: "Before & After",
+    premium: true,
     category: "Beauty",
     backgroundColor: "#FDF4F1",
     format: IGPost,
@@ -4788,6 +4792,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Pricing Plans" — SaaS plan card with feature list (IG Post) ──
   {
     name: "Pricing Plans",
+    premium: true,
     category: "Pricing",
     backgroundColor: "#0F172A",
     format: IGPost,
@@ -5863,6 +5868,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "App Launch" — tech product launch with phone mockup (IG Post) ──
   {
     name: "App Launch",
+    premium: true,
     category: "Tech",
     backgroundColor: "#0A0F1F",
     format: IGPost,
@@ -6823,6 +6829,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Meet the Founder" — team intro with portrait (IG Post) ──
   {
     name: "Meet the Founder",
+    premium: true,
     category: "Team",
     backgroundColor: "#1C2B2D",
     format: IGPost,
@@ -7448,6 +7455,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Save the Date" — elegant wedding announcement (Pinterest) ──
   {
     name: "Save the Date",
+    premium: true,
     category: "Wedding",
     backgroundColor: "#EFE6DD",
     format: Pinterest,

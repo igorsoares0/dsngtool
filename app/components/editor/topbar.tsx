@@ -3,8 +3,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
+import { useLicenseStore } from "../../store/license-store";
 import { CANVAS_FORMATS } from "../../types/editor";
 import { db } from "../../lib/db";
+import { applyWatermark } from "../../lib/watermark";
 import { toast } from "../../store/toast-store";
 import { useInstallPrompt } from "../../hooks/use-install-prompt";
 import {
@@ -28,6 +30,7 @@ import {
   KeyboardIcon,
   FolderIcon,
   TemplatesIcon,
+  LockIcon,
   InstallIcon,
 } from "./icons";
 
@@ -53,6 +56,8 @@ export default function Topbar({
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
+  const isPro = useLicenseStore((s) => s.tier === "pro");
+  const openLicense = useLicenseStore((s) => s.openModal);
   const { canInstall, promptInstall } = useInstallPrompt();
 
   const [showFormatMenu, setShowFormatMenu] = useState(false);
@@ -133,7 +138,7 @@ export default function Topbar({
     }
   }, []);
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     const stage = stageRef.current;
     if (!stage) return;
 
@@ -148,7 +153,7 @@ export default function Topbar({
     if (transparentBg && bgRect) bgRect.hide();
 
     const mimeType = exportFormat === "jpeg" ? "image/jpeg" : "image/png";
-    const dataUrl = stage.toDataURL({
+    let dataUrl = stage.toDataURL({
       x: offsetX,
       y: offsetY,
       width: format.width * scale,
@@ -160,6 +165,16 @@ export default function Topbar({
 
     if (transparentBg && bgRect) bgRect.show();
 
+    // Free tier exports carry a watermark. Pro removes it.
+    if (!isPro) {
+      dataUrl = await applyWatermark(dataUrl, {
+        width: format.width,
+        height: format.height,
+        mimeType,
+        quality: exportFormat === "jpeg" ? exportQuality / 100 : undefined,
+      });
+    }
+
     const link = document.createElement("a");
     const fileName = `${projectName || "design"}.${exportFormat}`;
     link.download = fileName;
@@ -167,7 +182,7 @@ export default function Topbar({
     link.click();
     setShowExportMenu(false);
     toast.success(`Exported ${fileName}`);
-  }, [stageRef, zoom, format, projectName, exportFormat, exportQuality, transparentBg]);
+  }, [stageRef, zoom, format, projectName, exportFormat, exportQuality, transparentBg, isPro]);
 
   const handleExportProjectFile = useCallback(() => {
     const s = useEditorStore.getState();
@@ -500,6 +515,16 @@ export default function Topbar({
           )}
         </div>
 
+        {!isPro && (
+          <button
+            onClick={() => openLicense()}
+            className="flex items-center gap-1.5 border border-accent-green/40 text-accent-green hover:bg-accent-green/10 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+          >
+            <LockIcon className="w-3.5 h-3.5" />
+            Upgrade
+          </button>
+        )}
+
         <div className="relative" ref={exportMenuRef}>
           <button
             onClick={() => {
@@ -568,6 +593,18 @@ export default function Topbar({
               <div className="text-[11px] text-text-ghost">
                 {format.width} × {format.height}px
               </div>
+              {!isPro && (
+                <button
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    openLicense("Exports include a watermark on the free plan. Upgrade to remove it.");
+                  }}
+                  className="w-full flex items-center gap-1.5 text-[11px] text-accent-green hover:underline text-left"
+                >
+                  <LockIcon className="w-3 h-3" />
+                  Exports include a watermark — upgrade to remove
+                </button>
+              )}
               <button
                 onClick={handleExport}
                 className="w-full flex items-center justify-center gap-1.5 bg-accent-green hover:bg-accent-green-hover text-surface-0 text-xs font-semibold py-2 rounded-lg transition-all"

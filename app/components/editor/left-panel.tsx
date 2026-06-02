@@ -1,9 +1,10 @@
 "use client";
 
 import { useEditorStore } from "../../store/editor-store";
+import { useLicenseStore } from "../../store/license-store";
 import { TEMPLATES } from "../../data/templates";
 import { ASSETS } from "../../data/assets";
-import { PlusIcon } from "./icons";
+import { PlusIcon, LockIcon } from "./icons";
 import type { EditorElement } from "../../types/editor";
 
 type PanelType =
@@ -36,6 +37,8 @@ function TemplatePreview({ bgColor, accent, isStory }: { bgColor: string; accent
 
 function TemplatesPanel() {
   const loadTemplate = useEditorStore((s) => s.loadTemplate);
+  const isPro = useLicenseStore((s) => s.tier === "pro");
+  const openLicense = useLicenseStore((s) => s.openModal);
 
   return (
     <div className="space-y-4">
@@ -53,10 +56,16 @@ function TemplatesPanel() {
           const aspectClass =
             ratio === 1 ? "aspect-square" : ratio < 0.6 ? "aspect-[9/16]" : "aspect-[2/3]";
           const isPortrait = ratio < 1;
+          const locked = t.premium && !isPro;
           return (
             <button
               key={t.name}
-              onClick={() => loadTemplate(t)}
+              onClick={() =>
+                locked
+                  ? openLicense(`"${t.name}" is a premium template. Upgrade to unlock it and all others.`)
+                  : loadTemplate(t)
+              }
+              aria-label={locked ? `${t.name} (premium template — upgrade to unlock)` : `Apply template ${t.name}`}
               className={`group rounded-lg overflow-hidden border border-border-subtle hover:border-accent-green/40 transition-all relative ${aspectClass}`}
               style={{ backgroundColor: t.previewColor }}
             >
@@ -65,10 +74,18 @@ function TemplatesPanel() {
                 accent={t.previewAccent}
                 isStory={isPortrait}
               />
+              {locked && (
+                <div className="absolute top-1.5 right-1.5 z-10 flex items-center justify-center w-5 h-5 rounded-full bg-black/55 backdrop-blur-sm">
+                  <LockIcon className="w-2.5 h-2.5 text-white" />
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="text-[11px] text-white font-medium block">
                   {t.name}
+                  {t.premium && (
+                    <span className="ml-1 text-[9px] text-accent-green uppercase">Pro</span>
+                  )}
                 </span>
                 <span className="text-[10px] text-white/60">
                   {t.format.width}×{t.format.height}
