@@ -10,7 +10,7 @@ function block(): string {
   return out;
 }
 
-// e.g. "DSGN-7K2P-9QXM-4WHT" — random, looked up in the DB on validation.
+// e.g. "MODO-7K2P-9QXM-4WHT" — random, looked up in the DB on validation.
 export function generateKey(): string {
-  return `DSGN-${block()}-${block()}-${block()}`;
+  return `MODO-${block()}-${block()}-${block()}`;
 }

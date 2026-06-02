@@ -29,7 +29,7 @@ export async function applyWatermark(
   // Scale the watermark to the image so it reads on both 1080px and small canvases.
   const pad = Math.round(canvas.width * 0.025);
   const fontSize = Math.max(14, Math.round(canvas.width * 0.032));
-  const text = "Made with dsgntool";
+  const text = "Made with Modo";
 
   ctx.font = `600 ${fontSize}px system-ui, -apple-system, Segoe UI, sans-serif`;
   ctx.textAlign = "right";

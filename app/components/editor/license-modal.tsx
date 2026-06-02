@@ -117,7 +117,7 @@ function LicenseModalContent() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle">
           <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
             <LockIcon className="w-4 h-4 text-accent-green" />
-            {isPro ? "Your Pro license" : "Unlock dsgntool Pro"}
+            {isPro ? "Your Pro license" : "Unlock Modo Pro"}
           </h2>
           <button
             onClick={close}
@@ -197,7 +197,7 @@ function LicenseModalContent() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") activate(keyInput);
                   }}
-                  placeholder="DSGN-XXXX-XXXX-XXXX"
+                  placeholder="MODO-XXXX-XXXX-XXXX"
                   spellCheck={false}
                   autoCapitalize="characters"
                   className="bg-surface-2 border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-ghost tracking-wider uppercase focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-green/50"
