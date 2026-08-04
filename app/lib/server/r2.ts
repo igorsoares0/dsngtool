@@ -3,6 +3,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
 } from "@aws-sdk/client-s3";
 
@@ -36,6 +37,44 @@ export async function deleteObject(key: string) {
 
 export async function getObject(key: string) {
   return r2.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+/**
+ * Delete every object belonging to a user, for account deletion.
+ *
+ * Reads the keys from Postgres *first* and on purpose: the `Asset` rows are the
+ * only record of which objects are this user's (keys are opaque UUIDs with no
+ * account prefix), and the cascade that follows account deletion destroys them.
+ * Once those rows are gone the objects are unattributable and would sit in the
+ * bucket forever.
+ *
+ * Objects are removed in batches with DeleteObjects rather than one call each,
+ * so an account with hundreds of uploads doesn't hold the request open.
+ */
+export async function deleteAllUserObjects(userId: string): Promise<number> {
+  const { prisma } = await import("./db");
+  const assets = await prisma.asset.findMany({
+    where: { userId },
+    select: { key: true },
+  });
+  if (assets.length === 0) return 0;
+
+  const BATCH = 1000; // DeleteObjects caps at 1000 keys per call.
+  let deleted = 0;
+  for (let i = 0; i < assets.length; i += BATCH) {
+    const chunk = assets.slice(i, i + BATCH);
+    const res = await r2.send(
+      new DeleteObjectsCommand({
+        Bucket: bucket,
+        Delete: { Objects: chunk.map((a) => ({ Key: a.key })), Quiet: true },
+      })
+    );
+    if (res.Errors?.length) {
+      console.error("[r2] some objects failed to delete", res.Errors.length, res.Errors[0]);
+    }
+    deleted += chunk.length - (res.Errors?.length ?? 0);
+  }
+  return deleted;
 }
 
 /** Browser-facing URL for an object key. */

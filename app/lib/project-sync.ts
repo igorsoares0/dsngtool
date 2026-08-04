@@ -185,6 +185,23 @@ export async function syncProjects(): Promise<void> {
   }
 }
 
+/**
+ * Wipe every trace of the signed-in account from this browser.
+ *
+ * Must be called after the server confirms an account deletion. Deleting the
+ * account server-side does not touch IndexedDB, and the leftovers are not
+ * merely stale — they are actively dangerous. `syncProjects` treats a local
+ * project the server has never seen as "local is newer" and pushes it up, so
+ * signing up again on this browser would upload the *deleted* account's designs
+ * into the new one. The pending-delete queue would likewise fire DELETEs at ids
+ * that now belong to nobody.
+ */
+export async function wipeLocalAccountData(): Promise<void> {
+  notifiedRejections.clear();
+  await db.projects.clear();
+  await db.settings.clear();
+}
+
 /** Retry only the buffered work (dirty projects + queued deletes). */
 export async function syncDirty(): Promise<void> {
   await flushDeletes();

@@ -46,7 +46,9 @@
       "Bash(pkill -9 -f \"next\")",
       "Bash(grep -oE '\\\\b[A-Z][A-Z0-9_]{3,}\\\\b' DEPLOY.md docs/PAYMENTS_SETUP.md)",
       "Bash(git stash *)",
-      "Bash(PORT=3111 npm start *)"
+      "Bash(PORT=3111 npm start *)",
+      "Bash(node --env-file=.env ./_state_tmp.mjs ce7cf0db-cab7-4cc5-82dc-a40b648c8124.png)",
+      "Bash(grep -vE \"SECURITY WARNING|sslmode|libpq|postgresql.org|trace-warnings|To prepare|If you want|^$\")"
     ]
   }
 }

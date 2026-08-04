@@ -84,6 +84,38 @@ export const auth = betterAuth({
     },
   },
 
+  user: {
+    deleteUser: {
+      enabled: true,
+      // Runs before the row is removed. Throwing here aborts the deletion,
+      // which is exactly what we want for billing: never delete an account
+      // whose subscription we failed to cancel, or the card keeps being charged
+      // with no account left for the customer to complain from.
+      //
+      // Everything in Postgres is handled by `onDelete: Cascade` on the six
+      // relations to `user` (sessions, accounts, projects, assets,
+      // subscriptions, AI usage). The two things Postgres can't reach are the
+      // Paddle subscription and the R2 objects — that's all this hook is for.
+      beforeDelete: async (user) => {
+        const { cancelActiveSubscriptions } = await import("./paddle");
+        const { deleteAllUserObjects } = await import("./r2");
+
+        // Billing first, and allowed to fail loudly.
+        await cancelActiveSubscriptions(user.id);
+
+        // Storage second, and deliberately NOT allowed to fail the deletion:
+        // an R2 hiccup would otherwise trap someone in an account they asked to
+        // delete. Orphaned objects cost us money but they are unreachable
+        // (/api/assets requires a matching Asset row) and can be swept later.
+        try {
+          await deleteAllUserObjects(user.id);
+        } catch (err) {
+          console.error("[delete-user] R2 cleanup failed, objects orphaned", user.id, err);
+        }
+      },
+    },
+  },
+
   ...(hasGoogle
     ? {
         socialProviders: {

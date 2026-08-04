@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "../lib/auth-client";
+import { authClient, signOut } from "../lib/auth-client";
+import { wipeLocalAccountData } from "../lib/project-sync";
 import { openSubscriptionCheckout } from "../lib/paddle-checkout";
 import { toast } from "../store/toast-store";
 import Toaster from "../components/editor/toaster";
@@ -473,7 +474,120 @@ function AccountPanel({ me, onSignOut }: { me: Me | null; onSignOut: () => void 
       >
         Sign out
       </button>
+
+      <DangerZone isPro={Boolean(me?.pro)} />
     </div>
+  );
+}
+
+/** Permanent account deletion. Collapsed until asked for, then password-gated. */
+function DangerZone({ isPro }: { isPro: boolean }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPending(true);
+    setError(null);
+
+    let res = await authClient.deleteUser({ password });
+    // Accounts created through Google have no credential row, so the password
+    // branch can't apply. better-auth then falls back to requiring a *fresh*
+    // session, which a retry without the password opts into.
+    if (res.error?.code === "CREDENTIAL_ACCOUNT_NOT_FOUND") {
+      res = await authClient.deleteUser({});
+    }
+
+    if (res.error) {
+      setPending(false);
+      setError(
+        res.error.code === "INVALID_PASSWORD"
+          ? "That password doesn't match."
+          : res.error.code === "SESSION_EXPIRED"
+            ? "For security, sign in again before deleting your account."
+            : "Couldn't delete your account. Please try again."
+      );
+      return;
+    }
+
+    // The server is done; this browser still holds the whole account in
+    // IndexedDB. Clearing it is not tidiness — see wipeLocalAccountData.
+    await wipeLocalAccountData();
+    router.push("/login");
+  };
+
+  if (!open) {
+    return (
+      <div className="border border-danger/25 rounded-lg p-4 flex items-center justify-between gap-4 mt-3">
+        <div>
+          <p className="text-[12.5px] font-semibold text-danger">Delete account</p>
+          <p className="text-[11.5px] text-text-tertiary mt-0.5">
+            Permanently erases your designs, uploads and account.
+          </p>
+        </div>
+        <button
+          onClick={() => setOpen(true)}
+          className="shrink-0 text-[11.5px] font-medium text-danger border border-danger/30 hover:bg-danger-tint px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
+        >
+          Delete…
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      className="border border-danger/40 bg-danger-tint/40 rounded-lg p-4 flex flex-col gap-3 mt-3"
+    >
+      <p className="text-[12.5px] font-semibold text-danger">Delete your account?</p>
+      <p className="text-[11.5px] text-text-secondary leading-relaxed">
+        This cannot be undone. Your projects, uploaded images and account are erased
+        immediately{isPro ? ", and your subscription is cancelled" : ""}. Export anything you
+        want to keep first.
+      </p>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[11.5px] font-medium text-text-secondary">
+          Confirm your password
+        </span>
+        <input
+          type="password"
+          required
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="bg-surface-3 border border-border-default rounded-md px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[1.5px] focus:border-danger transition-colors duration-150 ease-standard"
+        />
+      </label>
+      {error && (
+        <p role="alert" className="text-[11.5px] text-danger">
+          {error}
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="bg-danger disabled:opacity-60 text-white text-[12px] font-semibold px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
+        >
+          {pending ? "Deleting…" : "Delete my account"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setPassword("");
+            setError(null);
+          }}
+          className="text-[11.5px] text-text-secondary hover:text-text-primary px-3 py-2 transition-colors duration-150 ease-standard"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
