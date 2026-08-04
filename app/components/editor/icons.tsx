@@ -1,10 +1,11 @@
 export function LogoIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="2" y="2" width="8" height="8" rx="1.5" fill="#34d399" />
-      <rect x="14" y="2" width="8" height="8" rx="1.5" fill="#34d399" opacity="0.6" />
-      <rect x="2" y="14" width="8" height="8" rx="1.5" fill="#34d399" opacity="0.6" />
-      <rect x="14" y="14" width="8" height="8" rx="1.5" fill="#34d399" opacity="0.3" />
+      {/* Coloured by the parent via `text-*`. */}
+      <rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" />
+      <rect x="14" y="2" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.6" />
+      <rect x="2" y="14" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.6" />
+      <rect x="14" y="14" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.3" />
     </svg>
   );
 }
@@ -262,11 +263,48 @@ export function SendBackwardIcon({ className = "w-4 h-4" }: { className?: string
   );
 }
 
+export function SparkleIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+      <path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z" />
+    </svg>
+  );
+}
+
 export function CloseIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+export function SearchIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+export function MoreIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="19" r="1" />
+    </svg>
+  );
+}
+
+export function SunIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
     </svg>
   );
 }

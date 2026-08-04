@@ -1,44 +1,180 @@
 @import "tailwindcss";
 
+/* Tailwind v4 has no built-in class-based dark variant. */
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Raw token values.
+
+   These MUST live here, in plain :root / .dark blocks, and NOT inside
+   @theme inline. `@theme inline` resolves a token's value at build time and
+   inlines it into the utility — so `@theme inline { --color-accent: #5b5bd6 }`
+   compiles `bg-accent` to `background-color: #5b5bd6`, a literal that a .dark
+   override can never reach. Declaring the raw value here and aliasing it below
+   as `--color-accent: var(--accent)` compiles `bg-accent` to
+   `background-color: var(--accent)`, which the .dark block does reach.
+
+   Consequence: `@theme inline` does not emit its own variables to :root. Any
+   value you also need from hand-written CSS (--ease-standard, --canvas-dot)
+   must be declared here.
+
+   See docs/design-guidelines.md § "How theming works".
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces — elevation is a step in lightness, never a shadow. */
+  --surface-0: #eceae5; /* app background, canvas viewport */
+  --surface-1: #f7f6f3; /* topbar, rail, docked panels */
+  --surface-2: #ffffff; /* panel content, popovers, modals, floating toolbars */
+  --surface-3: #f4f2ee; /* inputs and controls inside a panel */
+  --surface-4: #eeece7; /* hover / pressed */
+
+  --border-subtle: rgb(0 0 0 / 0.06);
+  --border-default: rgb(0 0 0 / 0.08);
+  --border-strong: rgb(0 0 0 / 0.14);
+
+  --text-primary: #1b1a18;
+  --text-secondary: #6b6862;
+  --text-tertiary: #8b877f;
+  --text-ghost: #a5a09a;
+
+  /* Accent — iris. One accent with meaning: selection, active tool,
+     primary action, focus. */
+  --accent: #5b5bd6;
+  --accent-hover: #4a4ac4;
+  --accent-fg: #ffffff;
+  --accent-tint: #f0ecff;
+  --accent-tint-fg: #4a45b8;
+
+  /* Categorical, non-state accents. */
+  --danger: #c9553d;
+  --danger-tint: #fdf3f1;
+  --success: #5f8f6c;
+  --warning: #b8823a;
+
+  /* Shadows. Docked panels get a border and no shadow; only genuinely
+     floating surfaces get one. */
+  --sh-pop: 0 8px 24px rgb(0 0 0 / 0.16);
+  --sh-modal: 0 14px 40px rgb(0 0 0 / 0.16);
+  --sh-raise: 0 1px 3px rgb(0 0 0 / 0.06);
+  --sh-canvas: 0 18px 50px rgb(0 0 0 / 0.13), 0 2px 6px rgb(0 0 0 / 0.06);
+
+  /* Canvas viewport dot grid. */
+  --canvas-dot: rgb(0 0 0 / 0.045);
+
+  /* One easing for everything: fast out, soft settle. */
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --surface-0: #0e0e10;
+  --surface-1: #161619;
+  --surface-2: #1c1c20;
+  --surface-3: #141417;
+  --surface-4: #26262b;
+
+  --border-subtle: #ffffff0d;
+  --border-default: #ffffff12;
+  --border-strong: #ffffff24;
+
+  --text-primary: #ededf0;
+  --text-secondary: #9a9aa3;
+  --text-tertiary: #7d7d86;
+  --text-ghost: #5c5c65;
+
+  --accent: #8b8bf5;
+  --accent-hover: #a5a5f8;
+  --accent-fg: #12121a;
+  --accent-tint: #8b8bf51f;
+  --accent-tint-fg: #a5a5f8;
+
+  --danger: #e0836f;
+  --danger-tint: #c9553d1f;
+  --success: #8fbf9a;
+  --warning: #d9a75c;
+
+  --sh-pop: 0 12px 30px rgb(0 0 0 / 0.6);
+  --sh-modal: 0 24px 60px rgb(0 0 0 / 0.55);
+  --sh-raise: 0 1px 3px rgb(0 0 0 / 0.3);
+  --sh-canvas: 0 24px 60px rgb(0 0 0 / 0.55);
+
+  --canvas-dot: rgb(255 255 255 / 0.025);
+}
+
+/* ---------------------------------------------------------------------------
+   Utility namespace. Every entry aliases a raw var above — never a literal.
+--------------------------------------------------------------------------- */
+
 @theme inline {
-  --color-surface-0: #0c0c0c;
-  --color-surface-1: #141414;
-  --color-surface-2: #1a1a1a;
-  --color-surface-3: #222222;
-  --color-surface-4: #2a2a2a;
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
 
-  --color-border-subtle: #ffffff08;
-  --color-border-default: #ffffff12;
-  --color-border-strong: #ffffff20;
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
 
-  --color-text-primary: #e8e8e8;
-  --color-text-secondary: #9a9a9a;
-  --color-text-tertiary: #757575;
-  --color-text-ghost: #636363;
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-ghost: var(--text-ghost);
 
-  --color-accent-green: #34d399;
-  --color-accent-green-hover: #6ee7b7;
-  --color-accent-pink: #f472b6;
-  --color-accent-blue: #60a5fa;
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-tint-fg: var(--accent-tint-fg);
 
-  --font-display: var(--font-dm-sans);
-  --font-body: var(--font-inter-tight);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --font-body: var(--font-instrument-sans), system-ui, sans-serif;
+  --font-display: var(--font-instrument-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 11px;
+  --radius-xl: 14px;
+
+  --shadow-pop: var(--sh-pop);
+  --shadow-modal: var(--sh-modal);
+  --shadow-raise: var(--sh-raise);
+  --shadow-canvas: var(--sh-canvas);
+
+  /* Theme-invariant, so a literal is correct here. The matching raw var in
+     :root exists for hand-written CSS (@theme inline emits nothing to :root). */
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #ffffff12 transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 body {
-  background: var(--color-surface-0);
-  color: var(--color-text-primary);
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font-family: var(--font-instrument-sans), system-ui, sans-serif;
   overflow: hidden;
 }
 
 ::selection {
-  background: #34d39940;
-  color: #fff;
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Canvas viewport dot grid — themed, so it stays visible on warm paper. */
+.canvas-dots {
+  background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 @keyframes fade-in {
@@ -56,29 +192,32 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-scale-in {
-  animation: scale-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-canvas-appear {
-  animation: canvas-appear 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.animate-toast-in {
-  animation: toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-fade-in {
+  animation: fade-in 0.4s var(--ease-standard) forwards;
 }
 
-.canvas-grid {
-  background-image:
-    radial-gradient(circle, #ffffff06 1px, transparent 1px);
-  background-size: 24px 24px;
+.animate-scale-in {
+  animation: scale-in 0.5s var(--ease-standard) forwards;
+}
+
+.animate-canvas-appear {
+  animation: canvas-appear 0.7s var(--ease-standard) forwards;
+}
+
+.animate-toast-in {
+  animation: toast-in 0.28s var(--ease-standard) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-canvas-appear,
+  .animate-toast-in {
+    animation: none;
+  }
 }

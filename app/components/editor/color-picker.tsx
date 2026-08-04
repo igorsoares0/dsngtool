@@ -284,13 +284,13 @@ export default function ColorPicker({
         onClick={() => setOpen((o) => !o)}
         aria-label="Pick color"
         aria-expanded={open}
-        className={`${dim} rounded-md border border-border-strong cursor-pointer shrink-0 transition-all hover:scale-105 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-green/50`}
+        className={`${dim} rounded-md border border-border-strong cursor-pointer shrink-0 transition-all hover:scale-105 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
         style={{ backgroundColor: value }}
       />
       {open && createPortal(
         <div
           ref={popoverRef}
-          className="fixed z-[200] w-[248px] bg-surface-1 border border-border-default rounded-xl shadow-2xl p-3 animate-fade-in"
+          className="fixed z-[200] w-[248px] bg-surface-1 border border-border-default rounded-xl shadow-pop p-3 animate-fade-in"
           style={{ left: pos.left, top: pos.top }}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -344,7 +344,7 @@ export default function ColorPicker({
               className="w-8 h-8 rounded-md border border-border-strong shrink-0"
               style={{ backgroundColor: hexInput }}
             />
-            <div className="flex-1 flex items-center bg-surface-2 border border-border-subtle rounded-md focus-within:border-accent-green/40 transition-colors">
+            <div className="flex-1 flex items-center bg-surface-2 border border-border-subtle rounded-md focus-within:border-accent transition-colors">
               <span className="pl-2 text-text-ghost text-xs font-mono select-none">#</span>
               <input
                 type="text"
@@ -381,7 +381,7 @@ export default function ColorPicker({
 
           {/* Swatches */}
           <div className="mt-3">
-            <span className="text-[11px] text-text-ghost uppercase tracking-wider block mb-1.5">
+            <span className="text-[11.5px] text-text-ghost uppercase tracking-wider block mb-1.5">
               Swatches
             </span>
             <div className="grid grid-cols-9 gap-1">
@@ -396,7 +396,7 @@ export default function ColorPicker({
                     aria-pressed={isActive}
                     className={`aspect-square rounded-md transition-transform hover:scale-110 ${
                       isActive
-                        ? "ring-2 ring-accent-green ring-offset-1 ring-offset-surface-1 scale-110"
+                        ? "ring-2 ring-accent ring-offset-1 ring-offset-surface-1 scale-110"
                         : "ring-1 ring-inset ring-border-subtle"
                     }`}
                     style={{ backgroundColor: c }}

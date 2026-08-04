@@ -8,8 +8,9 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     display: "standalone",
     orientation: "any",
-    background_color: "#0c0c0c",
-    theme_color: "#0c0c0c",
+    // A manifest can't carry a light/dark pair — light is the default theme.
+    background_color: "#eceae5",
+    theme_color: "#eceae5",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icon-512.png", sizes: "512x512", type: "image/png" },

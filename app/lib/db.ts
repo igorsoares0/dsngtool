@@ -10,6 +10,8 @@ export interface Project {
   format: CanvasFormat;
   createdAt: Date;
   updatedAt: Date;
+  /** Local-only: set when a server push is pending (offline/failed). Not indexed. */
+  dirty?: boolean;
 }
 
 // Generic key/value store for app-level settings (e.g. the cached license).

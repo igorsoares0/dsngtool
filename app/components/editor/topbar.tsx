@@ -1,26 +1,23 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
-import { useLicenseStore } from "../../store/license-store";
+import { useEntitlementStore } from "../../store/entitlement-store";
 import { CANVAS_FORMATS } from "../../types/editor";
 import { db } from "../../lib/db";
-import { applyWatermark } from "../../lib/watermark";
 import { toast } from "../../store/toast-store";
 import { useInstallPrompt } from "../../hooks/use-install-prompt";
+import AccountMenu from "./account-menu";
+import IconButton from "../ui/icon-button";
+import { cx } from "../ui/cx";
 import {
-  downloadProjectFile,
   readProjectFile,
   FILE_EXTENSION,
   ImportError,
 } from "../../lib/project-io";
 import {
-  LogoIcon,
   UndoIcon,
   RedoIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
   DownloadIcon,
   SaveIcon,
   CursorIcon,
@@ -34,19 +31,20 @@ import {
   InstallIcon,
 } from "./icons";
 
+/** How long after a save the "Saved" chip stays up. */
+const SAVED_CHIP_MS = 4000;
+
 export default function Topbar({
-  stageRef,
   onOpenProjects,
   onOpenShortcuts,
+  onOpenExport,
 }: {
-  stageRef: React.RefObject<Konva.Stage | null>;
   onOpenProjects: () => void;
   onOpenShortcuts: () => void;
+  onOpenExport: () => void;
 }) {
   const format = useEditorStore((s) => s.format);
-  const zoom = useEditorStore((s) => s.zoom);
   const setFormat = useEditorStore((s) => s.setFormat);
-  const setZoom = useEditorStore((s) => s.setZoom);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
   const past = useEditorStore((s) => s.past);
@@ -56,46 +54,51 @@ export default function Topbar({
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
-  const isPro = useLicenseStore((s) => s.tier === "pro");
-  const openLicense = useLicenseStore((s) => s.openModal);
+  const isPro = useEntitlementStore((s) => s.pro);
+  const openLicense = useEntitlementStore((s) => s.openModal);
   const { canInstall, promptInstall } = useInstallPrompt();
 
   const [showFormatMenu, setShowFormatMenu] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"png" | "jpeg">("png");
-  const [exportQuality, setExportQuality] = useState(90);
-  const [transparentBg, setTransparentBg] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [customW, setCustomW] = useState<string>(String(format.width));
   const [customH, setCustomH] = useState<string>(String(format.height));
+  const [, tick] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatMenuRef = useRef<HTMLDivElement>(null);
   const fileMenuRef = useRef<HTMLDivElement>(null);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCustomW(String(format.width));
     setCustomH(String(format.height));
   }, [format.width, format.height]);
 
+  // The chip is a moment of reassurance, not a permanent badge. Derived from
+  // `lastSavedAt` rather than held in state — the effect only schedules the
+  // re-render that retires it.
+  const savedRecently =
+    lastSavedAt !== null && Date.now() - lastSavedAt < SAVED_CHIP_MS;
+
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const t = setTimeout(() => tick((n) => n + 1), SAVED_CHIP_MS);
+    return () => clearTimeout(t);
+  }, [lastSavedAt]);
+
   // Close any open dropdown on outside click or Escape.
   useEffect(() => {
-    if (!showFormatMenu && !showFileMenu && !showExportMenu) return;
+    if (!showFormatMenu && !showFileMenu) return;
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
       if (formatMenuRef.current?.contains(t)) return;
       if (fileMenuRef.current?.contains(t)) return;
-      if (exportMenuRef.current?.contains(t)) return;
       setShowFormatMenu(false);
       setShowFileMenu(false);
-      setShowExportMenu(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setShowFormatMenu(false);
         setShowFileMenu(false);
-        setShowExportMenu(false);
       }
     };
     window.addEventListener("mousedown", onDown);
@@ -104,7 +107,7 @@ export default function Topbar({
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey);
     };
-  }, [showFormatMenu, showFileMenu, showExportMenu]);
+  }, [showFormatMenu, showFileMenu]);
 
   const applyCustomFormat = useCallback(() => {
     const w = Math.round(Number(customW));
@@ -138,69 +141,6 @@ export default function Topbar({
     }
   }, []);
 
-  const handleExport = useCallback(async () => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const scale = zoom / 100;
-    const containerWidth = stage.width();
-    const containerHeight = stage.height();
-    const offsetX = (containerWidth - format.width * scale) / 2;
-    const offsetY = (containerHeight - format.height * scale) / 2;
-
-    const bgLayer = stage.getLayers()[0];
-    const bgRect = bgLayer?.findOne("Rect");
-    if (transparentBg && bgRect) bgRect.hide();
-
-    const mimeType = exportFormat === "jpeg" ? "image/jpeg" : "image/png";
-    let dataUrl = stage.toDataURL({
-      x: offsetX,
-      y: offsetY,
-      width: format.width * scale,
-      height: format.height * scale,
-      pixelRatio: format.width / (format.width * scale),
-      mimeType,
-      quality: exportFormat === "jpeg" ? exportQuality / 100 : undefined,
-    });
-
-    if (transparentBg && bgRect) bgRect.show();
-
-    // Free tier exports carry a watermark. Pro removes it.
-    if (!isPro) {
-      dataUrl = await applyWatermark(dataUrl, {
-        width: format.width,
-        height: format.height,
-        mimeType,
-        quality: exportFormat === "jpeg" ? exportQuality / 100 : undefined,
-      });
-    }
-
-    const link = document.createElement("a");
-    const fileName = `${projectName || "design"}.${exportFormat}`;
-    link.download = fileName;
-    link.href = dataUrl;
-    link.click();
-    setShowExportMenu(false);
-    toast.success(`Exported ${fileName}`);
-  }, [stageRef, zoom, format, projectName, exportFormat, exportQuality, transparentBg, isPro]);
-
-  const handleExportProjectFile = useCallback(() => {
-    const s = useEditorStore.getState();
-    downloadProjectFile({
-      name: s.projectName,
-      format: s.format,
-      backgroundColor: s.backgroundColor,
-      backgroundGradient: s.backgroundGradient,
-      elements: s.elements,
-    });
-    setShowExportMenu(false);
-    toast.success("Project file downloaded");
-  }, []);
-
-  const handleImportClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
   const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -222,54 +162,71 @@ export default function Topbar({
     }
   }, []);
 
+  const menuItem =
+    "w-full flex items-center gap-2.5 px-3 py-2 text-[11.5px] text-text-secondary hover:text-text-primary hover:bg-surface-4 transition-colors duration-150 ease-standard";
+
   return (
-    <header className="h-12 bg-surface-1 border-b border-border-subtle flex items-center justify-between px-3 shrink-0 relative z-50">
-      {/* Left */}
-      <div className="flex items-center gap-3 min-w-[200px]">
-        <div className="flex items-center gap-2.5">
-          <button onClick={onOpenProjects} className="hover:opacity-80 transition-opacity" title="My Projects" aria-label="My projects">
-            <LogoIcon className="w-6 h-6" />
+    <header className="h-[52px] bg-surface-1 border-b border-border-subtle flex items-center justify-between px-3 shrink-0 relative z-50">
+      {/* ---- Left: identity ---- */}
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <button
+          onClick={onOpenProjects}
+          title="My projects"
+          aria-label="My projects"
+          className="w-[26px] h-[26px] rounded-md bg-accent text-accent-fg text-[12px] font-semibold flex items-center justify-center shrink-0 hover:bg-accent-hover transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          M
+        </button>
+
+        {isEditingName ? (
+          <input
+            type="text"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            onBlur={() => setIsEditingName(false)}
+            onKeyDown={(e) => e.key === "Enter" && setIsEditingName(false)}
+            autoFocus
+            className="bg-surface-3 text-[13px] font-semibold text-text-primary px-2 py-0.5 rounded-md outline-none border border-border-default focus:border-accent w-36"
+          />
+        ) : (
+          <button
+            onClick={() => setIsEditingName(true)}
+            aria-label={`Rename project (current: ${projectName})`}
+            className="text-[13px] font-semibold text-text-primary truncate max-w-[180px] hover:text-accent transition-colors duration-150 ease-standard"
+          >
+            {projectName}
           </button>
-          {isEditingName ? (
-            <input
-              type="text"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              onBlur={() => setIsEditingName(false)}
-              onKeyDown={(e) => e.key === "Enter" && setIsEditingName(false)}
-              autoFocus
-              className="bg-surface-3 text-sm text-text-primary px-2 py-0.5 rounded outline-none border border-border-strong w-32 font-[family-name:var(--font-dm-sans)]"
-            />
-          ) : (
-            <button
-              onClick={() => setIsEditingName(true)}
-              aria-label={`Rename project (current: ${projectName})`}
-              className="text-sm text-text-primary hover:text-white transition-colors font-medium font-[family-name:var(--font-dm-sans)]"
-            >
-              {projectName}
-            </button>
-          )}
-        </div>
-        <span className="text-text-ghost text-xs">/</span>
-        <span className="text-text-tertiary text-xs">{format.label}</span>
+        )}
+
+        <span className="text-[11px] text-text-tertiary truncate hidden sm:block">
+          {format.label}
+        </span>
+
+        {savedRecently && (
+          <span className="text-[10px] font-medium font-mono text-success bg-success/10 rounded-full px-2 py-[3px] shrink-0 animate-fade-in">
+            Saved
+          </span>
+        )}
       </div>
 
-      {/* Center */}
-      <div className="flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
-        {/* Format selector */}
+      {/* ---- Centre: canvas controls ---- */}
+      <div className="hidden md:flex items-center gap-[3px] bg-surface-4 rounded-[9px] p-[3px] shrink-0">
+        {/* Format selector — the raised card in the group */}
         <div className="relative" ref={formatMenuRef}>
           <button
-            onClick={() => setShowFormatMenu(!showFormatMenu)}
+            onClick={() => setShowFormatMenu((v) => !v)}
             aria-label={`Canvas size: ${format.width} by ${format.height}. Change`}
             aria-haspopup="menu"
             aria-expanded={showFormatMenu}
-            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary bg-surface-2 hover:bg-surface-3 px-2.5 py-1.5 rounded-md transition-all"
+            className="flex items-center gap-1.5 bg-surface-2 text-text-primary text-[11.5px] font-medium px-2.5 h-[26px] rounded-[7px] shadow-raise hover:bg-surface-3 transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <span>{format.width} × {format.height}</span>
-            <ChevronDownIcon />
+            <span className="font-mono tabular-nums">
+              {format.width} × {format.height}
+            </span>
+            <ChevronDownIcon className="w-3 h-3 text-text-tertiary" />
           </button>
           {showFormatMenu && (
-            <div className="absolute top-full mt-1 left-0 bg-surface-2 border border-border-default rounded-lg py-1 min-w-[220px] shadow-2xl animate-scale-in">
+            <div className="absolute top-full mt-2 left-0 bg-surface-2 border border-border-default rounded-lg py-1 min-w-[220px] shadow-pop animate-scale-in">
               {CANVAS_FORMATS.map((fmt) => (
                 <button
                   key={fmt.label}
@@ -277,18 +234,21 @@ export default function Topbar({
                     setFormat(fmt);
                     setShowFormatMenu(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-xs flex justify-between items-center hover:bg-surface-3 transition-colors ${
+                  className={cx(
+                    "w-full text-left px-3 py-2 text-[11.5px] flex justify-between items-center gap-4 hover:bg-surface-4 transition-colors duration-150 ease-standard",
                     fmt.label === format.label
-                      ? "text-accent-green"
+                      ? "text-accent font-medium"
                       : "text-text-secondary"
-                  }`}
+                  )}
                 >
                   <span>{fmt.label}</span>
-                  <span className="text-text-ghost">{fmt.width} × {fmt.height}</span>
+                  <span className="text-text-ghost font-mono tabular-nums">
+                    {fmt.width} × {fmt.height}
+                  </span>
                 </button>
               ))}
               <div className="border-t border-border-subtle mt-1 pt-2 px-3 pb-2 space-y-2">
-                <span className="text-[11px] uppercase tracking-wider text-text-ghost block">
+                <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-text-ghost block">
                   Custom size
                 </span>
                 <div className="flex items-center gap-1.5">
@@ -299,10 +259,11 @@ export default function Topbar({
                     value={customW}
                     onChange={(e) => setCustomW(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && applyCustomFormat()}
-                    className="w-full min-w-0 bg-surface-3 border border-border-subtle text-xs text-text-primary px-2 py-1 rounded outline-none focus:border-accent-green/40 transition-colors tabular-nums"
+                    className="w-full min-w-0 bg-surface-3 border border-border-subtle text-[11.5px] font-mono tabular-nums text-text-primary px-2 py-1 rounded-md outline-none focus:border-accent transition-colors"
                     placeholder="W"
+                    aria-label="Custom width"
                   />
-                  <span className="text-text-ghost text-xs">×</span>
+                  <span className="text-text-ghost text-[11.5px]">×</span>
                   <input
                     type="number"
                     min={50}
@@ -310,110 +271,54 @@ export default function Topbar({
                     value={customH}
                     onChange={(e) => setCustomH(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && applyCustomFormat()}
-                    className="w-full min-w-0 bg-surface-3 border border-border-subtle text-xs text-text-primary px-2 py-1 rounded outline-none focus:border-accent-green/40 transition-colors tabular-nums"
+                    className="w-full min-w-0 bg-surface-3 border border-border-subtle text-[11.5px] font-mono tabular-nums text-text-primary px-2 py-1 rounded-md outline-none focus:border-accent transition-colors"
                     placeholder="H"
+                    aria-label="Custom height"
                   />
                   <button
                     onClick={applyCustomFormat}
-                    className="text-[11px] uppercase font-semibold bg-accent-green hover:bg-accent-green-hover text-surface-0 px-2.5 py-1 rounded transition-all shrink-0"
+                    className="text-[10px] uppercase font-semibold bg-accent hover:bg-accent-hover text-accent-fg px-2.5 py-1 rounded-md transition-colors duration-150 ease-standard shrink-0"
                   >
                     Set
                   </button>
                 </div>
-                <span className="text-[11px] text-text-ghost block">50 – 8000px</span>
+                <span className="text-[11px] text-text-ghost block font-mono tabular-nums">
+                  50 – 8000px
+                </span>
               </div>
             </div>
           )}
         </div>
 
-        <div className="w-px h-5 bg-border-subtle mx-1.5" />
+        <div className="w-px h-4 bg-border-default mx-[3px]" />
 
-        <div className="flex items-center bg-surface-2 rounded-md p-0.5">
-          <button
-            onClick={() => setActiveTool("cursor")}
-            aria-label="Select tool"
-            aria-pressed={activeTool === "cursor"}
-            title="Select"
-            className={`p-1.5 rounded transition-all ${
-              activeTool === "cursor"
-                ? "bg-surface-4 text-text-primary shadow-sm"
-                : "text-text-tertiary hover:text-text-secondary"
-            }`}
-          >
-            <CursorIcon />
-          </button>
-          <button
-            onClick={() => setActiveTool("hand")}
-            aria-label="Hand tool (pan)"
-            aria-pressed={activeTool === "hand"}
-            title="Hand (pan)"
-            className={`p-1.5 rounded transition-all ${
-              activeTool === "hand"
-                ? "bg-surface-4 text-text-primary shadow-sm"
-                : "text-text-tertiary hover:text-text-secondary"
-            }`}
-          >
-            <HandIcon />
-          </button>
-        </div>
+        <ToolToggle
+          label="Select"
+          active={activeTool === "cursor"}
+          onClick={() => setActiveTool("cursor")}
+        >
+          <CursorIcon className="w-4 h-4" />
+        </ToolToggle>
+        <ToolToggle
+          label="Hand (pan)"
+          active={activeTool === "hand"}
+          onClick={() => setActiveTool("hand")}
+        >
+          <HandIcon className="w-4 h-4" />
+        </ToolToggle>
 
-        <div className="w-px h-5 bg-border-subtle mx-1.5" />
+        <div className="w-px h-4 bg-border-default mx-[3px]" />
 
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={undo}
-            disabled={past.length === 0}
-            aria-label="Undo"
-            title="Undo"
-            className="p-1.5 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <UndoIcon />
-          </button>
-          <button
-            onClick={redo}
-            disabled={future.length === 0}
-            aria-label="Redo"
-            title="Redo"
-            className="p-1.5 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <RedoIcon />
-          </button>
-        </div>
-
-        <div className="w-px h-5 bg-border-subtle mx-1.5" />
-
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => setZoom(zoom - 10)}
-            aria-label="Zoom out"
-            title="Zoom out"
-            className="p-1.5 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded transition-all"
-          >
-            <ZoomOutIcon />
-          </button>
-          <span
-            className="text-xs text-text-secondary tabular-nums min-w-[40px] text-center"
-            aria-label={`Zoom ${zoom} percent`}
-            aria-live="polite"
-          >
-            {zoom}%
-          </span>
-          <button
-            onClick={() => setZoom(zoom + 10)}
-            aria-label="Zoom in"
-            title="Zoom in"
-            className="p-1.5 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded transition-all"
-          >
-            <ZoomInIcon />
-          </button>
-        </div>
+        <ToolToggle label="Undo" onClick={undo} disabled={past.length === 0}>
+          <UndoIcon className="w-4 h-4" />
+        </ToolToggle>
+        <ToolToggle label="Redo" onClick={redo} disabled={future.length === 0}>
+          <RedoIcon className="w-4 h-4" />
+        </ToolToggle>
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-2 min-w-[200px] justify-end">
-        {lastSavedAt && (
-          <span className="text-[11px] text-text-ghost">Auto-saved</span>
-        )}
+      {/* ---- Right: actions ---- */}
+      <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
         <input
           ref={fileInputRef}
           type="file"
@@ -421,52 +326,28 @@ export default function Topbar({
           onChange={handleImportFile}
           className="hidden"
         />
-        {canInstall && (
-          <button
-            onClick={promptInstall}
-            title="Install Modo as an app"
-            aria-label="Install app"
-            className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary bg-surface-2 hover:bg-surface-3 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all"
-          >
-            <InstallIcon className="w-3.5 h-3.5" />
-            Install app
-          </button>
-        )}
 
-        <button
-          onClick={onOpenShortcuts}
-          title="Keyboard shortcuts (?)"
-          aria-label="Keyboard shortcuts"
-          className="p-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-2 rounded-md transition-all"
-        >
-          <KeyboardIcon />
-        </button>
-
-        {/* File / project menu */}
+        {/* File menu — also the home for the install and shortcuts actions,
+            which the redesigned bar has no room to surface directly. */}
         <div className="relative" ref={fileMenuRef}>
           <button
-            onClick={() => {
-              setShowExportMenu(false);
-              setShowFileMenu((v) => !v);
-            }}
-            title="File"
+            onClick={() => setShowFileMenu((v) => !v)}
             aria-label="File and project options"
             aria-haspopup="menu"
             aria-expanded={showFileMenu}
-            className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary bg-surface-2 hover:bg-surface-3 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all"
+            className="flex items-center gap-1.5 bg-surface-2 border border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-4 text-[11.5px] font-medium px-2.5 py-1.5 rounded-md transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <FolderIcon className="w-3.5 h-3.5" />
-            File
-            <ChevronDownIcon className="w-3 h-3" />
+            <span className="hidden sm:inline">File</span>
           </button>
           {showFileMenu && (
-            <div className="absolute top-full mt-1 right-0 bg-surface-2 border border-border-default rounded-lg py-1 min-w-[220px] shadow-2xl animate-scale-in z-50">
+            <div className="absolute top-full mt-2 right-0 bg-surface-2 border border-border-default rounded-lg py-1 min-w-[220px] shadow-pop animate-scale-in z-50">
               <button
                 onClick={() => {
                   handleSave();
                   setShowFileMenu(false);
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
+                className={menuItem}
               >
                 <SaveIcon className="w-3.5 h-3.5 text-text-tertiary" />
                 Save to browser
@@ -476,41 +357,73 @@ export default function Topbar({
                   onOpenProjects();
                   setShowFileMenu(false);
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
+                className={menuItem}
               >
                 <TemplatesIcon className="w-3.5 h-3.5 text-text-tertiary" />
                 My projects…
               </button>
+
               <div className="border-t border-border-subtle my-1" />
-              <span className="text-[11px] uppercase tracking-wider text-text-ghost px-3 py-1 block">
+              <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-text-ghost px-3 py-1 block">
                 Project file
               </span>
               <button
                 onClick={() => {
-                  handleExportProjectFile();
+                  onOpenExport();
                   setShowFileMenu(false);
                 }}
-                className="w-full flex items-center justify-between gap-2.5 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
+                className={cx(menuItem, "justify-between")}
               >
                 <span className="flex items-center gap-2.5">
                   <DownloadIcon className="w-3.5 h-3.5 text-text-tertiary" />
                   Download project
                 </span>
-                <span className="text-[11px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
+                <span className="text-[10px] text-text-ghost uppercase font-mono">
+                  .{FILE_EXTENSION}
+                </span>
               </button>
               <button
                 onClick={() => {
-                  handleImportClick();
+                  fileInputRef.current?.click();
                   setShowFileMenu(false);
                 }}
-                className="w-full flex items-center justify-between gap-2.5 px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
+                className={cx(menuItem, "justify-between")}
               >
                 <span className="flex items-center gap-2.5">
                   <UploadIcon className="w-3.5 h-3.5 text-text-tertiary" />
                   Import project
                 </span>
-                <span className="text-[11px] text-text-ghost uppercase">.{FILE_EXTENSION}</span>
+                <span className="text-[10px] text-text-ghost uppercase font-mono">
+                  .{FILE_EXTENSION}
+                </span>
               </button>
+
+              <div className="border-t border-border-subtle my-1" />
+              <button
+                onClick={() => {
+                  onOpenShortcuts();
+                  setShowFileMenu(false);
+                }}
+                className={cx(menuItem, "justify-between")}
+              >
+                <span className="flex items-center gap-2.5">
+                  <KeyboardIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                  Keyboard shortcuts
+                </span>
+                <kbd className="text-[10px] text-text-ghost font-mono">?</kbd>
+              </button>
+              {canInstall && (
+                <button
+                  onClick={() => {
+                    promptInstall();
+                    setShowFileMenu(false);
+                  }}
+                  className={menuItem}
+                >
+                  <InstallIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                  Install as an app
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -518,104 +431,53 @@ export default function Topbar({
         {!isPro && (
           <button
             onClick={() => openLicense()}
-            className="flex items-center gap-1.5 border border-accent-green/40 text-accent-green hover:bg-accent-green/10 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+            className="hidden sm:flex items-center gap-1.5 bg-accent-tint text-accent-tint-fg hover:bg-accent/20 text-[11.5px] font-medium px-2.5 py-1.5 rounded-md transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <LockIcon className="w-3.5 h-3.5" />
             Upgrade
           </button>
         )}
 
-        <div className="relative" ref={exportMenuRef}>
-          <button
-            onClick={() => {
-              setShowFileMenu(false);
-              setShowExportMenu((v) => !v);
-            }}
-            aria-label="Export image"
-            aria-haspopup="menu"
-            aria-expanded={showExportMenu}
-            className="flex items-center gap-1.5 bg-accent-green hover:bg-accent-green-hover text-surface-0 text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-all"
-          >
-            <DownloadIcon className="w-3.5 h-3.5" />
-            Export
-            <ChevronDownIcon className="w-3 h-3" />
-          </button>
-          {showExportMenu && (
-            <div className="absolute top-full mt-1 right-0 bg-surface-2 border border-border-default rounded-lg p-3 min-w-[220px] shadow-2xl animate-scale-in space-y-3 z-50">
-              <span className="text-[11px] font-semibold text-text-primary block">
-                Export image
-              </span>
-              <div>
-                <span className="text-[11px] text-text-ghost uppercase block mb-1">Format</span>
-                <div className="flex bg-surface-3 rounded-md p-0.5 border border-border-subtle">
-                  {(["png", "jpeg"] as const).map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setExportFormat(f)}
-                      className={`flex-1 py-1.5 text-[11px] rounded uppercase transition-all ${
-                        exportFormat === f
-                          ? "bg-surface-4 text-text-primary"
-                          : "text-text-ghost hover:text-text-tertiary"
-                      }`}
-                    >
-                      {f}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {exportFormat === "jpeg" && (
-                <div>
-                  <span className="text-[11px] text-text-ghost uppercase block mb-1">
-                    Quality — {exportQuality}%
-                  </span>
-                  <input
-                    type="range"
-                    min={10}
-                    max={100}
-                    step={5}
-                    value={exportQuality}
-                    onChange={(e) => setExportQuality(Number(e.target.value))}
-                    className="w-full accent-accent-green h-1"
-                  />
-                </div>
-              )}
-              {exportFormat === "png" && (
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={transparentBg}
-                    onChange={(e) => setTransparentBg(e.target.checked)}
-                    className="accent-accent-green w-3.5 h-3.5 rounded"
-                  />
-                  <span className="text-xs text-text-secondary">Transparent background</span>
-                </label>
-              )}
-              <div className="text-[11px] text-text-ghost">
-                {format.width} × {format.height}px
-              </div>
-              {!isPro && (
-                <button
-                  onClick={() => {
-                    setShowExportMenu(false);
-                    openLicense("Exports include a watermark on the free plan. Upgrade to remove it.");
-                  }}
-                  className="w-full flex items-center gap-1.5 text-[11px] text-accent-green hover:underline text-left"
-                >
-                  <LockIcon className="w-3 h-3" />
-                  Exports include a watermark — upgrade to remove
-                </button>
-              )}
-              <button
-                onClick={handleExport}
-                className="w-full flex items-center justify-center gap-1.5 bg-accent-green hover:bg-accent-green-hover text-surface-0 text-xs font-semibold py-2 rounded-lg transition-all"
-              >
-                <DownloadIcon className="w-3.5 h-3.5" />
-                Download {exportFormat.toUpperCase()}
-              </button>
-            </div>
-          )}
-        </div>
+        {/* The one primary action on the screen. */}
+        <button
+          onClick={onOpenExport}
+          aria-label="Export"
+          className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-accent-fg text-[11.5px] font-semibold px-3 py-1.5 rounded-md shadow-[0_1px_2px_rgb(91_91_214/.4)] transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <DownloadIcon className="w-3.5 h-3.5" />
+          Export
+        </button>
+
+        <AccountMenu />
       </div>
     </header>
+  );
+}
+
+/** A 28×26 control inside the centre group. */
+function ToolToggle({
+  label,
+  active = false,
+  disabled = false,
+  onClick,
+  children,
+}: {
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <IconButton
+      label={label}
+      onClick={onClick}
+      disabled={disabled}
+      active={active}
+      variant={active ? "raised" : "ghost"}
+      size="toolbar"
+    >
+      {children}
+    </IconButton>
   );
 }

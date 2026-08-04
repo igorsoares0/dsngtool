@@ -1,11 +1,30 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useEditorStore } from "../../store/editor-store";
-import { useLicenseStore } from "../../store/license-store";
+import { useEntitlementStore } from "../../store/entitlement-store";
 import { TEMPLATES } from "../../data/templates";
 import { ASSETS } from "../../data/assets";
-import { PlusIcon, LockIcon } from "./icons";
-import type { EditorElement } from "../../types/editor";
+import { LockIcon, UploadIcon, SearchIcon } from "./icons";
+import { cx } from "../ui/cx";
+import { toast } from "../../store/toast-store";
+
+/** Read an image file's natural pixel dimensions in the browser. */
+function imageDimensions(file: File): Promise<{ w: number; h: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("decode_failed"));
+    };
+    img.src = url;
+  });
+}
 
 type PanelType =
   | "templates"
@@ -35,23 +54,77 @@ function TemplatePreview({ bgColor, accent, isStory }: { bgColor: string; accent
   );
 }
 
+/** Chips come from the template data itself, so they can't drift out of step
+ *  with the list — but the data carries ~40 categories, which is a wall, not a
+ *  filter. Show the handful with the most templates behind them; everything
+ *  else is still reachable through search. */
+const CHIP_LIMIT = 6;
+
+const TEMPLATE_CATEGORIES = (() => {
+  const counts = new Map<string, number>();
+  for (const t of TEMPLATES) counts.set(t.category, (counts.get(t.category) ?? 0) + 1);
+  const top = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, CHIP_LIMIT)
+    .map(([name]) => name);
+  return ["All", ...top];
+})();
+
 function TemplatesPanel() {
   const loadTemplate = useEditorStore((s) => s.loadTemplate);
-  const isPro = useLicenseStore((s) => s.tier === "pro");
-  const openLicense = useLicenseStore((s) => s.openModal);
+  const isPro = useEntitlementStore((s) => s.pro);
+  const openLicense = useEntitlementStore((s) => s.openModal);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All");
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return TEMPLATES.filter(
+      (t) =>
+        (category === "All" || t.category === category) &&
+        (q === "" ||
+          t.name.toLowerCase().includes(q) ||
+          t.category.toLowerCase().includes(q))
+    );
+  }, [query, category]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-          Templates
-        </h3>
-        <span className="text-[11px] text-text-ghost bg-surface-3 px-1.5 py-0.5 rounded">
-          {TEMPLATES.length}
-        </span>
+    <div className="space-y-3">
+      <PanelTitle>Templates</PanelTitle>
+
+      <SearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder={`Search ${TEMPLATES.length} templates`}
+      />
+
+      <div className="flex flex-wrap gap-1.5">
+        {TEMPLATE_CATEGORIES.map((c) => (
+          <button
+            key={c}
+            onClick={() => setCategory(c)}
+            aria-pressed={category === c}
+            className={cx(
+              "text-[11.5px] px-2.5 py-1 rounded-full transition-colors duration-150 ease-standard",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              category === c
+                ? "bg-text-primary text-surface-2 font-medium"
+                : "bg-surface-4 text-text-secondary hover:text-text-primary"
+            )}
+          >
+            {c}
+          </button>
+        ))}
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        {TEMPLATES.map((t) => {
+
+      {visible.length === 0 && (
+        <p className="text-[11.5px] text-text-ghost py-6 text-center">
+          No templates match “{query}”.
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 gap-[10px]">
+        {visible.map((t) => {
           const ratio = t.format.width / t.format.height;
           const aspectClass =
             ratio === 1 ? "aspect-square" : ratio < 0.6 ? "aspect-[9/16]" : "aspect-[2/3]";
@@ -66,7 +139,7 @@ function TemplatesPanel() {
                   : loadTemplate(t)
               }
               aria-label={locked ? `${t.name} (premium template — upgrade to unlock)` : `Apply template ${t.name}`}
-              className={`group rounded-lg overflow-hidden border border-border-subtle hover:border-accent-green/40 transition-all relative ${aspectClass}`}
+              className={`group rounded-[9px] overflow-hidden border border-border-subtle hover:border-accent transition-colors duration-150 ease-standard relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${aspectClass}`}
               style={{ backgroundColor: t.previewColor }}
             >
               <TemplatePreview
@@ -81,10 +154,10 @@ function TemplatesPanel() {
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[11px] text-white font-medium block">
+                <span className="text-[11.5px] text-white font-medium block">
                   {t.name}
                   {t.premium && (
-                    <span className="ml-1 text-[9px] text-accent-green uppercase">Pro</span>
+                    <span className="ml-1 text-[9px] text-accent uppercase">Pro</span>
                   )}
                 </span>
                 <span className="text-[10px] text-white/60">
@@ -102,55 +175,149 @@ function TemplatesPanel() {
 function UploadsPanel() {
   const addElement = useEditorStore((s) => s.addElement);
   const format = useEditorStore((s) => s.format);
+  const storage = useEntitlementStore((s) => s.storage);
+  const isPro = useEntitlementStore((s) => s.pro);
+  const openLicense = useEntitlementStore((s) => s.openModal);
+  const refreshEntitlement = useEntitlementStore((s) => s.refresh);
+  const [dragging, setDragging] = useState(false);
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const src = reader.result as string;
-      const img = new window.Image();
-      img.onload = () => {
-        const maxW = format.width * 0.6;
-        const ratio = img.width / img.height;
-        const w = Math.min(img.width, maxW);
-        const h = w / ratio;
-        addElement({
-          type: "image",
-          src,
-          x: (format.width - w) / 2,
-          y: (format.height - h) / 2,
-          width: w,
-          height: h,
-          rotation: 0,
-          opacity: 1,
-        });
-      };
-      img.src = src;
-    };
-    reader.readAsDataURL(file);
+    // Reset the input so picking the same file again re-fires onChange.
+    e.target.value = "";
+    if (file) uploadFile(file);
   };
 
+  const uploadFile = async (file: File) => {
+    // Measure natural dimensions locally, then upload the bytes to R2 via our
+    // API (which enforces the storage quota) and place the returned URL.
+    const dims = await imageDimensions(file).catch(() => null);
+
+    const form = new FormData();
+    form.append("file", file);
+    if (dims) {
+      form.append("width", String(dims.w));
+      form.append("height", String(dims.h));
+    }
+
+    let res: Response;
+    try {
+      res = await fetch("/api/uploads", { method: "POST", body: form });
+    } catch {
+      toast.error("Upload failed — check your connection and try again.");
+      return;
+    }
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (data.error === "quota_exceeded") {
+        toast.error("You're out of storage. Free up space or upgrade for more.");
+      } else if (data.error === "file_too_large") {
+        toast.error("That image is too large (max 15MB).");
+      } else if (data.error === "unsupported_type") {
+        toast.error("That file type isn't supported.");
+      } else if (res.status === 401) {
+        toast.error("Please sign in to upload images.");
+      } else {
+        toast.error("Upload failed. Please try again.");
+      }
+      return;
+    }
+
+    const { url, width, height } = (await res.json()) as {
+      url: string;
+      width: number | null;
+      height: number | null;
+    };
+
+    const natW = width ?? dims?.w ?? format.width * 0.6;
+    const natH = height ?? dims?.h ?? natW;
+    const maxW = format.width * 0.6;
+    const w = Math.min(natW, maxW);
+    const h = w * (natH / natW);
+
+    addElement({
+      type: "image",
+      src: url,
+      x: (format.width - w) / 2,
+      y: (format.height - h) / 2,
+      width: w,
+      height: h,
+      rotation: 0,
+      opacity: 1,
+    });
+    // The quota just moved — keep the meter honest.
+    refreshEntitlement();
+  };
+
+  const usedPct = storage
+    ? Math.min(100, Math.round((storage.used / storage.limit) * 100))
+    : 0;
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-        Uploads
-      </h3>
-      <label className="w-full border border-dashed border-border-strong rounded-lg py-8 flex flex-col items-center gap-2 text-text-tertiary hover:text-text-secondary hover:border-accent-green/30 transition-all group cursor-pointer">
-        <div className="w-10 h-10 rounded-full bg-surface-3 flex items-center justify-center group-hover:bg-surface-4 transition-colors">
-          <PlusIcon className="w-5 h-5" />
+    <div className="space-y-3">
+      <PanelTitle>Uploads</PanelTitle>
+
+      {storage && (
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[11.5px] text-text-secondary font-mono tabular-nums">
+              {formatMB(storage.used)} of {formatMB(storage.limit)}
+            </span>
+            {!isPro && (
+              <button
+                onClick={() => openLicense("Need more room? Pro raises storage to 1 GB.")}
+                className="text-[11.5px] font-medium text-accent hover:text-accent-hover transition-colors duration-150 ease-standard"
+              >
+                Upgrade
+              </button>
+            )}
+          </div>
+          <div className="h-1 w-full rounded-full bg-surface-4 overflow-hidden">
+            <div
+              className={cx(
+                "h-full rounded-full transition-all",
+                usedPct >= 80 ? "bg-danger" : "bg-accent"
+              )}
+              style={{ width: `${usedPct}%` }}
+            />
+          </div>
         </div>
-        <span className="text-xs">Upload image</span>
-        <span className="text-[11px] text-text-ghost">or drag & drop</span>
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleUpload}
-        />
+      )}
+
+      <label
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) uploadFile(file);
+        }}
+        className={cx(
+          "w-full border border-dashed rounded-[10px] py-7 flex flex-col items-center gap-1.5 cursor-pointer transition-colors duration-150 ease-standard",
+          dragging
+            ? "border-accent bg-accent-tint text-accent-tint-fg"
+            : "border-border-default text-text-tertiary hover:border-border-strong hover:text-text-secondary"
+        )}
+      >
+        <UploadIcon className="w-4 h-4" />
+        <span className="text-[11.5px]">Drop images here</span>
+        <span className="text-[11px] text-text-ghost">PNG, JPG, WEBP · up to 15 MB</span>
+        <input type="file" accept="image/*" className="hidden" onChange={onInputChange} />
       </label>
     </div>
   );
+}
+
+/** MB with no decimals — storage figures are approximate by nature. */
+function formatMB(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return `${Math.round(mb)} MB`;
 }
 
 function TextPanel() {
@@ -191,7 +358,7 @@ function TextPanel() {
           onClick={() => addText("heading")}
           className="w-full text-left bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-lg px-4 py-3 transition-all"
         >
-          <span className="text-lg font-bold text-text-primary font-[family-name:var(--font-dm-sans)]">
+          <span className="text-lg font-bold text-text-primary font-display">
             Add a heading
           </span>
         </button>
@@ -268,18 +435,18 @@ function ShapesPanel() {
             onClick={() => addShape(shape.id)}
             aria-label={`Add ${shape.id}`}
             title={`Add ${shape.id}`}
-            className="aspect-square bg-surface-2 border border-border-subtle rounded-lg flex items-center justify-center hover:border-accent-green/40 hover:bg-surface-3 transition-all group"
+            className="aspect-square bg-surface-2 border border-border-subtle rounded-lg flex items-center justify-center hover:border-accent/40 hover:bg-surface-3 transition-all group"
           >
             {shape.id === "triangle" ? (
               <div
-                className="w-8 h-8 bg-text-tertiary group-hover:bg-accent-green transition-colors"
+                className="w-8 h-8 bg-text-tertiary group-hover:bg-accent transition-colors"
                 style={{ clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)" }}
               />
             ) : shape.id === "line" ? (
-              <div className="w-8 h-[3px] bg-text-tertiary group-hover:bg-accent-green transition-colors rounded-full" />
+              <div className="w-8 h-[3px] bg-text-tertiary group-hover:bg-accent transition-colors rounded-full" />
             ) : (
               <div
-                className={`w-8 h-8 bg-text-tertiary group-hover:bg-accent-green transition-colors ${shape.preview}`}
+                className={`w-8 h-8 bg-text-tertiary group-hover:bg-accent transition-colors ${shape.preview}`}
               />
             )}
           </button>
@@ -326,7 +493,7 @@ function AssetsPanel() {
             onClick={() => addAsset(asset.src)}
             aria-label="Add asset"
             title="Add to canvas"
-            className="aspect-square bg-surface-2 border border-border-subtle rounded-lg overflow-hidden flex items-center justify-center hover:border-accent-green/40 hover:bg-surface-3 transition-all"
+            className="aspect-square bg-surface-2 border border-border-subtle rounded-lg overflow-hidden flex items-center justify-center hover:border-accent/40 hover:bg-surface-3 transition-all"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -463,7 +630,7 @@ function OverlaysPanel() {
       <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
         Overlays
       </h3>
-      <p className="text-[11px] text-text-ghost leading-relaxed">
+      <p className="text-[11.5px] text-text-ghost leading-relaxed">
         Click any preset to add a full-canvas overlay layer. Adjust opacity and color in the right panel.
       </p>
       <div className="grid grid-cols-2 gap-2">
@@ -471,10 +638,10 @@ function OverlaysPanel() {
           <button
             key={overlay.label}
             onClick={() => addElement(overlay.build({ width: format.width, height: format.height }))}
-            className="aspect-video rounded-lg border border-border-subtle hover:border-accent-green/40 transition-all flex items-end p-2 overflow-hidden relative group"
+            className="aspect-video rounded-lg border border-border-subtle hover:border-accent/40 transition-all flex items-end p-2 overflow-hidden relative group"
             style={{ background: overlay.preview }}
           >
-            <span className="text-[11px] text-white font-medium relative z-10 drop-shadow">
+            <span className="text-[11.5px] text-white font-medium relative z-10 drop-shadow">
               {overlay.label}
             </span>
           </button>
@@ -493,14 +660,67 @@ const PANELS: Record<PanelType, () => React.JSX.Element> = {
   overlays: OverlaysPanel,
 };
 
-export default function LeftPanel({ activePanel }: { activePanel: PanelType | null }) {
+export default function LeftPanel({
+  activePanel,
+  onClose,
+}: {
+  activePanel: PanelType | null;
+  onClose: () => void;
+}) {
   if (!activePanel) return null;
 
   const PanelContent = PANELS[activePanel];
 
   return (
-    <div className="w-[260px] bg-surface-1 border-r border-border-subtle p-4 overflow-y-auto shrink-0 animate-fade-in">
-      <PanelContent />
+    <>
+      {/* Below xl the panel floats over the canvas, so it needs a way out. */}
+      <div
+        className="absolute inset-0 z-20 xl:hidden"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
+        className={cx(
+          "w-[252px] bg-surface-1 border-r border-border-subtle p-[14px] overflow-y-auto shrink-0 animate-fade-in",
+          // Docked at xl and up; an overlay below it. `left-[56px]` clears the
+          // rail — at left-0 the overlay would slide under it. Docked panels get
+          // a border and no shadow; only the floating form is raised.
+          "absolute inset-y-0 left-[56px] z-30 shadow-pop xl:static xl:left-auto xl:z-auto xl:shadow-none"
+        )}
+      >
+        <PanelContent />
+      </div>
+    </>
+  );
+}
+
+/** Panel heading — ui-lg, not the uppercase micro used for section legends. */
+function PanelTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="text-[12.5px] font-semibold text-text-primary">{children}</h3>
+  );
+}
+
+function SearchInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="relative">
+      <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-ghost pointer-events-none" />
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className="w-full bg-surface-2 border border-border-default rounded-md pl-8 pr-2.5 py-[7px] text-[11.5px] text-text-primary placeholder:text-text-ghost outline-none focus:border-accent transition-colors duration-150 ease-standard"
+      />
     </div>
   );
 }

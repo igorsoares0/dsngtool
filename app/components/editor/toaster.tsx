@@ -7,14 +7,14 @@ import { CloseIcon } from "./icons";
 function ToastIcon({ type }: { type: Toast["type"] }) {
   if (type === "success") {
     return (
-      <svg className="w-4 h-4 text-accent-green shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg className="w-4 h-4 text-success shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 6 9 17l-5-5" />
       </svg>
     );
   }
   if (type === "error") {
     return (
-      <svg className="w-4 h-4 text-red-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg className="w-4 h-4 text-danger shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="8" x2="12" y2="12" />
         <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -30,7 +30,7 @@ function ToastIcon({ type }: { type: Toast["type"] }) {
     );
   }
   return (
-    <svg className="w-4 h-4 text-accent-blue shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-4 h-4 text-text-tertiary shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="16" x2="12" y2="12" />
       <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -60,17 +60,17 @@ function ToastItem({ toast }: { toast: Toast }) {
       role="status"
       onMouseEnter={clearTimer}
       onMouseLeave={startTimer}
-      className="pointer-events-auto flex items-center gap-2.5 bg-surface-2 border border-border-default rounded-lg shadow-2xl pl-3 pr-2 py-2.5 min-w-[240px] max-w-[360px] animate-toast-in"
+      className="pointer-events-auto flex items-center gap-2.5 bg-surface-2 border border-border-default rounded-lg shadow-pop pl-3 pr-2 py-2.5 min-w-[240px] max-w-[360px] animate-toast-in"
     >
       <ToastIcon type={toast.type} />
-      <span className="text-xs text-text-primary flex-1 truncate">{toast.message}</span>
+      <span className="text-[11.5px] text-text-primary flex-1">{toast.message}</span>
       {toast.actionLabel && toast.onAction && (
         <button
           onClick={() => {
             toast.onAction?.();
             dismiss(toast.id);
           }}
-          className="text-[11px] font-semibold text-accent-green hover:text-accent-green-hover px-2 py-1 rounded-md hover:bg-surface-3 transition-all shrink-0"
+          className="text-[11.5px] font-semibold text-accent hover:text-accent-hover px-2 py-1 rounded-md hover:bg-surface-4 transition-colors duration-150 ease-standard shrink-0"
         >
           {toast.actionLabel}
         </button>
@@ -78,7 +78,7 @@ function ToastItem({ toast }: { toast: Toast }) {
       <button
         onClick={() => dismiss(toast.id)}
         aria-label="Dismiss"
-        className="p-1 text-text-ghost hover:text-text-secondary rounded transition-colors shrink-0"
+        className="p-1 text-text-ghost hover:text-text-primary rounded-sm transition-colors duration-150 ease-standard shrink-0"
       >
         <CloseIcon className="w-3.5 h-3.5" />
       </button>
@@ -95,7 +95,7 @@ export default function Toaster() {
   if (!mounted) return null;
 
   return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[120] flex flex-col items-center gap-2 pointer-events-none">
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[120] flex flex-col items-center gap-2 pointer-events-none">
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} />
       ))}

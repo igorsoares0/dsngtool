@@ -1,17 +1,25 @@
-# Payments & Licensing Setup (Paddle LTD)
+# Payments Setup (Paddle Billing — monthly subscription)
 
-This app gates the **free tier** with a watermark on exports and a handful of
-premium templates. A **$47 lifetime license** removes both. Licensing is backed
-by Neon (Postgres) via Prisma, fulfilled by a Paddle webhook, and validated
-online with an offline cache (IndexedDB) so the editor still works offline.
+Modo sells one thing: a **monthly Pro subscription** that raises the quotas.
 
-> The same `License` table is designed to also serve **AppSumo** later
-> (`source = "appsumo"`). The AppSumo webhook is a documented stub at
-> `app/api/webhooks/appsumo/route.ts` — implement it when approved.
+| | Free | Pro |
+| --- | --- | --- |
+| Storage (R2 uploads) | 250 MB | 1 GB |
+| AI generations / month | 5 | 100 |
+| Templates | 47 of 53 | all 53 (`premium: true` in `app/data/templates.ts`) |
+
+Everything else is the same on both tiers: the full editor and export at native
+resolution. There is **no watermark** on any tier — it went away with the LTD,
+so don't reintroduce it in copy.
+
+Entitlement is derived **server-side** from the `Subscription.status` mirrored
+from Paddle. The client's claim about its own tier is never trusted: quota is
+enforced in `app/lib/server/storage.ts` (uploads) and
+`app/api/ai/generate/route.ts` (AI).
 
 ## 1. Environment variables
 
-Copy `.env.example` to `.env` and fill in real values:
+Copy `.env.example` to `.env` and fill in real values. The payment-related ones:
 
 | Var | Where to get it |
 | --- | --- |
@@ -19,11 +27,12 @@ Copy `.env.example` to `.env` and fill in real values:
 | `DIRECT_URL` | Neon **direct** connection string (migrations) |
 | `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | Paddle → Developer tools → Authentication (client token) |
 | `NEXT_PUBLIC_PADDLE_ENV` | `sandbox` while testing, `production` at launch |
-| `NEXT_PUBLIC_PADDLE_PRICE_ID` | Price id of the $47 one-time product |
+| `NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY` | Price id of the recurring monthly price |
 | `PADDLE_API_KEY` | Paddle → Developer tools → Authentication (API key) |
 | `PADDLE_WEBHOOK_SECRET` | Paddle → Notifications → your destination (`pdl_ntfset_…`) |
-| `RESEND_API_KEY` | Resend dashboard |
-| `LICENSE_EMAIL_FROM` | A from-address on a verified Resend domain |
+
+The `NEXT_PUBLIC_*` ones are inlined at **build** time, not read at runtime — see
+`DEPLOY.md` §5 if the checkout opens empty in production.
 
 ## 2. Database
 
@@ -38,11 +47,12 @@ npm run db:deploy
 ## 3. Paddle dashboard
 
 1. Start in **sandbox**.
-2. Create a **product** + a **one-time price** of **$47**; copy its price id →
-   `NEXT_PUBLIC_PADDLE_PRICE_ID`.
+2. Create a **product** + a **recurring monthly price**; copy its price id →
+   `NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY`.
 3. Create a **notification destination** (webhook) pointing at
-   `https://<your-host>/api/webhooks/paddle`, subscribe to
-   **`transaction.completed`**, copy the secret → `PADDLE_WEBHOOK_SECRET`.
+   `https://<your-host>/api/webhooks/paddle`, subscribed to the
+   **`subscription.*`** events (created, activated, updated, paused, resumed,
+   canceled). Copy the secret → `PADDLE_WEBHOOK_SECRET`.
 4. Copy the **client token** and **API key** into the env vars above.
 
 ### Testing the webhook locally
@@ -55,40 +65,46 @@ cloudflared tunnel --url http://localhost:3000   # or: ngrok http 3000
 ```
 
 Point the Paddle webhook at the tunnel URL and run a **sandbox checkout**.
-On `transaction.completed` the webhook:
-- verifies the signature (`paddle.webhooks.unmarshal`),
-- fetches the buyer email (`paddle.customers.get`),
-- creates a `License` (idempotent by transaction id),
-- emails the key via Resend.
 
-The post-checkout success screen also polls `GET /api/license/by-transaction`
-and shows the key.
+## 4. How it fits together (code map)
 
-## 4. How gating works (code map)
+- **Checkout** — `app/lib/paddle-checkout.ts`. Opens Paddle.js client-side with
+  `customData: { userId }`, which is what lets the webhook attribute the
+  resulting subscription to a Modo account.
+- **Webhook** — `app/api/webhooks/paddle/route.ts`. Verifies the signature over
+  the **raw** body (`paddle.webhooks.unmarshal`), then upserts a `Subscription`
+  row on every `subscription.*` event. Every such event carries the full
+  subscription state, so one upsert keeps the mirror correct no matter which
+  event fired or in what order they arrive.
+- **Attribution** — `resolveUserId()` tries, in order: `customData.userId` → the
+  existing row for that subscription id (later events may drop customData) →
+  the Paddle customer's email matched against `user.email`. If none resolve, it
+  logs and acks (a retry can't add attribution that isn't there).
+- **Entitlement** — `isPro()` in `app/lib/server/storage.ts`, read by
+  `GET /api/me` and by the quota checks. A customer who schedules a cancellation
+  keeps access until `cancelScheduledAt`.
+- **UI** — `app/components/editor/upgrade-modal.tsx` and the storage meter;
+  `/dashboard` shows subscription state.
 
-- **Watermark** — `app/lib/watermark.ts`, applied in `topbar.tsx` `handleExport`
-  when `tier !== "pro"`.
-- **Premium templates** — `premium: true` flag in `app/data/templates.ts`; lock
-  badge + upsell in `app/components/editor/left-panel.tsx`.
-- **License state** — `app/store/license-store.ts` (+ `app/hooks/use-license.ts`
-  boot/revalidation; cached in Dexie `settings`).
-- **Upgrade / activate UI** — `app/components/editor/license-modal.tsx`,
-  triggered from the topbar **Upgrade** button or any gated action.
+The `Subscription` row is created **asynchronously** by the webhook, so after a
+successful checkout the client polls `GET /api/me` to pick up the new tier.
 
 ## 5. Quick local check without Paddle
 
-Insert an active license directly into Neon, then paste the key into the
-in-app **Upgrade → Activate license** field:
+Insert an active subscription straight into Neon for your user:
 
 ```sql
-insert into "License" (id, key, source, status, tier, "externalId", "maxActivations", "activationCount", "createdAt", "updatedAt")
-values ('test1', 'DSGN-TEST-TEST-TEST', 'paddle', 'active', 'pro', 'txn_test', 3, 0, now(), now());
+insert into "Subscription" (id, "userId", status, "priceId", "createdAt", "updatedAt")
+values ('sub_test', '<your-user-id>', 'active', 'pri_test', now(), now());
 ```
 
-Watermark should disappear and premium templates unlock.
+Reload — the storage meter should show the 1 GB quota and AI should allow 100
+generations for the month.
 
 ## Security note
 
-Client-side gating (watermark/templates) can be bypassed by editing the JS —
-acceptable for a $47 LTD. The server validates keys and the DB is the source of
-truth; refunds/deactivations downgrade the user on the next revalidation.
+Gating is server-side and there is nothing meaningful to bypass on the client:
+uploads are rejected over quota before anything is written to R2, and
+`POST /api/ai/generate` requires a session and meters against `AiUsage` keyed by
+`userId`. A refund or cancellation lands as a `subscription.*` event and
+downgrades the user on the next request.

@@ -1,4 +1,4 @@
-// Prisma schema for dsgntool licensing (Paddle now, AppSumo later).
+// Prisma schema for dsgntool. Subscription SaaS (Paddle Billing) + storage.
 // Runtime uses DATABASE_URL (Neon pooled); migrations use DIRECT_URL (Neon direct).
 
 generator client {
@@ -9,43 +9,144 @@ datasource db {
   provider = "postgresql"
 }
 
-enum LicenseSource {
-  paddle
-  appsumo
-}
-
-enum LicenseStatus {
-  active
-  refunded
-  deactivated
-}
-
-model License {
-  id              String        @id @default(cuid())
-  key             String        @unique
-  source          LicenseSource
-  status          LicenseStatus @default(active)
-  // Single tier ("pro") today; kept as a string for AppSumo tier stacking later.
-  tier            String        @default("pro")
-  email           String?
-  // Paddle transaction id (txn_...) or AppSumo uuid. Unique => idempotent fulfillment.
-  externalId      String        @unique
-  maxActivations  Int           @default(3)
-  activationCount Int           @default(0)
-  raw             Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  activations Activation[]
-}
-
-model Activation {
+// Monthly AI generation quota, per user per calendar month. Keyed by userId and
+// never by anything the client supplies: a quota is only as strong as its key,
+// and a browser can mint a fresh device id per request.
+model AiUsage {
   id        String   @id @default(cuid())
-  licenseId String
-  deviceId  String
+  userId    String
+  month     String // "2026-07"
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month])
+  @@index([userId])
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  assets        Asset[]
+  subscriptions Subscription[]
+  projects      Project[]
+  aiUsage       AiUsage[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+// Server-side copy of an editor project, synced with the client's IndexedDB.
+// `id` is the client-generated id (shared with Dexie). `updatedAt` is
+// client-authoritative — it's the last-write-wins clock, so it is set from the
+// client payload, NOT with @updatedAt. `deletedAt` is a tombstone so deletions
+// propagate to the user's other devices on the next pull.
+model Project {
+  id        String    @id
+  userId    String
+  name      String
+  data      Json // { elements, backgroundColor, backgroundGradient, format }
+  updatedAt DateTime
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Mirror of a Paddle Billing subscription. Entitlement (free 250MB vs pro 1GB)
+// is derived from `status`. `id` is the Paddle sub_... id; upserted by the
+// Paddle webhook on every subscription.* event.
+model Subscription {
+  id                String    @id
+  userId            String
+  status            String // active, trialing, past_due, paused, canceled
+  priceId           String?
+  customerId        String?
+  currentPeriodEnd  DateTime?
+  // When the customer scheduled a cancellation: access continues (status stays
+  // active) until this date, then Paddle sends subscription.canceled.
+  cancelScheduledAt DateTime?
+  canceledAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// A user-uploaded image stored in R2. sum(bytes) per user is the storage usage
+// metered against the plan quota (free 250MB / pro 1GB). `key` is the R2 object
+// key; we store the key (not a URL) so the public/serving host can change.
+model Asset {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String   @unique
+  bytes     Int
+  mimeType  String
+  width     Int?
+  height    Int?
   createdAt DateTime @default(now())
 
-  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([licenseId, deviceId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
 }

@@ -1,8 +1,5 @@
-import { EventName } from "@paddle/paddle-node-sdk";
 import { paddle } from "../../../lib/server/paddle";
 import { prisma } from "../../../lib/server/db";
-import { generateKey } from "../../../lib/server/license";
-import { sendLicenseEmail } from "../../../lib/server/email";
 
 // Prisma + raw body verification require the Node runtime, never edge.
 export const runtime = "nodejs";
@@ -25,58 +22,98 @@ export async function POST(req: Request) {
 
   if (!event) return new Response("ok", { status: 200 });
 
-  // Only one-time purchase completion grants a license.
-  if (event.eventType === EventName.TransactionCompleted) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = event.data as any;
-    const externalId: string = data.id; // txn_...
-
+  // The subscription lifecycle drives entitlement. Every subscription.* event
+  // (created, activated, updated, past_due, paused, resumed, canceled, trialing)
+  // carries the full subscription state, so a single upsert keeps our mirror in
+  // sync regardless of which one fired.
+  if (event.eventType.startsWith("subscription.")) {
     try {
-      const existing = await prisma.license.findUnique({ where: { externalId } });
-      if (existing) {
-        // Idempotent: retried webhook for an already-fulfilled transaction.
-        return new Response("ok", { status: 200 });
-      }
-
-      // transaction.completed does not include the email; fetch the customer.
-      let email: string | null = data.customData?.email ?? null;
-      if (!email && data.customerId) {
-        try {
-          const customer = await paddle.customers.get(data.customerId);
-          email = customer.email ?? null;
-        } catch (err) {
-          console.error("[paddle] could not fetch customer", err);
-        }
-      }
-
-      const key = generateKey();
-      await prisma.license.create({
-        data: {
-          key,
-          source: "paddle",
-          status: "active",
-          tier: "pro",
-          email,
-          externalId,
-          raw: data,
-        },
-      });
-
-      if (email) {
-        try {
-          await sendLicenseEmail({ to: email, key, idempotencyKey: externalId });
-        } catch (err) {
-          // Don't fail the webhook on email errors — the key is stored and is
-          // also shown on the post-checkout success screen.
-          console.error("[paddle] license email failed", err);
-        }
-      }
+      await syncSubscription(event.data as SubscriptionData);
     } catch (err) {
-      console.error("[paddle] fulfillment failed", err);
+      console.error("[paddle] subscription sync failed", err);
       // 500 tells Paddle to retry.
-      return new Response("Fulfillment error", { status: 500 });
+      return new Response("Sync error", { status: 500 });
     }
   }
 
   return new Response("ok", { status: 200 });
+}
+
+interface SubscriptionData {
+  id: string;
+  status: string;
+  customerId?: string | null;
+  customData?: { userId?: string } | null;
+  currentBillingPeriod?: { endsAt?: string | null } | null;
+  scheduledChange?: { action?: string; effectiveAt?: string | null } | null;
+  canceledAt?: string | null;
+  items?: Array<{ price?: { id?: string | null } | null }> | null;
+}
+
+async function syncSubscription(data: SubscriptionData) {
+  const userId = await resolveUserId(data);
+  if (!userId) {
+    // Can't attribute this subscription to a user — log and ack so Paddle stops
+    // retrying (retrying won't help without attribution data).
+    console.error("[paddle] no user for subscription", data.id, data.customerId);
+    return;
+  }
+
+  const priceId = data.items?.[0]?.price?.id ?? null;
+  const currentPeriodEnd = data.currentBillingPeriod?.endsAt
+    ? new Date(data.currentBillingPeriod.endsAt)
+    : null;
+  const cancelScheduledAt =
+    data.scheduledChange?.action === "cancel" && data.scheduledChange.effectiveAt
+      ? new Date(data.scheduledChange.effectiveAt)
+      : null;
+  const canceledAt = data.canceledAt ? new Date(data.canceledAt) : null;
+
+  const fields = {
+    userId,
+    status: data.status,
+    priceId,
+    customerId: data.customerId ?? null,
+    currentPeriodEnd,
+    cancelScheduledAt,
+    canceledAt,
+  };
+
+  await prisma.subscription.upsert({
+    where: { id: data.id },
+    create: { id: data.id, ...fields },
+    update: fields,
+  });
+}
+
+/**
+ * Attribute a subscription to a Modo user. Preference order:
+ *  1. customData.userId set at checkout (propagates from transaction → subscription)
+ *  2. an existing row for this subscription id (later events may drop customData)
+ *  3. the Paddle customer's email matched to a user (last resort)
+ */
+async function resolveUserId(data: SubscriptionData): Promise<string | null> {
+  if (data.customData?.userId) return data.customData.userId;
+
+  const existing = await prisma.subscription.findUnique({
+    where: { id: data.id },
+    select: { userId: true },
+  });
+  if (existing) return existing.userId;
+
+  if (data.customerId) {
+    try {
+      const customer = await paddle.customers.get(data.customerId);
+      if (customer.email) {
+        const user = await prisma.user.findUnique({
+          where: { email: customer.email },
+          select: { id: true },
+        });
+        if (user) return user.id;
+      }
+    } catch (err) {
+      console.error("[paddle] customer lookup failed", err);
+    }
+  }
+  return null;
 }

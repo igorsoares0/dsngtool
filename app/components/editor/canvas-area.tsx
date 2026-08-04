@@ -8,6 +8,9 @@ import { resolveFontFamily } from "../../lib/fonts";
 import type { InlineEditRequest, SelectionRect } from "./canvas-stage";
 import SelectionToolbar from "./selection-toolbar";
 import ContextMenu, { type ContextMenuRequest } from "./context-menu";
+import AiBar from "./ai-bar";
+import IconButton from "../ui/icon-button";
+import { ZoomInIcon, ZoomOutIcon } from "./icons";
 
 const CanvasStage = dynamic(() => import("./canvas-stage"), { ssr: false });
 
@@ -74,7 +77,7 @@ function InlineTextEditor({
       onBlur={commit}
       onKeyDown={handleKeyDown}
       onInput={(e) => autoSize(e.currentTarget)}
-      className="absolute z-30 outline-none border-2 border-accent-green rounded-sm bg-transparent resize-none overflow-hidden"
+      className="absolute z-30 outline-none border-2 border-accent rounded-sm bg-transparent resize-none overflow-hidden"
       style={{
         left,
         top,
@@ -101,8 +104,10 @@ function InlineTextEditor({
 
 export default function CanvasArea({
   stageRef,
+  aiFocusSignal,
 }: {
   stageRef: React.RefObject<Konva.Stage | null>;
+  aiFocusSignal: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 0, height: 0 });
@@ -210,11 +215,10 @@ export default function CanvasArea({
     };
   }, []);
 
-  // Auto-fit zoom on first render and whenever format changes
-  useEffect(() => {
+  /** Scale the document to fit the viewport and recentre it. Shared by the
+   *  auto-fit effect and the zoom pill's "Fit" button. */
+  const fitToScreen = useCallback(() => {
     if (dims.width === 0 || dims.height === 0) return;
-    const formatKey = `${format.width}x${format.height}`;
-    if (lastFitFormatRef.current === formatKey) return;
     const padding = 80;
     const fitScale = Math.min(
       (dims.width - padding) / format.width,
@@ -223,8 +227,16 @@ export default function CanvasArea({
     );
     setZoom(Math.max(10, Math.floor(fitScale * 100)));
     useEditorStore.getState().resetPan();
-    lastFitFormatRef.current = formatKey;
   }, [dims, format, setZoom]);
+
+  // Auto-fit on first render and whenever the format changes.
+  useEffect(() => {
+    if (dims.width === 0 || dims.height === 0) return;
+    const formatKey = `${format.width}x${format.height}`;
+    if (lastFitFormatRef.current === formatKey) return;
+    fitToScreen();
+    lastFitFormatRef.current = formatKey;
+  }, [dims, format, fitToScreen]);
 
   const handleStartEditing = useCallback((req: InlineEditRequest) => {
     setEditReq(req);
@@ -243,13 +255,8 @@ export default function CanvasArea({
   return (
     <div
       ref={containerRef}
-      className="flex-1 bg-surface-0 overflow-hidden relative"
-      style={{
-        backgroundImage:
-          "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)",
-        backgroundSize: "24px 24px",
-        cursor: cursorStyle,
-      }}
+      className="flex-1 bg-surface-0 overflow-hidden relative canvas-dots"
+      style={{ cursor: cursorStyle }}
     >
       {dims.width > 0 && (
         <CanvasStage
@@ -289,24 +296,10 @@ export default function CanvasArea({
             height: format.height * scale,
           }}
         >
-          <div className="text-center max-w-[280px] px-6 py-5 rounded-lg bg-surface-2 border border-border-default shadow-xl animate-fade-in">
-            <div className="text-[13px] font-medium text-text-primary mb-1.5">
-              Start designing
-            </div>
-            <div className="text-[11px] text-text-secondary leading-relaxed">
-              Pick a <span className="text-accent-green">template</span>, add{" "}
-              <span className="text-accent-green">text</span> or{" "}
-              <span className="text-accent-green">shapes</span> from the left
-              sidebar.
-            </div>
-            <div className="mt-2.5 text-[11px] text-text-tertiary">
-              Press{" "}
-              <kbd className="px-1.5 py-px bg-surface-3 border border-border-subtle rounded font-mono text-text-secondary">
-                ?
-              </kbd>{" "}
-              for shortcuts
-            </div>
-          </div>
+          {/* One ghost line and nothing else — the canvas is the subject. */}
+          <p className="text-[13px] text-text-ghost text-center max-w-[240px] leading-relaxed animate-fade-in">
+            Nothing here yet. Pick a template from the left, or describe a post below.
+          </p>
         </div>
       )}
 
@@ -321,6 +314,41 @@ export default function CanvasArea({
         />
       )}
 
+      {/* Zoom pill — moved out of the topbar so it sits with what it controls. */}
+      <div className="absolute bottom-[calc(45vh+1rem)] lg:bottom-4 left-4 z-20 flex items-center gap-0.5 h-9 px-1 bg-surface-2 border border-border-default rounded-[10px] shadow-pop">
+        <IconButton
+          label="Zoom out"
+          size="sm"
+          tooltip={false}
+          onClick={() => setZoom(zoom - 10)}
+        >
+          <ZoomOutIcon className="w-3.5 h-3.5" />
+        </IconButton>
+        <span
+          className="text-[11px] font-mono tabular-nums text-text-primary min-w-[36px] text-center"
+          aria-label={`Zoom ${zoom} percent`}
+          aria-live="polite"
+        >
+          {zoom}%
+        </span>
+        <IconButton
+          label="Zoom in"
+          size="sm"
+          tooltip={false}
+          onClick={() => setZoom(zoom + 10)}
+        >
+          <ZoomInIcon className="w-3.5 h-3.5" />
+        </IconButton>
+        <div className="w-px h-4 bg-border-subtle mx-1" />
+        <button
+          onClick={fitToScreen}
+          className="text-[11.5px] text-text-secondary hover:text-text-primary px-2 py-1 rounded-sm transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Fit
+        </button>
+      </div>
+
+      <AiBar focusSignal={aiFocusSignal} />
     </div>
   );
 }

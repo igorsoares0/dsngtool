@@ -204,7 +204,7 @@ export default function ContextMenu({
       ref={menuRef}
       role="menu"
       onContextMenu={(e) => e.preventDefault()}
-      className="absolute z-[110] min-w-[180px] bg-surface-2 border border-border-default rounded-lg shadow-2xl py-1 animate-scale-in origin-top-left"
+      className="absolute z-[110] min-w-[180px] bg-surface-2 border border-border-default rounded-lg shadow-pop py-1 animate-scale-in origin-top-left"
       style={{ left, top }}
     >
       {entries.map((entry, i) =>
@@ -220,13 +220,13 @@ export default function ContextMenu({
               entry.disabled
                 ? "text-text-ghost cursor-not-allowed"
                 : entry.danger
-                ? "text-accent-pink hover:bg-accent-pink/10"
+                ? "text-danger hover:bg-danger-tint"
                 : "text-text-secondary hover:bg-surface-3 hover:text-text-primary"
             }`}
           >
             <span>{entry.label}</span>
             {entry.kbd && (
-              <span className="text-[11px] text-text-ghost tabular-nums">{entry.kbd}</span>
+              <span className="text-[11.5px] text-text-ghost tabular-nums">{entry.kbd}</span>
             )}
           </button>
         )

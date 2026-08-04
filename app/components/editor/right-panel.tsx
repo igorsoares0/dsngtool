@@ -22,6 +22,7 @@ import { toastDeleted } from "../../store/toast-store";
 import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon, CursorIcon } from "./icons";
 import { AVAILABLE_FONTS, resolveFontFamily } from "../../lib/fonts";
 import ColorPicker from "./color-picker";
+import { cx } from "../ui/cx";
 import type { EditorElement, TextElement, ShapeElement, ImageElement } from "../../types/editor";
 
 type Section = "position" | "typography" | "textShadow" | "image" | "imageFilters" | "fill" | "stroke" | "effects" | "layers";
@@ -41,7 +42,7 @@ function SectionHeader({
       aria-expanded={isOpen}
       className="w-full flex items-center justify-between py-2 group"
     >
-      <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider group-hover:text-text-primary transition-colors">
+      <span className="text-[10px] font-medium text-text-ghost uppercase tracking-[0.1em] group-hover:text-text-secondary transition-colors">
         {label}
       </span>
       <ChevronDownIcon
@@ -102,15 +103,17 @@ function NumberField({
     scrub.current = null;
   };
 
+  // The label rides inside the field as a scrub handle, so a 2×2 grid of
+  // X/Y/W/H reads as four controls rather than eight rows.
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex items-center gap-1.5 bg-surface-3 border border-border-subtle rounded-md px-[9px] py-[6px] transition-colors focus-within:border-accent focus-within:bg-surface-2">
       <span
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endScrub}
         onPointerCancel={endScrub}
         title="Drag to adjust"
-        className="text-[11px] text-text-ghost uppercase cursor-ew-resize select-none w-fit hover:text-text-tertiary transition-colors"
+        className="text-[10px] font-mono text-text-ghost uppercase cursor-ew-resize select-none shrink-0 hover:text-text-secondary transition-colors"
       >
         {label}
       </span>
@@ -122,7 +125,7 @@ function NumberField({
         min={min}
         max={max}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors w-full tabular-nums"
+        className="w-full min-w-0 bg-transparent text-[11.5px] font-mono tabular-nums text-text-primary outline-none"
       />
     </div>
   );
@@ -179,10 +182,10 @@ function StyleToggle({
       aria-label={label}
       aria-pressed={active}
       title={label}
-      className={`flex-1 py-1.5 text-[11px] rounded transition-all ${
+      className={`flex-1 py-1 text-[11.5px] rounded-sm transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
         active
-          ? "bg-surface-4 text-text-primary"
-          : "text-text-ghost hover:text-text-tertiary"
+          ? "bg-surface-2 text-text-primary font-medium shadow-raise"
+          : "text-text-secondary hover:text-text-primary"
       }`}
     >
       {children}
@@ -198,22 +201,24 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
   return (
     <div className="space-y-3">
       <div>
-        <span className="text-[11px] text-text-ghost uppercase">Text</span>
+        <span className="text-[10px] font-medium text-text-ghost uppercase tracking-[0.1em]">Text</span>
         <textarea
           value={el.text}
           aria-label="Text content"
           onChange={(e) => update({ text: e.target.value })}
           rows={2}
-          className="w-full mt-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors resize-none"
+          className="w-full mt-1 bg-surface-3 border border-border-subtle text-[11.5px] text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent transition-colors resize-none"
         />
       </div>
       <div>
-        <span className="text-[11px] text-text-ghost uppercase">Font</span>
+        <span className="text-[10px] font-medium text-text-ghost uppercase tracking-[0.1em]">Font</span>
         <select
           value={el.fontFamily}
           aria-label="Font family"
           onChange={(e) => update({ fontFamily: e.target.value })}
-          className="w-full mt-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors"
+          // Both the trigger and the options render in the face they name.
+          style={{ fontFamily: resolveFontFamily(el.fontFamily) }}
+          className="w-full mt-1 bg-surface-3 border border-border-subtle text-[13px] text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent transition-colors"
         >
           {AVAILABLE_FONTS.map((f) => (
             <option key={f.family} value={f.family} style={{ fontFamily: resolveFontFamily(f.family) }}>
@@ -227,8 +232,8 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
         <NumberField label="Line H." value={el.lineHeight || 1.2} onChange={(v) => update({ lineHeight: v })} step={0.1} min={0.5} max={4} />
       </div>
       <div>
-        <span className="text-[11px] text-text-ghost uppercase">Style</span>
-        <div className="flex mt-1 bg-surface-2 rounded-md p-0.5 border border-border-subtle">
+        <span className="text-[10px] font-medium text-text-ghost uppercase tracking-[0.1em]">Style</span>
+        <div className="flex mt-1 bg-surface-4 rounded-md p-[3px] gap-[2px]">
           <StyleToggle
             active={isBold}
             label="Bold"
@@ -255,20 +260,20 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
             label="Uppercase"
             onClick={() => update({ textTransform: isUppercase ? "none" : "uppercase" } as Partial<EditorElement>)}
           >
-            <span className="text-[11px]">Aa</span>
+            <span className="text-[11.5px]">Aa</span>
           </StyleToggle>
         </div>
       </div>
       <div>
-        <span className="text-[11px] text-text-ghost uppercase">Align</span>
-        <div className="flex mt-1 bg-surface-2 rounded-md p-0.5 border border-border-subtle">
+        <span className="text-[10px] font-medium text-text-ghost uppercase tracking-[0.1em]">Align</span>
+        <div className="flex mt-1 bg-surface-4 rounded-md p-[3px] gap-[2px]">
           {(["left", "center", "right"] as const).map((a) => (
             <button
               key={a}
               onClick={() => update({ align: a })}
               aria-label={`Align ${a}`}
               aria-pressed={el.align === a}
-              className={`flex-1 py-1.5 text-[11px] rounded capitalize transition-all ${
+              className={`flex-1 py-1.5 text-[11.5px] rounded capitalize transition-all ${
                 el.align === a
                   ? "bg-surface-4 text-text-primary"
                   : "text-text-ghost hover:text-text-tertiary"
@@ -304,7 +309,7 @@ function FillSection({ el, update }: { el: EditorElement; update: (u: Partial<Ed
           value={fill}
           aria-label="Fill color hex"
           onChange={(e) => update({ fill: e.target.value } as Partial<EditorElement>)}
-          className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+          className="flex-1 bg-surface-3 border border-border-subtle text-[11.5px] text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent transition-colors font-mono uppercase"
         />
       </div>
       <div className="flex gap-1.5 flex-wrap">
@@ -315,7 +320,7 @@ function FillSection({ el, update }: { el: EditorElement; update: (u: Partial<Ed
             aria-label={`Fill ${c}`}
             aria-pressed={fill === c}
             className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
-              fill === c ? "border-accent-green scale-110" : "border-border-subtle"
+              fill === c ? "border-accent scale-110" : "border-border-subtle"
             }`}
             style={{ backgroundColor: c }}
           />
@@ -350,11 +355,11 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
     <div className="space-y-3">
       {/* Flip */}
       <div>
-        <span className="text-[11px] text-text-ghost uppercase block mb-1">Flip</span>
+        <span className="text-[11.5px] text-text-ghost uppercase block mb-1">Flip</span>
         <div className="flex gap-2">
           <button
             onClick={() => update({ flipX: !el.flipX } as Partial<EditorElement>)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] border transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11.5px] border transition-all ${
               el.flipX
                 ? "bg-surface-4 text-text-primary border-border-default"
                 : "bg-surface-2 text-text-ghost border-border-subtle hover:text-text-tertiary"
@@ -365,7 +370,7 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
           </button>
           <button
             onClick={() => update({ flipY: !el.flipY } as Partial<EditorElement>)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] border transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11.5px] border transition-all ${
               el.flipY
                 ? "bg-surface-4 text-text-primary border-border-default"
                 : "bg-surface-2 text-text-ghost border-border-subtle hover:text-text-tertiary"
@@ -388,7 +393,7 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
 
       {/* Shadow */}
       <div>
-        <span className="text-[11px] text-text-ghost uppercase block mb-1">Shadow</span>
+        <span className="text-[11.5px] text-text-ghost uppercase block mb-1">Shadow</span>
         <div className="space-y-2">
           <NumberField
             label="Blur"
@@ -408,7 +413,7 @@ function ImageSection({ el, update }: { el: ImageElement; update: (u: Partial<Ed
                 value={el.shadowColor || "#000000"}
                 aria-label="Shadow color hex"
                 onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
-                className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+                className="flex-1 bg-surface-3 border border-border-subtle text-[11.5px] text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent transition-colors font-mono uppercase"
               />
             </div>
           )}
@@ -431,13 +436,13 @@ function ImageFiltersSection({ el, update }: { el: ImageElement; update: (u: Par
   return (
     <div className="space-y-3">
       <div>
-        <span className="text-[11px] text-text-ghost uppercase block mb-1">Presets</span>
+        <span className="text-[11.5px] text-text-ghost uppercase block mb-1">Presets</span>
         <div className="grid grid-cols-3 gap-1">
           {FILTER_PRESETS.map((p) => (
             <button
               key={p.label}
               onClick={() => update(p.values as Partial<EditorElement>)}
-              className="py-1.5 text-[11px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
+              className="py-1.5 text-[11.5px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
             >
               {p.label}
             </button>
@@ -487,9 +492,9 @@ function ImageFiltersSection({ el, update }: { el: ImageElement; update: (u: Par
           <button
             key={t.key}
             onClick={() => update({ [t.key]: !el[t.key] } as Partial<EditorElement>)}
-            className={`flex-1 py-1.5 text-[11px] rounded border transition-all ${
+            className={`flex-1 py-1.5 text-[11.5px] rounded border transition-all ${
               el[t.key]
-                ? "bg-surface-4 text-accent-green border-accent-green/40"
+                ? "bg-accent-tint text-accent-tint-fg border-accent/40"
                 : "bg-surface-2 text-text-ghost border-border-subtle hover:text-text-secondary"
             }`}
           >
@@ -519,13 +524,13 @@ function TextShadowSection({ el, update }: { el: TextElement; update: (u: Partia
   return (
     <div className="space-y-3">
       <div>
-        <span className="text-[11px] text-text-ghost uppercase block mb-1">Presets</span>
+        <span className="text-[11.5px] text-text-ghost uppercase block mb-1">Presets</span>
         <div className="grid grid-cols-4 gap-1">
           {PRESETS.map((p) => (
             <button
               key={p.label}
               onClick={() => update(p.values as Partial<EditorElement>)}
-              className="py-1.5 text-[11px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
+              className="py-1.5 text-[11.5px] rounded bg-surface-2 hover:bg-surface-3 border border-border-subtle text-text-secondary hover:text-text-primary transition-all"
             >
               {p.label}
             </button>
@@ -566,7 +571,7 @@ function TextShadowSection({ el, update }: { el: TextElement; update: (u: Partia
       </div>
       {isEnabled && (
         <div>
-          <span className="text-[11px] text-text-ghost uppercase block mb-1">Color</span>
+          <span className="text-[11.5px] text-text-ghost uppercase block mb-1">Color</span>
           <div className="flex items-center gap-2">
             <ColorPicker
               value={color}
@@ -577,7 +582,7 @@ function TextShadowSection({ el, update }: { el: TextElement; update: (u: Partia
               value={color}
               aria-label="Shadow color hex"
               onChange={(e) => update({ shadowColor: e.target.value } as Partial<EditorElement>)}
-              className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+              className="flex-1 bg-surface-3 border border-border-subtle text-[11.5px] text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent transition-colors font-mono uppercase"
             />
           </div>
         </div>
@@ -618,7 +623,7 @@ function StrokeSection({ el, update }: { el: ShapeElement; update: (u: Partial<E
               value={stroke}
               aria-label="Stroke color hex"
               onChange={(e) => update({ stroke: e.target.value } as Partial<EditorElement>)}
-              className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+              className="flex-1 bg-surface-3 border border-border-subtle text-[11.5px] text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent transition-colors font-mono uppercase"
             />
           </div>
           <div className="flex gap-1.5 flex-wrap">
@@ -629,7 +634,7 @@ function StrokeSection({ el, update }: { el: ShapeElement; update: (u: Partial<E
                 aria-label={`Stroke ${c}`}
                 aria-pressed={stroke.toLowerCase() === c.toLowerCase()}
                 className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
-                  stroke.toLowerCase() === c.toLowerCase() ? "border-accent-green scale-110" : "border-border-subtle"
+                  stroke.toLowerCase() === c.toLowerCase() ? "border-accent scale-110" : "border-border-subtle"
                 }`}
                 style={{ backgroundColor: c }}
               />
@@ -706,7 +711,7 @@ function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: 
           aria-label={el.hidden ? "Show layer" : "Hide layer"}
           aria-pressed={el.hidden}
           title={el.hidden ? "Show" : "Hide"}
-          className={`p-0.5 ${el.hidden ? "text-accent-pink" : "text-text-ghost hover:text-text-tertiary"}`}
+          className={`p-0.5 ${el.hidden ? "text-text-primary" : "text-text-ghost hover:text-text-tertiary"}`}
         >
           <EyeIcon />
         </button>
@@ -715,7 +720,7 @@ function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: 
           aria-label={el.locked ? "Unlock layer" : "Lock layer"}
           aria-pressed={el.locked}
           title={el.locked ? "Unlock" : "Lock"}
-          className={`p-0.5 ${el.locked ? "text-accent-blue" : "text-text-ghost hover:text-text-tertiary"}`}
+          className={`p-0.5 ${el.locked ? "text-text-primary" : "text-text-ghost hover:text-text-tertiary"}`}
         >
           <LockIcon />
         </button>
@@ -723,7 +728,7 @@ function SortableLayerItem({ el, isSelected }: { el: EditorElement; isSelected: 
           onClick={(e) => { e.stopPropagation(); removeElement(el.id); toastDeleted(1); }}
           aria-label="Delete layer"
           title="Delete"
-          className="p-0.5 text-text-ghost hover:text-accent-pink"
+          className="p-0.5 text-text-ghost hover:text-danger"
         >
           <TrashIcon />
         </button>
@@ -761,7 +766,7 @@ function LayersSection() {
   return (
     <div className="space-y-1">
       {elements.length === 0 ? (
-        <p className="text-[11px] text-text-ghost text-center py-4">No elements</p>
+        <p className="text-[11.5px] text-text-ghost text-center py-4">No elements</p>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={reversedIds} strategy={verticalListSortingStrategy}>
@@ -887,7 +892,7 @@ function BackgroundSection() {
 
   return (
     <div className="border-b border-border-subtle pb-3 mb-1">
-      <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider block py-2">
+      <span className="text-[11.5px] font-semibold text-text-secondary uppercase tracking-wider block py-2">
         Background
       </span>
       <div className="space-y-3">
@@ -896,7 +901,7 @@ function BackgroundSection() {
             <button
               key={m}
               onClick={() => applyMode(m)}
-              className={`flex-1 py-1 text-[11px] rounded capitalize transition-all ${
+              className={`flex-1 py-1 text-[11.5px] rounded capitalize transition-all ${
                 mode === m
                   ? "bg-surface-4 text-text-primary"
                   : "text-text-ghost hover:text-text-tertiary"
@@ -919,7 +924,7 @@ function BackgroundSection() {
                 value={backgroundColor}
                 aria-label="Background color hex"
                 onChange={(e) => setBackgroundColor(e.target.value)}
-                className="flex-1 bg-surface-2 border border-border-subtle text-xs text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+                className="flex-1 bg-surface-3 border border-border-subtle text-[11.5px] text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent transition-colors font-mono uppercase"
               />
             </div>
             <div className="flex gap-1.5 flex-wrap">
@@ -931,7 +936,7 @@ function BackgroundSection() {
                   aria-pressed={backgroundColor.toLowerCase() === c.toLowerCase()}
                   className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${
                     backgroundColor.toLowerCase() === c.toLowerCase()
-                      ? "border-accent-green scale-110"
+                      ? "border-accent scale-110"
                       : "border-border-subtle"
                   }`}
                   style={{ backgroundColor: c }}
@@ -945,7 +950,7 @@ function BackgroundSection() {
           <>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <span className="text-[11px] text-text-ghost uppercase block">Start</span>
+                <span className="text-[11.5px] text-text-ghost uppercase block">Start</span>
                 <div className="flex items-center gap-1.5">
                   <ColorPicker
                     value={startColor}
@@ -957,12 +962,12 @@ function BackgroundSection() {
                     value={startColor}
                     aria-label="Gradient start color"
                     onChange={(e) => updateColors(e.target.value, endColor)}
-                    className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[11px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+                    className="flex-1 min-w-0 bg-surface-3 border border-border-subtle text-[11.5px] text-text-primary px-1.5 py-1 rounded-sm outline-none focus:border-accent transition-colors font-mono uppercase"
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <span className="text-[11px] text-text-ghost uppercase block">End</span>
+                <span className="text-[11.5px] text-text-ghost uppercase block">End</span>
                 <div className="flex items-center gap-1.5">
                   <ColorPicker
                     value={endColor}
@@ -974,7 +979,7 @@ function BackgroundSection() {
                     value={endColor}
                     aria-label="Gradient end color"
                     onChange={(e) => updateColors(startColor, e.target.value)}
-                    className="flex-1 min-w-0 bg-surface-2 border border-border-subtle text-[11px] text-text-primary px-1.5 py-1 rounded outline-none focus:border-accent-green/40 transition-colors font-mono uppercase"
+                    className="flex-1 min-w-0 bg-surface-3 border border-border-subtle text-[11.5px] text-text-primary px-1.5 py-1 rounded-sm outline-none focus:border-accent transition-colors font-mono uppercase"
                   />
                 </div>
               </div>
@@ -982,7 +987,7 @@ function BackgroundSection() {
 
             {mode === "linear" && (
               <div className="space-y-1">
-                <span className="text-[11px] text-text-ghost uppercase block">Direction</span>
+                <span className="text-[11.5px] text-text-ghost uppercase block">Direction</span>
                 <div className="grid grid-cols-6 gap-1">
                   {LINEAR_DIRECTIONS.map((d, i) => {
                     const DIR_NAMES: Record<string, string> = {
@@ -997,7 +1002,7 @@ function BackgroundSection() {
                         aria-pressed={activeDirection === i}
                         className={`h-7 rounded text-sm border transition-all ${
                           activeDirection === i
-                            ? "border-accent-green bg-surface-3 text-text-primary"
+                            ? "border-accent bg-surface-3 text-text-primary"
                             : "border-border-subtle text-text-tertiary hover:text-text-primary hover:bg-surface-2"
                         }`}
                       >
@@ -1010,14 +1015,14 @@ function BackgroundSection() {
             )}
 
             <div className="space-y-1">
-              <span className="text-[11px] text-text-ghost uppercase block">Presets</span>
+              <span className="text-[11.5px] text-text-ghost uppercase block">Presets</span>
               <div className="grid grid-cols-5 gap-1.5">
                 {GRADIENT_PRESETS.map((p) => (
                   <button
                     key={p.name}
                     onClick={() => updateColors(p.colors[0], p.colors[1])}
                     title={p.name}
-                    className="aspect-square rounded-md border border-border-subtle hover:border-accent-green/60 hover:scale-105 transition-all"
+                    className="aspect-square rounded-md border border-border-subtle hover:border-accent/60 hover:scale-105 transition-all"
                     style={previewStyle(p.colors)}
                   />
                 ))}
@@ -1043,7 +1048,7 @@ function MultiSelectionInfo() {
     <div className="border-b border-border-subtle pb-3 space-y-3">
       <div className="flex items-center gap-2">
         <div className="w-7 h-7 rounded bg-surface-3 flex items-center justify-center">
-          <LayersIcon className="w-3.5 h-3.5 text-accent-green" />
+          <LayersIcon className="w-3.5 h-3.5 text-accent" />
         </div>
         <span className="text-xs text-text-primary font-medium">
           {selectedIds.length} elements selected
@@ -1051,7 +1056,7 @@ function MultiSelectionInfo() {
       </div>
       <div className="space-y-2">
         <div>
-          <span className="text-[11px] text-text-ghost uppercase block mb-1">Opacity</span>
+          <span className="text-[11.5px] text-text-ghost uppercase block mb-1">Opacity</span>
           <input
             type="range"
             min={0}
@@ -1063,13 +1068,13 @@ function MultiSelectionInfo() {
               for (const id of selectedIds) updates.set(id, { opacity: val });
               updateMultipleElements(updates);
             }}
-            className="w-full accent-accent-green h-1"
+            className="w-full accent-accent h-1"
           />
         </div>
         <div className="flex gap-2">
           <button
             onClick={duplicateSelectedElements}
-            className="flex-1 py-1.5 text-[11px] text-text-secondary bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-md transition-all"
+            className="flex-1 py-1.5 text-[11.5px] text-text-secondary bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-md transition-all"
           >
             Duplicate All
           </button>
@@ -1079,7 +1084,7 @@ function MultiSelectionInfo() {
               removeSelectedElements();
               toastDeleted(count);
             }}
-            className="flex-1 py-1.5 text-[11px] text-accent-pink bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-md transition-all"
+            className="flex-1 py-1.5 text-[11.5px] text-danger bg-surface-2 hover:bg-surface-3 border border-border-subtle rounded-md transition-all"
           >
             Delete All
           </button>
@@ -1097,7 +1102,7 @@ function EmptyState() {
       </div>
       <div className="space-y-1">
         <p className="text-xs text-text-secondary font-medium">Nothing selected</p>
-        <p className="text-[11px] text-text-ghost leading-relaxed">
+        <p className="text-[11.5px] text-text-ghost leading-relaxed">
           Click an element on the canvas to edit it. Adjust the document background and layers below.
         </p>
       </div>
@@ -1112,6 +1117,9 @@ export default function RightPanel() {
 
   const isSingle = selectedIds.length === 1;
   const selected = isSingle ? elements.find((e) => e.id === selectedIds[0]) : null;
+
+  // Local state: nothing outside this panel reads the active tab.
+  const [tab, setTab] = useState<"properties" | "layers">("properties");
 
   const [openSections, setOpenSections] = useState<Set<Section>>(
     new Set(["position", "fill", "layers"])
@@ -1131,12 +1139,41 @@ export default function RightPanel() {
   };
 
   return (
-    <aside className="w-[260px] bg-surface-1 border-l border-border-subtle overflow-y-auto shrink-0">
-      <div className="p-4 space-y-1">
-        <h2 className="text-xs font-bold text-text-primary font-[family-name:var(--font-dm-sans)] mb-3">
-          Properties
-        </h2>
+    <aside
+      className={cx(
+        "bg-surface-1 border-border-subtle overflow-y-auto shrink-0",
+        // Docked from lg up; a bottom sheet below it.
+        "fixed inset-x-0 bottom-0 z-30 h-[45vh] rounded-t-xl border-t shadow-modal",
+        "lg:static lg:h-auto lg:w-[266px] lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none lg:z-auto"
+      )}
+    >
+      {/* Tabs. Layers used to be one collapsible section among many; at this
+          width it deserves the full panel. */}
+      <div className="flex items-end gap-1 px-2 pt-2 border-b border-border-subtle sticky top-0 bg-surface-1 z-10">
+        {(["properties", "layers"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            aria-pressed={tab === t}
+            className={cx(
+              "flex-1 text-[11.5px] py-2 rounded-t-md transition-colors duration-150 ease-standard capitalize",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              tab === t
+                ? "bg-surface-2 text-text-primary font-medium"
+                : "text-text-secondary hover:text-text-primary"
+            )}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
 
+      {tab === "layers" ? (
+        <div className="p-[14px] animate-fade-in">
+          <LayersSection />
+        </div>
+      ) : (
+      <div className="p-[14px] space-y-1 animate-fade-in">
         {/* Empty state — nothing selected; document-level controls remain below */}
         {selectedIds.length === 0 && <EmptyState />}
 
@@ -1258,23 +1295,10 @@ export default function RightPanel() {
           </div>
         )}
 
-        {/* Always show layers */}
-        <div className="border-b border-border-subtle pb-2 last:border-0">
-          <SectionHeader
-            label="Layers"
-            isOpen={openSections.has("layers")}
-            onToggle={() => toggleSection("layers")}
-          />
-          {openSections.has("layers") && (
-            <div className="pb-2 animate-fade-in">
-              <LayersSection />
-            </div>
-          )}
-        </div>
-
         {/* Background color — always visible */}
         <BackgroundSection />
       </div>
+      )}
     </aside>
   );
 }

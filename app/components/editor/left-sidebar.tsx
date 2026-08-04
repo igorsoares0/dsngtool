@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   TemplatesIcon,
   UploadIcon,
@@ -8,9 +7,13 @@ import {
   ShapesIcon,
   AssetsIcon,
   OverlaysIcon,
+  SparkleIcon,
 } from "./icons";
+import IconButton from "../ui/icon-button";
 
-type SidebarTool =
+/** Tools that open the contextual panel. AI is deliberately not one of them —
+ *  it lives in the floating bar over the canvas. */
+export type SidebarTool =
   | "templates"
   | "uploads"
   | "text"
@@ -30,47 +33,43 @@ const TOOLS: { id: SidebarTool; icon: typeof TemplatesIcon; label: string }[] = 
 export default function LeftSidebar({
   activeTool,
   onToolChange,
+  onFocusAi,
 }: {
   activeTool: SidebarTool | null;
   onToolChange: (tool: SidebarTool | null) => void;
+  onFocusAi: () => void;
 }) {
-  const [hoveredTool, setHoveredTool] = useState<SidebarTool | null>(null);
-
   return (
-    <aside className="w-[52px] bg-surface-1 border-r border-border-subtle flex flex-col items-center py-3 gap-1 shrink-0">
-      {TOOLS.map((tool, i) => {
+    <aside className="w-[56px] bg-surface-1 border-r border-border-subtle flex flex-col items-center py-3 gap-1 shrink-0 z-30">
+      {TOOLS.map((tool) => {
         const Icon = tool.icon;
         const isActive = activeTool === tool.id;
-        const isHovered = hoveredTool === tool.id;
-
         return (
-          <div key={tool.id} className="relative">
-            <button
-              onClick={() => onToolChange(isActive ? null : tool.id)}
-              onMouseEnter={() => setHoveredTool(tool.id)}
-              onMouseLeave={() => setHoveredTool(null)}
-              aria-label={tool.label}
-              aria-pressed={isActive}
-              title={tool.label}
-              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150 ${
-                isActive
-                  ? "bg-surface-4 text-accent-green shadow-sm"
-                  : "text-text-tertiary hover:text-text-secondary hover:bg-surface-2"
-              }`}
-              style={{ animationDelay: `${i * 30}ms` }}
-            >
-              <Icon className="w-[18px] h-[18px]" />
-            </button>
-
-            {/* Tooltip */}
-            {isHovered && !isActive && (
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-surface-3 text-text-primary text-[11px] px-2 py-1 rounded-md whitespace-nowrap shadow-lg border border-border-subtle animate-fade-in z-50 pointer-events-none">
-                {tool.label}
-              </div>
-            )}
-          </div>
+          <IconButton
+            key={tool.id}
+            label={tool.label}
+            size="rail"
+            tooltipSide="right"
+            active={isActive}
+            onClick={() => onToolChange(isActive ? null : tool.id)}
+          >
+            <Icon className="w-[18px] h-[18px]" />
+          </IconButton>
         );
       })}
+
+      {/* AI is an action, not a panel — separated and tinted rather than filled,
+          so it never competes with the active tool for the accent. */}
+      <div className="w-6 h-px bg-border-subtle my-2" />
+      <IconButton
+        label="Generate with AI"
+        size="rail"
+        variant="tint"
+        tooltipSide="right"
+        onClick={onFocusAi}
+      >
+        <SparkleIcon className="w-[18px] h-[18px]" />
+      </IconButton>
     </aside>
   );
 }

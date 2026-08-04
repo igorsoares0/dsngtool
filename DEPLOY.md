@@ -10,11 +10,13 @@ dominio.com       → landing (Cloudflare Pages — projeto separado, ver nota n
 app.dominio.com   → DNS A → VPS Hetzner
                               └─ Coolify (PaaS self-hosted)
                                   └─ container Next.js (porta 3000)
-                                      ├─ /api/webhooks/paddle          ← Paddle chama aqui
-                                      ├─ /api/webhooks/appsumo         (stub, 501)
-                                      ├─ /api/license/validate
-                                      └─ /api/license/by-transaction
+                                      ├─ /api/webhooks/paddle   ← Paddle chama aqui
+                                      ├─ /api/auth/[...all]     ← better-auth
+                                      ├─ /api/projects          ← sync entre dispositivos
+                                      ├─ /api/uploads           ← upload pro R2
+                                      └─ /api/ai/generate       ← Anthropic
 Banco: Neon Postgres (não migra — continua onde está)
+Arquivos: Cloudflare R2 (bucket modo-assets)
 ```
 
 Custos: **Coolify = €0** (self-hosted). Você paga só o servidor Hetzner
@@ -121,11 +123,18 @@ Em **Environment Variables**, adicione (valores de **produção** do Paddle):
 | `DIRECT_URL` | ✅ **build** | Neon **direct** — usado pelo migrate |
 | `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | ✅ **build** | token de produção |
 | `NEXT_PUBLIC_PADDLE_ENV` | ✅ **build** | `production` |
-| `NEXT_PUBLIC_PADDLE_PRICE_ID` | ✅ **build** | price id de produção |
+| `NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY` | ✅ **build** | price id da assinatura mensal |
 | `PADDLE_API_KEY` | ❌ runtime | secret de produção |
 | `PADDLE_WEBHOOK_SECRET` | ❌ runtime | do destination de produção (passo 8) |
+| `BETTER_AUTH_URL` | ❌ runtime | `https://app.dominio.com` — links de e-mail e callback OAuth |
+| `BETTER_AUTH_SECRET` | ❌ runtime | `openssl rand -base64 32` |
+| `GOOGLE_CLIENT_ID` / `_SECRET` | ❌ runtime | opcional — em branco esconde o login com Google |
+| `R2_ENDPOINT` / `R2_BUCKET` | ❌ runtime | bucket `modo-assets` |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | ❌ runtime | token R2 com Object Read & Write |
+| `R2_PUBLIC_URL` | ❌ runtime | domínio público do bucket; sem ele os assets são servidos via `/api/assets/<key>` |
+| `ANTHROPIC_API_KEY` | ❌ runtime | ausente → `/api/ai/generate` responde 503 |
 | `RESEND_API_KEY` | ❌ runtime | |
-| `LICENSE_EMAIL_FROM` | ❌ runtime | domínio verificado no Resend |
+| `LICENSE_EMAIL_FROM` | ❌ runtime | remetente (reset de senha / verificação), domínio verificado no Resend |
 
 > **Sandbox → produção:** token, env, price id, API key e webhook secret **todos
 > mudam** ao sair do sandbox. Não reaproveite os de teste.
@@ -151,7 +160,10 @@ Roda antes de cada release, usando `DIRECT_URL`. Idempotente.
 npx prisma migrate deploy
 ```
 
-(A migration `20260602182102_init_licensing` já está no repo.)
+> ⚠️ A migration `..._ai_usage_per_user` **apaga as linhas de `AiUsage`**
+> (a cota passou a ser por usuário, e as antigas eram por device id, sem como
+> mapear pra uma conta). Todo mundo recomeça o mês em zero — o que é o certo,
+> já que os contadores antigos não eram confiáveis.
 
 ---
 
@@ -172,7 +184,9 @@ No **Paddle Dashboard (produção)** → **Developer Tools → Notifications** �
 **+ New destination**:
 
 - **URL:** `https://app.dominio.com/api/webhooks/paddle`
-- **Events:** `transaction.completed` (único evento que o código processa).
+- **Events:** os `subscription.*` (created, activated, updated, paused, resumed,
+  canceled) — é o que o código processa; cada um carrega o estado completo da
+  assinatura, então um upsert basta.
 - Salve e **copie o secret** (`pdl_ntfset_...`) → vai em `PADDLE_WEBHOOK_SECRET`
   (passo 5). Re-deploy depois de colar.
 
@@ -183,13 +197,18 @@ sem erro de assinatura.
 
 ## 9. Checklist pós-deploy
 
-- [ ] `https://app.dominio.com` carrega o editor; service worker registra
-      (DevTools → Application → Service Workers).
+- [ ] `https://app.dominio.com` carrega (deslogado, cai no `/login`); service
+      worker registra (DevTools → Application → Service Workers) e o cache
+      ativo é o `dsgntool-v2`.
+- [ ] Signup + reset de senha funcionam — o e-mail do Resend chega (cheque
+      SPF/DKIM do `LICENSE_EMAIL_FROM`).
+- [ ] Upload de imagem sobe pro R2 e o medidor de storage mexe.
+- [ ] `POST /api/ai/generate` **sem sessão** responde **401** (com sessão,
+      gera e desconta a cota do mês).
 - [ ] Checkout do Paddle abre (vazio = esqueceu de marcar as `NEXT_PUBLIC` como
       Build Variable).
-- [ ] Compra de teste → webhook cria `License` no Neon → e-mail do Resend chega
-      (cheque SPF/DKIM do `LICENSE_EMAIL_FROM`).
-- [ ] `POST /api/license/validate` responde `{valid:true}` pra uma chave real.
+- [ ] Assinatura de teste → webhook cria `Subscription` no Neon → `GET /api/me`
+      passa a responder `pro: true`.
 - [ ] **Auto-deploy:** com GitHub App, todo push na `main` re-deploya.
 - [ ] **Backup do Neon** ativado (o banco é o único estado com valor; o resto é
       client-side/IndexedDB).

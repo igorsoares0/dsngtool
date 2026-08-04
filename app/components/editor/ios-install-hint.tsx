@@ -33,8 +33,8 @@ export default function IosInstallHint() {
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,380px)] animate-fade-in">
-      <div className="flex items-start gap-3 bg-surface-2 border border-border-default rounded-xl px-4 py-3 shadow-2xl">
-        <div className="shrink-0 mt-0.5 text-accent-green">
+      <div className="flex items-start gap-3 bg-surface-2 border border-border-default rounded-xl px-4 py-3 shadow-pop">
+        <div className="shrink-0 mt-0.5 text-accent">
           {/* iOS share glyph */}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 16V4" />
@@ -44,8 +44,8 @@ export default function IosInstallHint() {
         </div>
         <div className="flex-1 text-xs text-text-secondary leading-relaxed">
           <span className="text-text-primary font-medium">Install Modo</span> — tap{" "}
-          <span className="text-accent-green">Share</span> then{" "}
-          <span className="text-accent-green">Add to Home Screen</span>.
+          <span className="text-accent">Share</span> then{" "}
+          <span className="text-accent">Add to Home Screen</span>.
         </div>
         <button
           onClick={dismiss}

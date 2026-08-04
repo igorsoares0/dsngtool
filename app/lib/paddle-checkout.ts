@@ -34,11 +34,16 @@ export interface CheckoutResult {
 }
 
 /**
- * Opens the Paddle overlay checkout for the LTD price and resolves with the
- * transaction id once the purchase completes. Rejects if the checkout closes
- * without completing.
+ * Opens the Paddle checkout for the monthly subscription. `userId` is passed as
+ * customData so the subscription webhook can attribute the resulting sub to this
+ * user. Resolves with the transaction id on completion; the Subscription row
+ * itself is created asynchronously by the webhook, so the caller should refresh
+ * entitlement (poll /api/me) shortly after.
  */
-export function openCheckout(email?: string): Promise<CheckoutResult> {
+export function openSubscriptionCheckout(opts: {
+  userId: string;
+  email?: string;
+}): Promise<CheckoutResult> {
   return new Promise(async (resolve, reject) => {
     let settled = false;
 
@@ -47,8 +52,7 @@ export function openCheckout(email?: string): Promise<CheckoutResult> {
         settled = true;
         const txn = (data as { transaction_id?: string } | undefined)?.transaction_id;
         activeHandler = null;
-        if (txn) resolve({ transactionId: txn });
-        else reject(new Error("missing_transaction_id"));
+        resolve({ transactionId: txn ?? "" });
       } else if (name === CheckoutEventNames.CHECKOUT_CLOSED && !settled) {
         activeHandler = null;
         reject(new Error("closed"));
@@ -63,28 +67,11 @@ export function openCheckout(email?: string): Promise<CheckoutResult> {
     }
 
     paddle.Checkout.open({
-      items: [{ priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ID ?? "", quantity: 1 }],
-      ...(email ? { customer: { email }, customData: { email } } : {}),
+      items: [
+        { priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY ?? "", quantity: 1 },
+      ],
+      customData: { userId: opts.userId },
+      ...(opts.email ? { customer: { email: opts.email } } : {}),
     });
   });
-}
-
-/** Polls our backend for the license created by the Paddle webhook. */
-export async function pollLicenseForTransaction(
-  transactionId: string,
-  { attempts = 15, intervalMs = 2000 } = {}
-): Promise<{ key: string; tier: string; email: string | null } | null> {
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const res = await fetch(
-        `/api/license/by-transaction?txn=${encodeURIComponent(transactionId)}`
-      );
-      const data = await res.json();
-      if (data.ready) return { key: data.key, tier: data.tier, email: data.email };
-    } catch {
-      // ignore and retry
-    }
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-  return null;
 }

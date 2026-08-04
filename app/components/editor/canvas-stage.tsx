@@ -5,6 +5,8 @@ import { Stage, Layer, Rect, Ellipse, Text, Image, Transformer, Line } from "rea
 import Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import { resolveFontFamily } from "../../lib/fonts";
+import { measureTextWidth } from "../../lib/text-fit";
+import { useCanvasColors } from "../../lib/theme-colors";
 import type { EditorElement, ShapeElement, TextElement, ImageElement } from "../../types/editor";
 
 interface Guide {
@@ -450,23 +452,6 @@ function ShapeNode({
   );
 }
 
-// Measure the natural (unconstrained) width of a text element using an
-// offscreen Konva.Text — same engine as the canvas, so it stays accurate.
-function measureTextWidth(el: TextElement): number {
-  const node = new Konva.Text({
-    text: el.textTransform === "uppercase" ? el.text.toUpperCase() : el.text,
-    fontSize: el.fontSize,
-    fontFamily: resolveFontFamily(el.fontFamily),
-    fontStyle: el.fontStyle || "normal",
-    lineHeight: el.lineHeight || 1.2,
-    letterSpacing: el.letterSpacing || 0,
-    padding: 0,
-  });
-  const w = node.width();
-  node.destroy();
-  return w;
-}
-
 function TextNode({
   el,
   onSelect,
@@ -626,6 +611,9 @@ export default function CanvasStage({
   onSelectionRect?: (rect: SelectionRect | null) => void;
   onContextMenu?: (req: { x: number; y: number; targetId: string | null }) => void;
 }) {
+  // Konva can't read CSS variables — the canvas chrome follows the theme via
+  // this store-backed palette. See app/lib/theme-colors.ts.
+  const canvasColors = useCanvasColors();
   const elements = useEditorStore((s) => s.elements);
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const format = useEditorStore((s) => s.format);
@@ -1188,9 +1176,9 @@ export default function CanvasStage({
                   fillRadialGradientColorStops: backgroundGradient.colorStops,
                 }
             : { fill: backgroundColor })}
-          shadowColor="rgba(0,0,0,0.5)"
-          shadowBlur={40}
-          shadowOffsetY={8}
+          shadowColor={canvasColors.artboardShadow}
+          shadowBlur={canvasColors.artboardShadowBlur}
+          shadowOffsetY={canvasColors.artboardShadowOffsetY}
           cornerRadius={2}
         />
       </Layer>
@@ -1260,7 +1248,7 @@ export default function CanvasStage({
                 ? [g.pos, g.start, g.pos, g.end]
                 : [g.start, g.pos, g.end, g.pos]
             }
-            stroke="#FF00B8"
+            stroke={canvasColors.snapGuide}
             strokeWidth={1 / scale}
             dash={[6 / scale, 4 / scale]}
             listening={false}
@@ -1321,11 +1309,13 @@ export default function CanvasStage({
             });
             return { ...result.box, rotation: newBox.rotation };
           }}
-          anchorSize={8}
+          anchorSize={7}
           anchorCornerRadius={2}
-          borderStroke="#34d399"
-          anchorStroke="#34d399"
-          anchorFill="#0c0c0c"
+          anchorStrokeWidth={1.5}
+          borderStrokeWidth={1.5}
+          borderStroke={canvasColors.selection}
+          anchorStroke={canvasColors.selection}
+          anchorFill={canvasColors.anchorFill}
           rotateAnchorOffset={20}
           rotateAnchorAngle={180}
           enabledAnchors={
@@ -1360,8 +1350,8 @@ export default function CanvasStage({
             y={Math.min(marquee.y1, marquee.y2)}
             width={Math.abs(marquee.x2 - marquee.x1)}
             height={Math.abs(marquee.y2 - marquee.y1)}
-            fill="rgba(52, 211, 153, 0.12)"
-            stroke="#34d399"
+            fill={canvasColors.marqueeFill}
+            stroke={canvasColors.marqueeStroke}
             strokeWidth={1}
             dash={[4, 3]}
           />

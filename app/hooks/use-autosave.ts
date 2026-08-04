@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useEditorStore } from "../store/editor-store";
 import { db } from "../lib/db";
+import { pushProject } from "../lib/project-sync";
 
 const AUTOSAVE_INTERVAL = 3000;
 
@@ -17,7 +18,7 @@ export function useAutosave() {
 
       try {
         const s = useEditorStore.getState();
-        await db.projects.put({
+        const record = {
           id: s.projectId,
           name: s.projectName,
           elements: s.elements,
@@ -26,8 +27,11 @@ export function useAutosave() {
           format: s.format,
           createdAt: (await db.projects.get(s.projectId))?.createdAt ?? new Date(),
           updatedAt: new Date(),
-        });
+        };
+        await db.projects.put(record);
         s.markSaved();
+        // Mirror to the server (fire-and-forget; buffers as dirty if offline).
+        void pushProject(record);
       } catch {
         // IndexedDB may be unavailable in some contexts — silent fail
       } finally {

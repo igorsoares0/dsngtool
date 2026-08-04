@@ -9,7 +9,9 @@ import {
   SendBackwardIcon,
   LockIcon,
   TrashIcon,
+  TextIcon,
 } from "./icons";
+import type { TextElement } from "../../types/editor";
 
 export interface SelectionRect {
   x: number;
@@ -37,12 +39,12 @@ function ToolbarButton({
       aria-label={title}
       aria-pressed={active}
       onClick={onClick}
-      className={`p-1.5 rounded-lg transition-all ${
+      className={`p-1.5 rounded-md transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
         danger
-          ? "text-text-tertiary hover:text-accent-pink hover:bg-accent-pink/10"
+          ? "text-text-secondary hover:text-danger hover:bg-danger-tint"
           : active
-          ? "bg-surface-4 text-accent-green"
-          : "text-text-secondary hover:text-text-primary hover:bg-surface-3"
+            ? "bg-accent-tint text-accent-tint-fg"
+            : "text-text-secondary hover:text-text-primary hover:bg-surface-4"
       }`}
     >
       {children}
@@ -95,9 +97,9 @@ export default function SelectionToolbar({
   const centerX = rect.x + rect.width / 2;
 
   // Position by final edges — NOT via a CSS transform. The entrance animation
-  // (animate-fade-in) animates `transform`, which would override an inline
-  // transform and break both the centering and the vertical flip. Size is
-  // measured in useLayoutEffect, so edges are exact before paint.
+  // animates `transform`, which would override an inline transform and break
+  // both the centering and the vertical flip. Size is measured in
+  // useLayoutEffect, so edges are exact before paint.
   const left = Math.max(
     8,
     Math.min(containerWidth - size.width - 8, centerX - size.width / 2)
@@ -123,9 +125,20 @@ export default function SelectionToolbar({
       role="toolbar"
       aria-label="Selection actions"
       onMouseDown={(e) => e.stopPropagation()}
-      className="absolute z-20 flex items-center gap-0.5 bg-surface-2/95 backdrop-blur-md border border-border-strong rounded-xl shadow-2xl px-1.5 py-1 animate-fade-in"
+      className="absolute z-20 flex items-center gap-0.5 whitespace-nowrap bg-surface-2 border border-border-default rounded-lg shadow-pop p-1 animate-scale-in"
       style={{ left, top }}
     >
+      {/* Font chip — the one property worth surfacing without opening a panel. */}
+      {isSingle && single?.type === "text" && (
+        <>
+          <span className="flex items-center gap-1.5 bg-accent-tint text-accent-tint-fg text-[11.5px] font-medium px-2 py-1 rounded-md">
+            <TextIcon className="w-3 h-3" />
+            {(single as TextElement).fontFamily}
+          </span>
+          <Divider />
+        </>
+      )}
+
       {isSingle && (
         <>
           <ToolbarButton
