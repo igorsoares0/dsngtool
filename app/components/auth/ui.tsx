@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { signIn } from "../../lib/auth-client";
+import { POST_AUTH_PATH } from "../../lib/routes";
 import { useState } from "react";
 
 export function AuthCard({
@@ -83,7 +84,7 @@ export function AuthLink({ href, children }: { href: string; children: React.Rea
   );
 }
 
-export function GoogleButton({ callbackURL = "/" }: { callbackURL?: string }) {
+export function GoogleButton({ callbackURL = POST_AUTH_PATH }: { callbackURL?: string }) {
   const [pending, setPending] = useState(false);
   return (
     <>

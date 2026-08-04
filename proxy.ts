@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
+import { POST_AUTH_PATH } from "./app/lib/routes";
 
 // Next 16 renamed `middleware` -> `proxy`. This gates the editor behind auth.
 //
@@ -25,9 +26,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Signed in + auth page -> bounce to the editor.
+  // Signed in + auth page -> bounce to the dashboard.
   if (hasSession && isPublic) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL(POST_AUTH_PATH, request.url));
   }
 
   return NextResponse.next();

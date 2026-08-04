@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "../../lib/auth-client";
+import { POST_AUTH_PATH } from "../../lib/routes";
 import { AuthCard, AuthLink, Field, GoogleButton, Note, SubmitButton } from "../../components/auth/ui";
 
 /** Only allow same-app relative paths as redirect targets (no open redirect). */
 function safeRedirect(raw: string | null): string {
   if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
-  return "/";
+  return POST_AUTH_PATH;
 }
 
 export default function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {

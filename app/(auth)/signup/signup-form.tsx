@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signUp } from "../../lib/auth-client";
+import { POST_AUTH_PATH } from "../../lib/routes";
 import { AuthCard, AuthLink, Field, GoogleButton, Note, SubmitButton } from "../../components/auth/ui";
 
 export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
@@ -31,7 +32,7 @@ export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }
       );
       return;
     }
-    router.push("/");
+    router.push(POST_AUTH_PATH);
     router.refresh();
   };
 
