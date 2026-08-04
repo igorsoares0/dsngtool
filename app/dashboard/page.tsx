@@ -248,7 +248,7 @@ export default function DashboardPage() {
                   />
                 </div>
                 <Link
-                  href="/"
+                  href="/?new=1"
                   className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-accent-fg text-[11.5px] font-semibold px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
                 >
                   <PlusIcon className="w-3.5 h-3.5" />
@@ -383,7 +383,7 @@ export default function DashboardPage() {
 
                 {/* Blank slot — always last, always available. */}
                 <Link
-                  href="/"
+                  href="/?new=1"
                   className="aspect-square rounded-lg border border-dashed border-border-default flex flex-col items-center justify-center gap-1.5 text-text-ghost hover:border-accent hover:text-accent transition-colors duration-150 ease-standard"
                 >
                   <PlusIcon className="w-4 h-4" />

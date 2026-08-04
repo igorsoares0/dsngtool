@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../store/editor-store";
 import { db } from "../lib/db";
 import { syncProjects, syncDirty } from "../lib/project-sync";
@@ -48,9 +48,28 @@ async function loadById(id: string): Promise<boolean> {
 
 export function useProjectLoader() {
   const [ready, setReady] = useState(false);
+  // Strict Mode (on by default in the App Router) invokes effects twice in dev.
+  // The boot below *consumes* its intent params — it strips `?new=`/`?project=`
+  // from the URL — so a second pass would read no intent, fall through to
+  // "open the most recent project", and silently replace the blank canvas the
+  // user just asked for. Ref, not module scope: it must reset when the editor
+  // genuinely remounts (navigating dashboard -> editor again).
+  const booted = useRef(false);
 
   useEffect(() => {
-    (async () => {
+    // Guards only the boot — the listener below must still be re-registered on
+    // the second pass, since the first pass's cleanup tore it down.
+    if (!booted.current) {
+      booted.current = true;
+      void boot();
+    }
+
+    // Retry buffered pushes/deletes when connectivity returns.
+    const onOnline = () => syncDirty().catch(() => {});
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+
+    async function boot() {
       const params = new URLSearchParams(window.location.search);
       const wantNew = params.get("new");
       const wantProject = params.get("project");
@@ -92,12 +111,7 @@ export function useProjectLoader() {
       } catch {
         setReady(true); // IndexedDB unavailable — start fresh
       }
-    })();
-
-    // Retry buffered pushes/deletes when connectivity returns.
-    const onOnline = () => syncDirty().catch(() => {});
-    window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
+    }
   }, []);
 
   return ready;
