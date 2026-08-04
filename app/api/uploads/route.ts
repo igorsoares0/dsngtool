@@ -8,7 +8,9 @@ import {
   MAX_UPLOAD_BYTES,
   canFit,
   getStorageStatus,
+  sniffImageType,
 } from "../../lib/server/storage";
+import { LIMITS, rateLimit, tooManyRequests } from "../../lib/server/rate-limit";
 
 // R2 (S3 SDK) + Prisma require the Node runtime.
 export const runtime = "nodejs";
@@ -26,14 +28,18 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = session.user.id;
 
+  const limited = rateLimit(`upload:${userId}`, LIMITS.upload.limit, LIMITS.upload.window);
+  if (!limited.ok) return tooManyRequests(limited);
+
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "missing_file" }, { status: 400 });
   }
 
-  const mimeType = file.type;
-  if (!ALLOWED_IMAGE_TYPES.has(mimeType)) {
+  // Cheap rejection on the declared type first, so an obviously wrong upload
+  // doesn't get buffered into memory. It is not the check that matters.
+  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
     return NextResponse.json({ error: "unsupported_type" }, { status: 415 });
   }
   if (file.size > MAX_UPLOAD_BYTES) {
@@ -52,8 +58,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const key = `${userId}/${randomUUID()}.${EXT[mimeType] ?? "bin"}`;
   const buffer = Buffer.from(await file.arrayBuffer());
+
+  // The check that matters: the bytes decide the type, not the client. Storing
+  // the sniffed type means the Content-Type we later serve is one we derived
+  // ourselves, so the bucket can't be loaded with arbitrary content wearing an
+  // image label.
+  const mimeType = sniffImageType(buffer);
+  if (!mimeType || !ALLOWED_IMAGE_TYPES.has(mimeType)) {
+    return NextResponse.json({ error: "unsupported_type" }, { status: 415 });
+  }
+
+  // No userId in the key: object URLs end up in exported designs and shared
+  // projects, and the key should not carry an account identifier around with
+  // them. The UUID is the only thing making the object hard to guess.
+  const key = `${randomUUID()}.${EXT[mimeType]}`;
 
   const width = toInt(form.get("width"));
   const height = toInt(form.get("height"));
@@ -86,6 +105,13 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const limited = rateLimit(
+    `upload:${session.user.id}`,
+    LIMITS.upload.limit,
+    LIMITS.upload.window
+  );
+  if (!limited.ok) return tooManyRequests(limited);
 
   const { key } = (await req.json().catch(() => ({}))) as { key?: string };
   if (!key) return NextResponse.json({ error: "missing_key" }, { status: 400 });

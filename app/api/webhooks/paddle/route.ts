@@ -54,8 +54,10 @@ async function syncSubscription(data: SubscriptionData) {
   const userId = await resolveUserId(data);
   if (!userId) {
     // Can't attribute this subscription to a user — log and ack so Paddle stops
-    // retrying (retrying won't help without attribution data).
-    console.error("[paddle] no user for subscription", data.id, data.customerId);
+    // retrying (retrying won't help without attribution data). The subscription
+    // id is enough to find it in the Paddle dashboard; the customer id is not
+    // logged, since these lines end up in Coolify's log store.
+    console.error("[paddle] no user for subscription", data.id);
     return;
   }
 
@@ -90,10 +92,23 @@ async function syncSubscription(data: SubscriptionData) {
  * Attribute a subscription to a Modo user. Preference order:
  *  1. customData.userId set at checkout (propagates from transaction → subscription)
  *  2. an existing row for this subscription id (later events may drop customData)
- *  3. the Paddle customer's email matched to a user (last resort)
+ *  3. the Paddle customer's email matched to a *verified* user (last resort)
  */
 async function resolveUserId(data: SubscriptionData): Promise<string | null> {
-  if (data.customData?.userId) return data.customData.userId;
+  // customData originates in the browser (see app/lib/paddle-checkout.ts), so
+  // it names a user rather than proving one. Confirm the id is real before
+  // hanging entitlement off it — a typo or a stale id would otherwise create a
+  // Subscription row pointing at nobody, and the FK would reject the write
+  // anyway, just later and as a 500 that Paddle retries forever.
+  const claimed = data.customData?.userId;
+  if (claimed) {
+    const user = await prisma.user.findUnique({
+      where: { id: claimed },
+      select: { id: true },
+    });
+    if (user) return user.id;
+    console.error("[paddle] customData.userId does not exist", data.id);
+  }
 
   const existing = await prisma.subscription.findUnique({
     where: { id: data.id },
@@ -105,8 +120,14 @@ async function resolveUserId(data: SubscriptionData): Promise<string | null> {
     try {
       const customer = await paddle.customers.get(data.customerId);
       if (customer.email) {
-        const user = await prisma.user.findUnique({
-          where: { email: customer.email },
+        // `emailVerified` is the whole point of this filter. Sign-up does not
+        // require verification (see app/lib/server/auth.ts), so an address
+        // alone proves nothing: anyone can hold an account on someone else's
+        // email. Matching on it unverified would hand that account a stranger's
+        // subscription. An unverified payer falls through to the null branch,
+        // which logs loudly and can be fixed by hand — the safe direction.
+        const user = await prisma.user.findFirst({
+          where: { email: customer.email, emailVerified: true },
           select: { id: true },
         });
         if (user) return user.id;

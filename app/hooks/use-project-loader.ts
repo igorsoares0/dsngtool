@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../store/editor-store";
 import { db } from "../lib/db";
-import { syncProjects, syncDirty } from "../lib/project-sync";
+import { syncProjects, syncDirty, setPushRejectedHandler } from "../lib/project-sync";
+import { toast } from "../store/toast-store";
+
+/** Server-side rejection codes from PUT /api/projects/[id], in the user's terms. */
+const REJECTION_MESSAGES: Record<string, string> = {
+  project_too_large: "This design is too large to sync. It stays saved on this device.",
+  project_limit_reached: "You've reached the project limit. Delete one to sync new designs.",
+  name_too_long: "That project name is too long to sync.",
+};
 
 function loadRecord(p: {
   id: string;
@@ -64,10 +72,21 @@ export function useProjectLoader() {
       void boot();
     }
 
+    // A permanently refused push is silent otherwise: the design stays in
+    // IndexedDB and the editor carries on, so the user would only find out
+    // their work never left this device on the next machine they sign in from.
+    setPushRejectedHandler((error) => {
+      const message = REJECTION_MESSAGES[error];
+      if (message) toast.error(message, 6000);
+    });
+
     // Retry buffered pushes/deletes when connectivity returns.
     const onOnline = () => syncDirty().catch(() => {});
     window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      setPushRejectedHandler(null);
+    };
 
     async function boot() {
       const params = new URLSearchParams(window.location.search);

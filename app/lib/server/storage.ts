@@ -12,6 +12,19 @@ export const STORAGE_LIMITS = {
 /** Per-file guard so a single huge upload can't blow past the quota in one shot. */
 export const MAX_UPLOAD_BYTES = 15 * MB;
 
+// Project JSON lives in Postgres, NOT in R2, so it is not covered by the
+// storage quota above. Without its own ceiling the sync endpoint is unmetered
+// writable storage for any signed-in account. These two caps are that ceiling.
+//
+// 512KB is far above a real design: elements carry text, coordinates and style,
+// while images are R2 URLs rather than inline data. The largest bundled
+// template serializes to a few dozen KB.
+export const MAX_PROJECT_BYTES = 512 * 1024;
+/** Per-user project count. GET /api/projects returns them all in one response. */
+export const MAX_PROJECTS_PER_USER = 200;
+/** Long enough for any real title, short enough to keep list responses sane. */
+export const MAX_PROJECT_NAME_LENGTH = 200;
+
 // SVG is intentionally excluded: it can carry <script> and, served from our own
 // origin, becomes a stored-XSS vector. Re-enable only behind server-side
 // sanitization (e.g. DOMPurify) if raster-only uploads prove too limiting.
@@ -21,6 +34,38 @@ export const ALLOWED_IMAGE_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
+
+/**
+ * Identify an image by its leading bytes.
+ *
+ * `File.type` is whatever the browser was told the file is — it is a hint from
+ * the client, not evidence, and nothing stops a caller from labelling arbitrary
+ * bytes `image/png`. The allowlist above is only meaningful if the content
+ * agrees with the label, so every upload is sniffed and the *sniffed* type is
+ * what gets stored and later served.
+ *
+ * Returns null when the bytes match none of the supported formats.
+ */
+export function sniffImageType(buf: Buffer): string | null {
+  if (buf.length < 12) return null;
+
+  // PNG: \x89PNG\r\n\x1a\n
+  if (buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return "image/png";
+  }
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  // GIF: "GIF87a" / "GIF89a"
+  if (buf.subarray(0, 6).toString("latin1").match(/^GIF8[79]a$/)) return "image/gif";
+  // WebP: "RIFF" .... "WEBP"
+  if (
+    buf.subarray(0, 4).toString("latin1") === "RIFF" &&
+    buf.subarray(8, 12).toString("latin1") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
 
 // Subscription statuses that grant the paid ceiling. past_due is included so a
 // failed renewal (dunning) doesn't instantly revoke access — Paddle keeps

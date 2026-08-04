@@ -44,7 +44,9 @@
       "mcp__paddle-sandbox__search",
       "Bash(echo \"launched pid $!\")",
       "Bash(pkill -9 -f \"next\")",
-      "Bash(grep -oE '\\\\b[A-Z][A-Z0-9_]{3,}\\\\b' DEPLOY.md docs/PAYMENTS_SETUP.md)"
+      "Bash(grep -oE '\\\\b[A-Z][A-Z0-9_]{3,}\\\\b' DEPLOY.md docs/PAYMENTS_SETUP.md)",
+      "Bash(git stash *)",
+      "Bash(PORT=3111 npm start *)"
     ]
   }
 }

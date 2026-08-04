@@ -62,6 +62,21 @@ function fromServer(sp: ServerProject, createdAt: Date): Project {
   };
 }
 
+/**
+ * Server rejections that retrying will never fix: the project is over the size
+ * cap, the account is at its project ceiling, or the payload is malformed.
+ * Re-sending on every sync would just burn the rate limit, so these clear the
+ * dirty flag — the work stays in IndexedDB and the editor keeps working, it
+ * simply stops trying to push.
+ */
+const TERMINAL_PUSH_STATUS = new Set([400, 403, 409, 413]);
+
+// One notification per project per session. A refused project is still re-pushed
+// by syncProjects whenever the server has no copy of it — which is what lets a
+// user recover by freeing a slot or shrinking the design — so without this the
+// same toast would reappear on every sync cycle.
+const notifiedRejections = new Set<string>();
+
 /** Push one project to the server. Marks it dirty locally if the push fails. */
 export async function pushProject(p: Project): Promise<boolean> {
   try {
@@ -71,16 +86,38 @@ export async function pushProject(p: Project): Promise<boolean> {
       body: JSON.stringify(toPayload(p)),
     });
     if (!res.ok) {
-      // 401 (signed out) is expected in some states — still buffer as dirty.
+      if (TERMINAL_PUSH_STATUS.has(res.status)) {
+        const { error } = await res.json().catch(() => ({ error: "rejected" }));
+        console.warn(`[sync] server rejected project ${p.id}: ${error}`);
+        await markDirty(p.id, false);
+        if (!notifiedRejections.has(p.id)) {
+          notifiedRejections.add(p.id);
+          onPushRejected?.(error as string);
+        }
+        return false;
+      }
+      // 401 (signed out), 429 and 5xx are all transient — buffer as dirty.
       await markDirty(p.id, true);
       return false;
     }
     await markDirty(p.id, false);
+    notifiedRejections.delete(p.id); // it went through — a later refusal is news again
     return true;
   } catch {
     await markDirty(p.id, true);
     return false;
   }
+}
+
+/**
+ * Notified when the server permanently refuses a project, so the UI can say so
+ * instead of silently never syncing. Set by the editor; sync itself stays free
+ * of store/toast imports.
+ */
+let onPushRejected: ((error: string) => void) | null = null;
+
+export function setPushRejectedHandler(fn: ((error: string) => void) | null) {
+  onPushRejected = fn;
 }
 
 /** Delete locally and queue the server-side tombstone (survives offline). */

@@ -4,12 +4,27 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Baseline security headers for every route.
+        // Baseline security headers for every route. Content-Security-Policy is
+        // deliberately NOT here — it carries a per-request nonce and so is set
+        // in proxy.ts. Two CSP headers would be intersected by the browser, and
+        // a static one would only ever be the weaker of the pair.
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // TLS is terminated by Coolify's proxy, which does not send this.
+          // Two years with preload is the submission requirement; the app is
+          // https-only in production, so there is no http path to preserve.
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          // Nothing here uses a camera, mic, or geolocation.
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+          },
         ],
       },
       {

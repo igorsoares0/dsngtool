@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSession } from "../../../lib/server/session";
 import { prisma } from "../../../lib/server/db";
+import { LIMITS, rateLimit, tooManyRequests } from "../../../lib/server/rate-limit";
+import {
+  MAX_PROJECTS_PER_USER,
+  MAX_PROJECT_BYTES,
+  MAX_PROJECT_NAME_LENGTH,
+} from "../../../lib/server/storage";
 
 export const runtime = "nodejs";
 
@@ -18,11 +24,40 @@ interface PutBody {
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const userId = session.user.id;
+
+  const limited = rateLimit(
+    `project:${userId}`,
+    LIMITS.projectWrite.limit,
+    LIMITS.projectWrite.window
+  );
+  if (!limited.ok) return tooManyRequests(limited);
+
   const { id } = await ctx.params;
 
-  const body = (await req.json().catch(() => ({}))) as PutBody;
+  // Read as text so the payload can be measured before it is parsed: route
+  // handlers have no built-in body limit, and JSON.parse on an unbounded string
+  // is the expensive step we're trying not to reach.
+  const raw = await req.text();
+  if (raw.length > MAX_PROJECT_BYTES) {
+    return NextResponse.json(
+      { error: "project_too_large", maxBytes: MAX_PROJECT_BYTES },
+      { status: 413 }
+    );
+  }
+
+  let body: PutBody;
+  try {
+    body = JSON.parse(raw) as PutBody;
+  } catch {
+    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  }
+
   if (!body.data || typeof body.name !== "string" || !body.updatedAt) {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  }
+  if (body.name.length > MAX_PROJECT_NAME_LENGTH) {
+    return NextResponse.json({ error: "name_too_long" }, { status: 400 });
   }
   const updatedAt = new Date(body.updatedAt);
   if (Number.isNaN(updatedAt.getTime())) {
@@ -34,7 +69,20 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     select: { userId: true, updatedAt: true },
   });
 
-  if (existing && existing.userId !== session.user.id) {
+  // Only creations count against the ceiling — an existing project must stay
+  // writable even at the cap, or a user who hits it can no longer save.
+  // Tombstones count too: they are rows, and undeleting one is a create here.
+  if (!existing) {
+    const count = await prisma.project.count({ where: { userId } });
+    if (count >= MAX_PROJECTS_PER_USER) {
+      return NextResponse.json(
+        { error: "project_limit_reached", max: MAX_PROJECTS_PER_USER },
+        { status: 409 }
+      );
+    }
+  }
+
+  if (existing && existing.userId !== userId) {
     // Never let one user overwrite another's project (client ids are guessable).
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
@@ -51,7 +99,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   };
   await prisma.project.upsert({
     where: { id },
-    create: { id, userId: session.user.id, ...fields },
+    create: { id, userId, ...fields },
     update: fields,
   });
 
@@ -59,9 +107,17 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
 }
 
 /** Tombstone a project so the deletion syncs to the user's other devices. */
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const limited = rateLimit(
+    `project:${session.user.id}`,
+    LIMITS.projectWrite.limit,
+    LIMITS.projectWrite.window
+  );
+  if (!limited.ok) return tooManyRequests(limited);
+
   const { id } = await ctx.params;
 
   const existing = await prisma.project.findUnique({

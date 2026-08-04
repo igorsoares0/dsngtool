@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Instrument_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SwRegister from "./components/sw-register";
@@ -40,14 +41,20 @@ export const viewport: Viewport = {
 // Runs before first paint so the stored theme is applied without a flash. It
 // mutates <html class>, which is why <html> needs suppressHydrationWarning.
 // Kept as a raw inline script rather than next/script so it lands in <head>
-// ahead of the stylesheet — there is no CSP on this app.
+// ahead of the stylesheet; it carries the request nonce to satisfy the CSP set
+// in proxy.ts (an external file would cost a round-trip on the critical path).
 const THEME_SCRIPT = `try{var t=localStorage.getItem('modo-theme')||'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}`;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Reading the nonce makes every route dynamic, which nonce-based CSP requires
+  // anyway: a nonce baked into a static shell at build time would be reused
+  // across all visitors and defeat the point.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
@@ -55,7 +62,7 @@ export default function RootLayout({
       className={`${instrumentSans.variable} ${geistMono.variable} ${FONT_VARIABLES} h-full`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       {/* The body font comes from globals.css. */}
       <body className="h-full">

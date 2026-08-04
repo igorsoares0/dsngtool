@@ -5,6 +5,7 @@ import { isPro as isProUser } from "../../../lib/server/storage";
 import { TEMPLATES } from "../../../data/templates";
 import { FONT_FAMILY_NAMES } from "../../../lib/font-catalog";
 import { buildManifest, buildTemplateIndex } from "../../../lib/ai/manifest";
+import { LIMITS, rateLimit, tooManyRequests } from "../../../lib/server/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -131,6 +132,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const userId = session.user.id;
+
+  // The monthly quota bounds total spend, but nothing bounds the *rate* — and
+  // each call fans out to two Anthropic requests. Throttle before that.
+  const limited = rateLimit(`ai:${userId}`, LIMITS.aiGenerate.limit, LIMITS.aiGenerate.window);
+  if (!limited.ok) return tooManyRequests(limited);
 
   let body: {
     prompt?: string;
