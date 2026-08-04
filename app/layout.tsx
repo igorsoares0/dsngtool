@@ -62,7 +62,23 @@ export default async function RootLayout({
       className={`${instrumentSans.variable} ${geistMono.variable} ${FONT_VARIABLES} h-full`}
     >
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        {/*
+          suppressHydrationWarning is required, not cosmetic. Browsers implement
+          "nonce hiding" from the HTML spec: once the CSP has been applied they
+          blank the nonce *attribute* and keep the real value only on the
+          element's .nonce property, so that a CSS attribute selector can't
+          exfiltrate it. Hydration therefore compares the server's
+          nonce="<uuid>" against a DOM that now reads nonce="" and reports a
+          mismatch. The mismatch is the browser behaving correctly.
+
+          The one on <html> does not cover this — suppressHydrationWarning
+          applies only to the element it is set on, not to descendants.
+        */}
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
+        />
       </head>
       {/* The body font comes from globals.css. */}
       <body className="h-full">
