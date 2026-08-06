@@ -48,7 +48,16 @@
       "Bash(git stash *)",
       "Bash(PORT=3111 npm start *)",
       "Bash(node --env-file=.env ./_state_tmp.mjs ce7cf0db-cab7-4cc5-82dc-a40b648c8124.png)",
-      "Bash(grep -vE \"SECURITY WARNING|sslmode|libpq|postgresql.org|trace-warnings|To prepare|If you want|^$\")"
+      "Bash(grep -vE \"SECURITY WARNING|sslmode|libpq|postgresql.org|trace-warnings|To prepare|If you want|^$\")",
+      "mcp__paddle-sandbox__execute",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' --max-time 25 http://localhost:3000/)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts,null,2\\)\\)\")",
+      "Bash(env)",
+      "Bash(ps -eo pid,lstart,cmd)",
+      "Bash(pkill -f 'nex[t] de[v]')",
+      "Bash(pkill -f 'nex[t]-server')",
+      "Bash(ps -eo pid,cmd)",
+      "Bash(grep -o 'C:.\\\\{0,30\\\\}')"
     ]
   }
 }

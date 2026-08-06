@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Pinned because something in the launch environment was feeding Next a
+  // Windows-style path for the root. Under WSL that string is not absolute, so
+  // Next resolved it against the cwd and Turbopack emitted its static assets
+  // into a literal `C:\allsaas\dsgntool/` folder inside the project. Setting
+  // both keys explicitly overrides whatever the environment supplies — they
+  // must hold the same value or Next warns and prefers outputFileTracingRoot.
+  outputFileTracingRoot: __dirname,
+  turbopack: { root: __dirname },
   async headers() {
     return [
       {

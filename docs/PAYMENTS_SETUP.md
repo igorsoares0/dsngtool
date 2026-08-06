@@ -50,9 +50,20 @@ npm run db:deploy
 2. Create a **product** + a **recurring monthly price**; copy its price id →
    `NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY`.
 3. Create a **notification destination** (webhook) pointing at
-   `https://<your-host>/api/webhooks/paddle`, subscribed to the
-   **`subscription.*`** events (created, activated, updated, paused, resumed,
-   canceled). Copy the secret → `PADDLE_WEBHOOK_SECRET`.
+   `https://<your-host>/api/webhooks/paddle`, subscribed to all eight
+   **`subscription.*`** events: created, activated, **trialing**, updated,
+   **past_due**, paused, resumed, canceled. Copy the secret →
+   `PADDLE_WEBHOOK_SECRET`.
+
+   `trialing` and `past_due` are not optional: both are entitling statuses
+   (`ENTITLED_STATUSES` in `app/lib/server/storage.ts`), so missing either one
+   leaves the mirrored row on a stale status and silently gives or revokes the
+   paid ceiling. `subscription.imported` is only needed when migrating existing
+   subscriptions in from another provider.
+
+   No other event group is required — the webhook ignores everything that isn't
+   `subscription.*`, so subscribing to `transaction.*`, `customer.*` or
+   `adjustment.*` only adds deliveries with no effect.
 4. Copy the **client token** and **API key** into the env vars above.
 
 ### Testing the webhook locally
