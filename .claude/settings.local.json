@@ -57,7 +57,9 @@
       "Bash(pkill -f 'nex[t] de[v]')",
       "Bash(pkill -f 'nex[t]-server')",
       "Bash(ps -eo pid,cmd)",
-      "Bash(grep -o 'C:.\\\\{0,30\\\\}')"
+      "Bash(grep -o 'C:.\\\\{0,30\\\\}')",
+      "Bash(grep -n \"\\\\\"[A-Z][^\\\\\"]\\\\{6,\\\\}\\\\\"\\\\|\\\\$\\\\|pro\\\\b\" app/components/editor/upgrade-modal.tsx)",
+      "Bash(grep -n \"placeholder\\\\|>\\\\s*[A-Z][a-z].\\\\{8,\\\\}<\\\\|title=\" app/components/editor/ai-bar.tsx)"
     ]
   }
 }
