@@ -99,6 +99,10 @@ palette[i] replaces colors[i]:
 fonts[i] replaces fonts[i]:
 - Choose only from the allowed list. Keep the serif/sans pairing logic intact:
   if the original pairs a display serif with a sans body, do the same.
+- Display faces (Bebas Neue, Anton, Oswald, Archivo Black, Abril Fatface) and
+  script faces (Dancing Script, Great Vibes, Caveat) are headline-only. Never
+  set body copy, a caption or a long slot in one — they stop being readable
+  below headline size. Pair them with a plain sans or serif for the rest.
 
 background describes the canvas ground:
 - treatment "flat" uses palette[0]. "linear" or "radial" render a gradient from stops.

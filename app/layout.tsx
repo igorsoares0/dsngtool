@@ -6,9 +6,10 @@ import SwRegister from "./components/sw-register";
 import ThemeSync from "./components/theme-sync";
 import { FONT_VARIABLES } from "./lib/fonts";
 
-// The chrome's two typefaces. These are separate from the 14 *document* fonts
-// in lib/fonts.ts — those keep their own `--font-*-design` variables and must
-// not be touched, or stored `fontFamily` values stop resolving.
+// The chrome's two typefaces. These are separate from the 28 *document* fonts
+// in lib/fonts.ts — those keep their own `--font-*` variables (some suffixed
+// `-design` to avoid colliding with the chrome's) and must not be touched, or
+// stored `fontFamily` values stop resolving.
 // No `weight` so next/font emits the variable font.
 const instrumentSans = Instrument_Sans({
   variable: "--font-instrument-sans",

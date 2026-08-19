@@ -20,7 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "../../store/editor-store";
 import { toastDeleted } from "../../store/toast-store";
 import { ChevronDownIcon, LayersIcon, LockIcon, EyeIcon, TrashIcon, CursorIcon } from "./icons";
-import { AVAILABLE_FONTS, resolveFontFamily } from "../../lib/fonts";
+import { FONTS_BY_CATEGORY, resolveFontFamily } from "../../lib/fonts";
 import ColorPicker from "./color-picker";
 import { cx } from "../ui/cx";
 import type { EditorElement, TextElement, ShapeElement, ImageElement } from "../../types/editor";
@@ -220,10 +220,14 @@ function TypographySection({ el, update }: { el: TextElement; update: (u: Partia
           style={{ fontFamily: resolveFontFamily(el.fontFamily) }}
           className="w-full mt-1 bg-surface-3 border border-border-subtle text-[13px] text-text-primary px-2 py-1.5 rounded-md outline-none focus:border-accent transition-colors"
         >
-          {AVAILABLE_FONTS.map((f) => (
-            <option key={f.family} value={f.family} style={{ fontFamily: resolveFontFamily(f.family) }}>
-              {f.family}
-            </option>
+          {FONTS_BY_CATEGORY.map((group) => (
+            <optgroup key={group.category} label={group.label}>
+              {group.fonts.map((f) => (
+                <option key={f.family} value={f.family} style={{ fontFamily: resolveFontFamily(f.family) }}>
+                  {f.family}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
