@@ -84,3 +84,23 @@ export const CANVAS_FORMATS: CanvasFormat[] = [
   { label: "Instagram Story", width: 1080, height: 1920 },
   { label: "Pinterest", width: 1000, height: 1500 },
 ];
+
+/** One artboard. A project is an ordered stack of these, rendered top to bottom. */
+export interface Page {
+  id: string;
+  elements: EditorElement[];
+  backgroundColor: string;
+  backgroundGradient: GradientFill | null;
+}
+
+/** Vertical gap between stacked artboards, in canvas units (scales with zoom). */
+export const PAGE_GAP = 80;
+
+/**
+ * Ceiling on pages per project. Not arbitrary: the whole project is pushed as
+ * one JSON blob and the server refuses anything over MAX_PROJECT_BYTES (512KB,
+ * app/lib/server/storage.ts) with a 413 — which project-sync treats as terminal
+ * and stops retrying, stranding the work on one device. Typical pages are a few
+ * KB, so this keeps a full project an order of magnitude clear of that wall.
+ */
+export const MAX_PAGES = 30;

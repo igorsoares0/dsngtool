@@ -21,9 +21,7 @@ export function useAutosave() {
         const record = {
           id: s.projectId,
           name: s.projectName,
-          elements: s.elements,
-          backgroundColor: s.backgroundColor,
-          backgroundGradient: s.backgroundGradient,
+          pages: s.pages,
           format: s.format,
           createdAt: (await db.projects.get(s.projectId))?.createdAt ?? new Date(),
           updatedAt: new Date(),
@@ -41,10 +39,11 @@ export function useAutosave() {
 
     const unsub = useEditorStore.subscribe(
       (state, prevState) => {
+        // `pages` is the whole document now — it changes identity on every
+        // element edit, background change, and page add/remove/reorder, so the
+        // per-field checks it replaces are all covered.
         const changed =
-          state.elements !== prevState.elements ||
-          state.backgroundColor !== prevState.backgroundColor ||
-          state.backgroundGradient !== prevState.backgroundGradient ||
+          state.pages !== prevState.pages ||
           state.format !== prevState.format ||
           state.projectName !== prevState.projectName;
 

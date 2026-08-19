@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../store/editor-store";
 import { db } from "../lib/db";
+import { normalizePages } from "../lib/project-data";
 import { syncProjects, syncDirty, setPushRejectedHandler } from "../lib/project-sync";
 import { toast } from "../store/toast-store";
 
@@ -13,20 +14,13 @@ const REJECTION_MESSAGES: Record<string, string> = {
   name_too_long: "That project name is too long to sync.",
 };
 
-function loadRecord(p: {
-  id: string;
-  name: string;
-  elements: import("../lib/db").Project["elements"];
-  backgroundColor: string;
-  backgroundGradient?: import("../lib/db").Project["backgroundGradient"];
-  format: import("../lib/db").Project["format"];
-}) {
+function loadRecord(p: import("../lib/db").Project) {
   useEditorStore.getState().loadProject({
     id: p.id,
     name: p.name,
-    elements: p.elements,
-    backgroundColor: p.backgroundColor,
-    backgroundGradient: p.backgroundGradient ?? null,
+    // A row cached before the multi-page change may predate the Dexie v3
+    // upgrade in this browser, so normalise rather than trusting `pages`.
+    pages: normalizePages(p),
     format: p.format,
   });
 }

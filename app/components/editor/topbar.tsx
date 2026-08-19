@@ -127,9 +127,7 @@ export default function Topbar({
       await db.projects.put({
         id: s.projectId,
         name: s.projectName,
-        elements: s.elements,
-        backgroundColor: s.backgroundColor,
-        backgroundGradient: s.backgroundGradient,
+        pages: s.pages,
         format: s.format,
         createdAt: (await db.projects.get(s.projectId))?.createdAt ?? new Date(),
         updatedAt: new Date(),
@@ -150,9 +148,7 @@ export default function Topbar({
       useEditorStore.getState().loadProject({
         id: `proj_${Date.now()}`,
         name: imported.name,
-        elements: imported.elements,
-        backgroundColor: imported.backgroundColor,
-        backgroundGradient: imported.backgroundGradient,
+        pages: imported.pages,
         format: imported.format,
       });
       toast.success(`Imported "${imported.name}"`);

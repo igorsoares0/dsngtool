@@ -1,6 +1,7 @@
 "use client";
 
 import { db, type Project } from "./db";
+import { normalizePages } from "./project-data";
 
 // Bidirectional last-write-wins sync between IndexedDB (local cache + offline
 // buffer) and the server (source of truth across devices). The client's
@@ -12,10 +13,14 @@ const PENDING_DELETES_KEY = "pendingProjectDeletes";
 interface ServerProject {
   id: string;
   name: string;
+  // `data` is an opaque JSON column. Rows written before the multi-page change
+  // carry the old single-artboard fields instead of `pages`; normalizePages
+  // reads either.
   data: {
-    elements?: Project["elements"];
+    pages?: unknown;
+    elements?: Project["pages"][number]["elements"];
     backgroundColor?: string;
-    backgroundGradient?: Project["backgroundGradient"];
+    backgroundGradient?: Project["pages"][number]["backgroundGradient"];
     format?: Project["format"];
   };
   updatedAt: string;
@@ -39,9 +44,7 @@ function toPayload(p: Project) {
   return {
     name: p.name,
     data: {
-      elements: p.elements,
-      backgroundColor: p.backgroundColor,
-      backgroundGradient: p.backgroundGradient ?? null,
+      pages: p.pages,
       format: p.format,
     },
     updatedAt: (p.updatedAt instanceof Date ? p.updatedAt : new Date(p.updatedAt)).toISOString(),
@@ -52,9 +55,7 @@ function fromServer(sp: ServerProject, createdAt: Date): Project {
   return {
     id: sp.id,
     name: sp.name,
-    elements: sp.data.elements ?? [],
-    backgroundColor: sp.data.backgroundColor ?? "#ffffff",
-    backgroundGradient: sp.data.backgroundGradient ?? null,
+    pages: normalizePages(sp.data),
     format: sp.data.format as Project["format"],
     createdAt,
     updatedAt: new Date(sp.updatedAt),

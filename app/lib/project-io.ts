@@ -1,42 +1,36 @@
-import type { EditorElement, CanvasFormat, GradientFill } from "../types/editor";
+import type { EditorElement, CanvasFormat, GradientFill, Page } from "../types/editor";
 import { CANVAS_FORMATS } from "../types/editor";
 
 export const FILE_EXTENSION = "modo";
 export const FILE_MIME = "application/json";
-export const FILE_SCHEMA_VERSION = 1;
+// v1 = single artboard (`elements`/`backgroundColor` at the top level).
+// v2 = page stack. v1 files still import; exports are always v2.
+export const FILE_SCHEMA_VERSION = 2;
 
 export interface ProjectFile {
   version: number;
   name: string;
   format: CanvasFormat;
-  backgroundColor: string;
-  backgroundGradient?: GradientFill | null;
-  elements: EditorElement[];
+  pages: Page[];
   exportedAt: string;
 }
 
 export interface ImportedProject {
   name: string;
   format: CanvasFormat;
-  backgroundColor: string;
-  backgroundGradient: GradientFill | null;
-  elements: EditorElement[];
+  pages: Page[];
 }
 
 export function serializeProject(p: {
   name: string;
   format: CanvasFormat;
-  backgroundColor: string;
-  backgroundGradient?: GradientFill | null;
-  elements: EditorElement[];
+  pages: Page[];
 }): string {
   const data: ProjectFile = {
     version: FILE_SCHEMA_VERSION,
     name: p.name,
     format: p.format,
-    backgroundColor: p.backgroundColor,
-    backgroundGradient: p.backgroundGradient ?? null,
-    elements: p.elements,
+    pages: p.pages,
     exportedAt: new Date().toISOString(),
   };
   return JSON.stringify(data, null, 2);
@@ -45,9 +39,7 @@ export function serializeProject(p: {
 export function downloadProjectFile(p: {
   name: string;
   format: CanvasFormat;
-  backgroundColor: string;
-  backgroundGradient?: GradientFill | null;
-  elements: EditorElement[];
+  pages: Page[];
 }) {
   const json = serializeProject(p);
   const blob = new Blob([json], { type: FILE_MIME });
@@ -121,21 +113,56 @@ export async function readProjectFile(file: File): Promise<ImportedProject> {
     );
   }
 
-  if (!Array.isArray(data.elements)) {
-    throw new ImportError("Missing elements array");
-  }
-
-  const elements = data.elements.map((el, i) => validateElement(el, i));
+  const pages = validatePages(parsed as Record<string, unknown>);
   const format = validateFormat(data.format);
-  const backgroundColor =
-    typeof data.backgroundColor === "string" ? data.backgroundColor : "#ffffff";
-  const backgroundGradient = validateGradient(data.backgroundGradient);
   const name = typeof data.name === "string" && data.name.trim() ? data.name : "Imported";
 
   const matchedFormat =
     CANVAS_FORMATS.find((f) => f.width === format.width && f.height === format.height) ?? format;
 
-  return { name, format: matchedFormat, backgroundColor, backgroundGradient, elements };
+  return { name, format: matchedFormat, pages };
+}
+
+let importedPageCounter = 0;
+
+/**
+ * Read the page stack out of either schema. v2 carries `pages`; a v1 file has
+ * its single artboard spread across the top level, which becomes page one.
+ * Page ids are minted fresh on import (the file's own are meaningless here);
+ * element ids are kept as the file wrote them, as they always have been.
+ */
+function validatePages(raw: Record<string, unknown>): Page[] {
+  const rawPages = raw.pages;
+  if (Array.isArray(rawPages)) {
+    if (rawPages.length === 0) throw new ImportError("File has no pages");
+    return rawPages.map((p, pi) => {
+      if (!p || typeof p !== "object") throw new ImportError(`Page ${pi + 1} is not an object`);
+      const page = p as Record<string, unknown>;
+      if (!Array.isArray(page.elements)) {
+        throw new ImportError(`Page ${pi + 1} is missing its elements array`);
+      }
+      return {
+        id: `pg_import_${++importedPageCounter}_${Date.now()}`,
+        elements: page.elements.map((el, i) => validateElement(el, i)),
+        backgroundColor:
+          typeof page.backgroundColor === "string" ? page.backgroundColor : "#ffffff",
+        backgroundGradient: validateGradient(page.backgroundGradient),
+      };
+    });
+  }
+
+  if (!Array.isArray(raw.elements)) {
+    throw new ImportError("Missing pages array");
+  }
+  return [
+    {
+      id: `pg_import_${++importedPageCounter}_${Date.now()}`,
+      elements: raw.elements.map((el, i) => validateElement(el, i)),
+      backgroundColor:
+        typeof raw.backgroundColor === "string" ? raw.backgroundColor : "#ffffff",
+      backgroundGradient: validateGradient(raw.backgroundGradient),
+    },
+  ];
 }
 
 function validateGradient(g: unknown): GradientFill | null {

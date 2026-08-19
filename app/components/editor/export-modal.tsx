@@ -5,6 +5,7 @@ import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import { toast } from "../../store/toast-store";
 import { downloadProjectFile, FILE_EXTENSION } from "../../lib/project-io";
+import { stackGeometry } from "../../lib/canvas-layout";
 import Modal from "../ui/modal";
 import { cx } from "../ui/cx";
 import { DownloadIcon } from "./icons";
@@ -39,66 +40,111 @@ export default function ExportModal({
   const format = useEditorStore((s) => s.format);
   const zoom = useEditorStore((s) => s.zoom);
   const projectName = useEditorStore((s) => s.projectName);
+  const pages = useEditorStore((s) => s.pages);
+  const activePageId = useEditorStore((s) => s.activePageId);
 
   const [kind, setKind] = useState<ExportKind>("png");
   const [quality, setQuality] = useState(90);
   const [transparentBg, setTransparentBg] = useState(false);
+  const [allPages, setAllPages] = useState(false);
+
+  const activeIndex = Math.max(0, pages.findIndex((p) => p.id === activePageId));
+  const multiPage = pages.length > 1;
+  const exportedCount = multiPage && allPages ? pages.length : 1;
 
   const estimate = useMemo(() => {
     if (kind === "json") return null;
     const px = format.width * format.height;
     const scale = kind === "jpeg" ? quality / 90 : 1;
-    return formatBytes(px * BYTES_PER_PX[kind] * scale);
-  }, [kind, format.width, format.height, quality]);
+    return formatBytes(px * BYTES_PER_PX[kind] * scale * exportedCount);
+  }, [kind, format.width, format.height, quality, exportedCount]);
 
-  // Moved verbatim from the old topbar dropdown: the offset/pixelRatio maths
-  // depends on the stage being rendered at `zoom`, and hiding the background
-  // Rect is what actually makes a transparent PNG transparent.
+  // Every page is already on the stage, stacked — so exporting page N is just
+  // a different crop region, with no page switching or offscreen re-render.
+  // The region has to come from the same geometry the canvas draws with,
+  // including pan: this used to recompute its own centring and ignored panX/panY,
+  // which silently cropped the wrong area once the user had scrolled.
   const exportImage = useCallback(async () => {
     const stage = stageRef.current;
     if (!stage) return;
 
+    const state = useEditorStore.getState();
     const scale = zoom / 100;
-    const containerWidth = stage.width();
-    const containerHeight = stage.height();
-    const offsetX = (containerWidth - format.width * scale) / 2;
-    const offsetY = (containerHeight - format.height * scale) / 2;
-
-    const bgLayer = stage.getLayers()[0];
-    const bgRect = bgLayer?.findOne("Rect");
-    const wantsTransparent = kind === "png" && transparentBg;
-    if (wantsTransparent && bgRect) bgRect.hide();
-
-    const mimeType = kind === "jpeg" ? "image/jpeg" : "image/png";
-    const dataUrl = stage.toDataURL({
-      x: offsetX,
-      y: offsetY,
-      width: format.width * scale,
-      height: format.height * scale,
-      pixelRatio: format.width / (format.width * scale),
-      mimeType,
-      quality: kind === "jpeg" ? quality / 100 : undefined,
+    const geometry = stackGeometry({
+      containerWidth: stage.width(),
+      containerHeight: stage.height(),
+      format,
+      pageCount: state.pages.length,
+      scale,
+      panX: state.panX,
+      panY: state.panY,
     });
 
-    if (wantsTransparent && bgRect) bgRect.show();
+    const mimeType = kind === "jpeg" ? "image/jpeg" : "image/png";
+    const wantsTransparent = kind === "png" && transparentBg;
+    const bgLayer = stage.getLayers()[0];
+    const indices = allPages && multiPage ? state.pages.map((_, i) => i) : [activeIndex];
+    const baseName = projectName || "design";
 
-    const link = document.createElement("a");
-    const fileName = `${projectName || "design"}.${kind}`;
-    link.download = fileName;
-    link.href = dataUrl;
-    link.click();
+    for (const index of indices) {
+      const page = state.pages[index];
+      // Hide only this page's artboard: the others are outside the crop, but a
+      // blanket hide would also clear the one being captured on the next pass.
+      const bgRect = wantsTransparent
+        ? bgLayer?.findOne(`#bg-rect-${page.id}`)
+        : undefined;
+      bgRect?.hide();
+
+      const dataUrl = stage.toDataURL({
+        x: geometry.offsetX,
+        y: geometry.pageTop(index),
+        width: format.width * scale,
+        height: format.height * scale,
+        pixelRatio: 1 / scale,
+        mimeType,
+        quality: kind === "jpeg" ? quality / 100 : undefined,
+      });
+
+      bgRect?.show();
+
+      const link = document.createElement("a");
+      link.download =
+        indices.length > 1 ? `${baseName}-${index + 1}.${kind}` : `${baseName}.${kind}`;
+      link.href = dataUrl;
+      link.click();
+
+      // Browsers throttle or drop bursts of programmatic downloads; a short
+      // gap between them is what makes a 10-page export actually deliver 10
+      // files.
+      if (indices.length > 1) await new Promise((r) => setTimeout(r, 300));
+    }
+
     onClose();
-    toast.success(`Exported ${fileName}`);
-  }, [stageRef, zoom, format, projectName, kind, quality, transparentBg, onClose]);
+    toast.success(
+      indices.length > 1 ? `Exported ${indices.length} pages` : `Exported ${baseName}.${kind}`
+    );
+  }, [
+    stageRef,
+    zoom,
+    format,
+    projectName,
+    kind,
+    quality,
+    transparentBg,
+    onClose,
+    allPages,
+    multiPage,
+    activeIndex,
+  ]);
 
   const exportProjectFile = useCallback(() => {
     const s = useEditorStore.getState();
+    // The project file is always the whole document — scope only applies to
+    // the flattened image formats.
     downloadProjectFile({
       name: s.projectName,
       format: s.format,
-      backgroundColor: s.backgroundColor,
-      backgroundGradient: s.backgroundGradient,
-      elements: s.elements,
+      pages: s.pages,
     });
     onClose();
     toast.success("Project file downloaded");
@@ -109,7 +155,9 @@ export default function ExportModal({
       open={open}
       onClose={onClose}
       title={`Export ${projectName || "design"}`}
-      subtitle={`${format.width} × ${format.height} · ${format.label}`}
+      subtitle={`${format.width} × ${format.height} · ${format.label}${
+        multiPage ? ` · ${pages.length} pages` : ""
+      }`}
       width="max-w-[412px]"
       footer={
         <>
@@ -165,6 +213,35 @@ export default function ExportModal({
           })}
         </div>
 
+        {multiPage && kind !== "json" && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-text-ghost">
+              Pages
+            </span>
+            <div className="flex bg-surface-4 rounded-md p-[3px] gap-[2px]">
+              {[
+                { id: false, label: `Current (page ${activeIndex + 1})` },
+                { id: true, label: `All ${pages.length}` },
+              ].map((opt) => (
+                <button
+                  key={String(opt.id)}
+                  onClick={() => setAllPages(opt.id)}
+                  aria-pressed={allPages === opt.id}
+                  className={cx(
+                    "flex-1 text-[11.5px] py-1 rounded-sm transition-colors duration-150 ease-standard",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                    allPages === opt.id
+                      ? "bg-surface-1 text-text-primary font-medium shadow-sm"
+                      : "text-text-secondary hover:text-text-primary"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {kind === "jpeg" && (
           <label className="flex flex-col gap-1.5">
             <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-text-ghost">
@@ -196,8 +273,8 @@ export default function ExportModal({
 
         {kind === "json" && (
           <p className="text-[11.5px] text-text-tertiary leading-relaxed">
-            Downloads the editable project — layers, fonts and colours — so you can
-            re-import it here later.
+            Downloads the editable project — every page, with its layers, fonts and
+            colours — so you can re-import it here later.
           </p>
         )}
       </div>

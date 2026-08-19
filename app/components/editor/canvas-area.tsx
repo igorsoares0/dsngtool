@@ -4,11 +4,13 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
+import { stackGeometry, STACK_TOP_MARGIN } from "../../lib/canvas-layout";
 import { resolveFontFamily } from "../../lib/fonts";
 import type { InlineEditRequest, SelectionRect } from "./canvas-stage";
 import SelectionToolbar from "./selection-toolbar";
 import ContextMenu, { type ContextMenuRequest } from "./context-menu";
 import AiBar from "./ai-bar";
+import PageControls from "./page-controls";
 import IconButton from "../ui/icon-button";
 import { ZoomInIcon, ZoomOutIcon } from "./icons";
 
@@ -120,6 +122,8 @@ export default function CanvasArea({
   const spaceHeld = useEditorStore((s) => s.spaceHeld);
   const updateElement = useEditorStore((s) => s.updateElement);
   const elementCount = useEditorStore((s) => s.elements.length);
+  const pages = useEditorStore((s) => s.pages);
+  const activePageId = useEditorStore((s) => s.activePageId);
 
   const [editReq, setEditReq] = useState<InlineEditRequest | null>(null);
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
@@ -127,8 +131,21 @@ export default function CanvasArea({
   const lastFitFormatRef = useRef<string | null>(null);
 
   const scale = zoom / 100;
-  const offsetX = (dims.width - format.width * scale) / 2 + panX;
-  const offsetY = (dims.height - format.height * scale) / 2 + panY;
+  const geometry = stackGeometry({
+    containerWidth: dims.width,
+    containerHeight: dims.height,
+    format,
+    pageCount: pages.length,
+    scale,
+    panX,
+    panY,
+  });
+  const offsetX = geometry.offsetX;
+  // Overlays (inline text editor, empty-state hint) anchor to the *active*
+  // artboard, not to the top of the stack: the coordinates they receive are
+  // page-local.
+  const activePageIndex = Math.max(0, pages.findIndex((p) => p.id === activePageId));
+  const offsetY = geometry.pageTop(activePageIndex);
 
   const handMode = activeTool === "hand" || spaceHeld;
   const cursorStyle = handMode ? "grab" : "default";
@@ -154,7 +171,19 @@ export default function CanvasArea({
     const el = containerRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
+      // Without a modifier the wheel walks the stack — with pages below one
+      // another that is the primary way to move between them. Shift pans
+      // sideways, matching the usual canvas convention.
+      if (!e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        const state = useEditorStore.getState();
+        if (e.shiftKey) {
+          state.setPan(state.panX - e.deltaY - e.deltaX, state.panY);
+        } else {
+          state.setPan(state.panX - e.deltaX, state.panY - e.deltaY);
+        }
+        return;
+      }
       e.preventDefault();
       const state = useEditorStore.getState();
       const current = state.zoom;
@@ -166,16 +195,33 @@ export default function CanvasArea({
       const rect = el.getBoundingClientRect();
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
-      const oldOffsetX = (rect.width - state.format.width * oldScale) / 2 + state.panX;
-      const oldOffsetY = (rect.height - state.format.height * oldScale) / 2 + state.panY;
-      const canvasPtX = (cx - oldOffsetX) / oldScale;
-      const canvasPtY = (cy - oldOffsetY) / oldScale;
-      const newOffsetX = cx - canvasPtX * newScale;
-      const newOffsetY = cy - canvasPtY * newScale;
-      const newPanX = newOffsetX - (rect.width - state.format.width * newScale) / 2;
-      const newPanY = newOffsetY - (rect.height - state.format.height * newScale) / 2;
+
+      // Keep the point under the cursor fixed. This has to go through the same
+      // geometry the stack is drawn with — the old single-artboard centring
+      // formula would anchor the zoom to the wrong place as soon as there is
+      // more than one page.
+      const geom = (s: number, px: number, py: number) =>
+        stackGeometry({
+          containerWidth: rect.width,
+          containerHeight: rect.height,
+          format: state.format,
+          pageCount: state.pages.length,
+          scale: s,
+          panX: px,
+          panY: py,
+        });
+
+      const before = geom(oldScale, state.panX, state.panY);
+      const canvasPtX = (cx - before.offsetX) / oldScale;
+      const canvasPtY = (cy - before.offsetY) / oldScale;
+      // Offsets are pan plus a pan-independent term, so measuring that term at
+      // zero pan gives the pan needed to land the point back under the cursor.
+      const base = geom(newScale, 0, 0);
       state.setZoom(next);
-      state.setPan(newPanX, newPanY);
+      state.setPan(
+        cx - canvasPtX * newScale - base.offsetX,
+        cy - canvasPtY * newScale - base.offsetY
+      );
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -217,6 +263,8 @@ export default function CanvasArea({
 
   /** Scale the document to fit the viewport and recentre it. Shared by the
    *  auto-fit effect and the zoom pill's "Fit" button. */
+  /** Fit a single artboard, not the whole stack — fitting ten pages at once
+   *  would zoom out to something unusable. Pan resets so page one is on top. */
   const fitToScreen = useCallback(() => {
     if (dims.width === 0 || dims.height === 0) return;
     const padding = 80;
@@ -237,6 +285,33 @@ export default function CanvasArea({
     fitToScreen();
     lastFitFormatRef.current = formatKey;
   }, [dims, format, fitToScreen]);
+
+  // Bring the active artboard into view when it isn't. Adding or duplicating a
+  // page makes it active while it may sit below the fold, so without this the
+  // "Add page" button appears to do nothing. Guarded on visibility so that
+  // simply clicking an element on a neighbouring page doesn't yank the view.
+  useEffect(() => {
+    if (dims.height === 0) return;
+    const state = useEditorStore.getState();
+    const index = state.pages.findIndex((p) => p.id === state.activePageId);
+    if (index === -1) return;
+
+    const s = state.zoom / 100;
+    const geom = stackGeometry({
+      containerWidth: dims.width,
+      containerHeight: dims.height,
+      format: state.format,
+      pageCount: state.pages.length,
+      scale: s,
+      panX: state.panX,
+      panY: state.panY,
+    });
+    const top = geom.pageTop(index);
+    const bottom = top + state.format.height * s;
+    if (top >= 0 && bottom <= dims.height) return; // already fully on screen
+
+    state.setPan(state.panX, state.panY + (STACK_TOP_MARGIN - top));
+  }, [activePageId, dims.width, dims.height]);
 
   const handleStartEditing = useCallback((req: InlineEditRequest) => {
     setEditReq(req);
@@ -269,6 +344,9 @@ export default function CanvasArea({
           onContextMenu={setMenuReq}
         />
       )}
+
+      {/* Per-artboard labels and add/duplicate/delete controls */}
+      <PageControls containerWidth={dims.width} containerHeight={dims.height} />
 
       {/* Contextual toolbar anchored to the selection */}
       {selectionRect && !editReq && !menuReq && (

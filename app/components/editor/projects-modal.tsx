@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { db, type Project } from "../../lib/db";
 import { deleteProjectSynced, pushProject } from "../../lib/project-sync";
+import { normalizePages, countElements } from "../../lib/project-data";
 import { useEditorStore } from "../../store/editor-store";
 import { toast } from "../../store/toast-store";
 import { PlusIcon, TrashIcon } from "./icons";
@@ -20,6 +21,19 @@ function formatDate(date: Date) {
   const diffDays = Math.floor(diffHrs / 24);
   if (diffDays < 7) return `${diffDays}d ago`;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// Rows are read straight from IndexedDB, and one cached before the multi-page
+// change may not have gone through the Dexie v3 upgrade yet — so every read of
+// the stack goes through normalizePages rather than trusting `pages`.
+function coverColor(p: Project): string {
+  return normalizePages(p)[0].backgroundColor;
+}
+function pageCount(p: Project): number {
+  return normalizePages(p).length;
+}
+function elementCount(p: Project): number {
+  return countElements(normalizePages(p));
 }
 
 export default function ProjectsModal({ onClose }: { onClose: () => void }) {
@@ -49,9 +63,7 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
     loadProject({
       id: p.id,
       name: p.name,
-      elements: p.elements,
-      backgroundColor: p.backgroundColor,
-      backgroundGradient: p.backgroundGradient ?? null,
+      pages: normalizePages(p),
       format: p.format,
     });
     onClose();
@@ -144,13 +156,13 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
                     }
                   }}
                 >
-                  {/* Color preview */}
+                  {/* Color preview — the first page stands in for the project */}
                   <div
                     className="w-10 h-10 rounded-md border border-border-subtle shrink-0 flex items-center justify-center"
-                    style={{ backgroundColor: p.backgroundColor }}
+                    style={{ backgroundColor: coverColor(p) }}
                   >
                     <span className="text-[8px] font-medium" style={{
-                      color: isLight(p.backgroundColor) ? "#666" : "#ccc",
+                      color: isLight(coverColor(p)) ? "#666" : "#ccc",
                     }}>
                       {p.format.width}×{p.format.height}
                     </span>
@@ -170,7 +182,11 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[11.5px] text-text-ghost">
-                        {p.elements.length} element{p.elements.length !== 1 ? "s" : ""}
+                        {pageCount(p)} page{pageCount(p) !== 1 ? "s" : ""}
+                      </span>
+                      <span className="text-[11.5px] text-text-ghost">·</span>
+                      <span className="text-[11.5px] text-text-ghost">
+                        {elementCount(p)} element{elementCount(p) !== 1 ? "s" : ""}
                       </span>
                       <span className="text-[11.5px] text-text-ghost">·</span>
                       <span className="text-[11.5px] text-text-ghost">

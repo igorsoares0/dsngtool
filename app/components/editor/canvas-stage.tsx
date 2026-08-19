@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef, useEffect, useCallback, useState } from "react";
-import { Stage, Layer, Rect, Ellipse, Text, Image, Transformer, Line } from "react-konva";
+import { Stage, Layer, Rect, Ellipse, Text, Image, Transformer, Line, Group } from "react-konva";
 import Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
+import { stackGeometry } from "../../lib/canvas-layout";
+import { PAGE_GAP } from "../../types/editor";
 import { resolveFontFamily } from "../../lib/fonts";
 import { measureTextWidth } from "../../lib/text-fit";
 import { useCanvasColors } from "../../lib/theme-colors";
@@ -614,6 +616,8 @@ export default function CanvasStage({
   // Konva can't read CSS variables — the canvas chrome follows the theme via
   // this store-backed palette. See app/lib/theme-colors.ts.
   const canvasColors = useCanvasColors();
+  const pages = useEditorStore((s) => s.pages);
+  const activePageId = useEditorStore((s) => s.activePageId);
   const elements = useEditorStore((s) => s.elements);
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const format = useEditorStore((s) => s.format);
@@ -622,10 +626,9 @@ export default function CanvasStage({
   const panY = useEditorStore((s) => s.panY);
   const activeTool = useEditorStore((s) => s.activeTool);
   const spaceHeld = useEditorStore((s) => s.spaceHeld);
-  const backgroundColor = useEditorStore((s) => s.backgroundColor);
-  const backgroundGradient = useEditorStore((s) => s.backgroundGradient);
   const selectElement = useEditorStore((s) => s.selectElement);
   const setSelectedIds = useEditorStore((s) => s.setSelectedIds);
+  const setActivePage = useEditorStore((s) => s.setActivePage);
 
   const transformerRef = useRef<Konva.Transformer>(null);
   // Multi-select drags are moved as a unit by Konva's Transformer (its built-in
@@ -659,8 +662,19 @@ export default function CanvasStage({
   const handMode = activeTool === "hand" || spaceHeld;
   const scale = zoom / 100;
 
-  const offsetX = (containerWidth - format.width * scale) / 2 + panX;
-  const offsetY = (containerHeight - format.height * scale) / 2 + panY;
+  const geometry = stackGeometry({
+    containerWidth,
+    containerHeight,
+    format,
+    pageCount: pages.length,
+    scale,
+    panX,
+    panY,
+  });
+  const { offsetX, offsetY } = geometry;
+  // Page offsets inside the (already scaled) elements layer, in canvas units —
+  // so elements keep page-local coordinates and drag handlers stay unchanged.
+  const pageOffsetY = (index: number) => index * (format.height + PAGE_GAP);
 
   useEffect(() => {
     const tr = transformerRef.current;
@@ -782,9 +796,11 @@ export default function CanvasStage({
       const textNodes = stage.find("Text") as Konva.Text[];
       for (const t of textNodes) t.text(t.text());
       stage.batchDraw();
-      // Re-fit auto-width text now that the real fonts are available.
+      // Re-fit auto-width text now that the real fonts are available. Every
+      // page, not just the active one: they are all on screen, so text on the
+      // others would otherwise keep its fallback-font width.
       const state = useEditorStore.getState();
-      for (const elx of state.elements) {
+      for (const elx of state.pages.flatMap((pg) => pg.elements)) {
         if (elx.type !== "text") continue;
         if ((elx as TextElement).autoWidth === false) continue;
         const measured = Math.ceil(measureTextWidth(elx as TextElement));
@@ -807,7 +823,7 @@ export default function CanvasStage({
       const stage = stageRef.current;
       if (!stage) return false;
       if (target === stage) return true;
-      if (target instanceof Konva.Node && target.id() === "bg-rect") return true;
+      if (target instanceof Konva.Node && target.id().startsWith("bg-rect-")) return true;
       return false;
     },
     [stageRef]
@@ -836,6 +852,12 @@ export default function CanvasStage({
 
       if (!isMarqueeTarget(e.target)) return;
       if ("button" in evt && evt.button !== 0) return;
+      // Clicking an artboard makes it the active page, so the panels, template
+      // picker and AI bar all act on the one the user just pointed at.
+      const targetId = e.target instanceof Konva.Node ? e.target.id() : "";
+      if (targetId.startsWith("bg-rect-")) {
+        setActivePage(targetId.slice("bg-rect-".length));
+      }
       const pos = stage.getPointerPosition();
       if (!pos) return;
       marqueeAdditive.current = !!evt.shiftKey;
@@ -844,7 +866,7 @@ export default function CanvasStage({
         : [];
       setMarquee({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y });
     },
-    [stageRef, isMarqueeTarget, handMode]
+    [stageRef, isMarqueeTarget, handMode, setActivePage]
   );
 
   const handleStageMouseMove = useCallback(
@@ -892,12 +914,21 @@ export default function CanvasStage({
       return;
     }
 
+    // A marquee acts on one artboard: the active one, which the mousedown above
+    // has already switched to if the drag started on a page. Its y origin is the
+    // page's own top, not the stack's.
+    const state = useEditorStore.getState();
+    const activeIndex = Math.max(
+      0,
+      state.pages.findIndex((pg) => pg.id === state.activePageId)
+    );
+    const pageOriginY = offsetY + activeIndex * (format.height + PAGE_GAP) * scale;
+
     const canvasMinX = (minX - offsetX) / scale;
     const canvasMaxX = (maxX - offsetX) / scale;
-    const canvasMinY = (minY - offsetY) / scale;
-    const canvasMaxY = (maxY - offsetY) / scale;
+    const canvasMinY = (minY - pageOriginY) / scale;
+    const canvasMaxY = (maxY - pageOriginY) / scale;
 
-    const state = useEditorStore.getState();
     const intersected: string[] = [];
     for (const el of state.elements) {
       if (el.hidden) continue;
@@ -919,7 +950,17 @@ export default function CanvasStage({
     } else {
       setSelectedIds(intersected);
     }
-  }, [marquee, offsetX, offsetY, scale, selectElement, setSelectedIds, handMode, stageRef]);
+  }, [
+    marquee,
+    offsetX,
+    offsetY,
+    scale,
+    format.height,
+    selectElement,
+    setSelectedIds,
+    handMode,
+    stageRef,
+  ]);
 
   const handleElementSelect = useCallback(
     (id: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
@@ -943,7 +984,7 @@ export default function CanvasStage({
       const node = e.target;
       if (node && node !== stage) {
         const id = node.id();
-        if (id && id !== "bg-rect") targetId = id;
+        if (id && !id.startsWith("bg-rect-")) targetId = id;
       }
       if (targetId && !useEditorStore.getState().selectedIds.includes(targetId)) {
         selectElement(targetId, false);
@@ -959,6 +1000,14 @@ export default function CanvasStage({
         isInteractingRef.current = true;
         onSelectionRectRef.current?.(null);
         const state = useEditorStore.getState();
+        // Snap against the dragged element's own page. Selection runs on click,
+        // which Konva fires *after* the drag, so dragging straight off an
+        // inactive artboard reaches here before `elements` has switched to it —
+        // reading the mirror would find no element and silently drop snapping.
+        const ownerPage =
+          state.pages.find((pg) => pg.elements.some((x) => x.id === elId)) ??
+          state.pages.find((pg) => pg.id === state.activePageId);
+        const pageElements = ownerPage?.elements ?? [];
         // For a multi-select drag, Konva's Transformer moves every selected
         // node together (proxy drag). We let it own the motion — computing our
         // own per-element deltas would fight it and scatter the elements.
@@ -969,7 +1018,7 @@ export default function CanvasStage({
           const selectedSet = new Set(state.selectedIds);
           const dims = new Map<string, { width: number; height: number }>();
           const others: BBox[] = [];
-          for (const x of state.elements) {
+          for (const x of pageElements) {
             if (x.hidden) continue;
             if (selectedSet.has(x.id)) {
               dims.set(x.id, { width: x.width, height: x.height });
@@ -980,9 +1029,9 @@ export default function CanvasStage({
           groupSnap.current = { dims, others };
           return;
         }
-        const draggedEl = state.elements.find((x) => x.id === elId);
+        const draggedEl = pageElements.find((x) => x.id === elId);
         if (draggedEl) {
-          const others: BBox[] = state.elements
+          const others: BBox[] = pageElements
             .filter((x) => !x.hidden && x.id !== elId)
             .map((x) => ({ x: x.x, y: x.y, width: x.width, height: x.height }));
           snapData.current = {
@@ -1117,7 +1166,6 @@ export default function CanvasStage({
     [stageRef, format.width, format.height]
   );
 
-  const visibleElements = elements.filter((el) => !el.hidden);
   const singleSelected =
     selectedIds.length === 1 ? elements.find((e) => e.id === selectedIds[0]) : null;
   const isSingleText = singleSelected?.type === "text";
@@ -1135,211 +1183,231 @@ export default function CanvasStage({
       onTouchEnd={handleStageMouseUp}
       onContextMenu={handleContextMenu}
     >
-      {/* Background layer */}
+      {/* Background layer — one artboard per page, in screen space so the
+          drop shadow keeps a constant size as you zoom. */}
       <Layer>
-        <Rect
-          id="bg-rect"
-          x={offsetX}
-          y={offsetY}
-          width={format.width * scale}
-          height={format.height * scale}
-          {...(backgroundGradient
-            ? backgroundGradient.type === "linear"
-              ? {
-                  fillLinearGradientStartPoint: {
-                    x: backgroundGradient.startX * format.width * scale,
-                    y: backgroundGradient.startY * format.height * scale,
-                  },
-                  fillLinearGradientEndPoint: {
-                    x: backgroundGradient.endX * format.width * scale,
-                    y: backgroundGradient.endY * format.height * scale,
-                  },
-                  fillLinearGradientColorStops: backgroundGradient.colorStops,
-                }
-              : {
-                  fillRadialGradientStartPoint: {
-                    x: backgroundGradient.startX * format.width * scale,
-                    y: backgroundGradient.startY * format.height * scale,
-                  },
-                  fillRadialGradientEndPoint: {
-                    x: backgroundGradient.endX * format.width * scale,
-                    y: backgroundGradient.endY * format.height * scale,
-                  },
-                  fillRadialGradientStartRadius:
-                    (backgroundGradient.startRadius ?? 0) *
-                    Math.max(format.width, format.height) *
-                    scale,
-                  fillRadialGradientEndRadius:
-                    (backgroundGradient.endRadius ?? 0.7) *
-                    Math.max(format.width, format.height) *
-                    scale,
-                  fillRadialGradientColorStops: backgroundGradient.colorStops,
-                }
-            : { fill: backgroundColor })}
-          shadowColor={canvasColors.artboardShadow}
-          shadowBlur={canvasColors.artboardShadowBlur}
-          shadowOffsetY={canvasColors.artboardShadowOffsetY}
-          cornerRadius={2}
-        />
+        {pages.map((page, i) => {
+          const top = geometry.pageTop(i);
+          const gradient = page.backgroundGradient;
+          return (
+            <Rect
+              key={page.id}
+              id={`bg-rect-${page.id}`}
+              x={offsetX}
+              y={top}
+              width={format.width * scale}
+              height={format.height * scale}
+              {...(gradient
+                ? gradient.type === "linear"
+                  ? {
+                      fillLinearGradientStartPoint: {
+                        x: gradient.startX * format.width * scale,
+                        y: gradient.startY * format.height * scale,
+                      },
+                      fillLinearGradientEndPoint: {
+                        x: gradient.endX * format.width * scale,
+                        y: gradient.endY * format.height * scale,
+                      },
+                      fillLinearGradientColorStops: gradient.colorStops,
+                    }
+                  : {
+                      fillRadialGradientStartPoint: {
+                        x: gradient.startX * format.width * scale,
+                        y: gradient.startY * format.height * scale,
+                      },
+                      fillRadialGradientEndPoint: {
+                        x: gradient.endX * format.width * scale,
+                        y: gradient.endY * format.height * scale,
+                      },
+                      fillRadialGradientStartRadius:
+                        (gradient.startRadius ?? 0) *
+                        Math.max(format.width, format.height) *
+                        scale,
+                      fillRadialGradientEndRadius:
+                        (gradient.endRadius ?? 0.7) *
+                        Math.max(format.width, format.height) *
+                        scale,
+                      fillRadialGradientColorStops: gradient.colorStops,
+                    }
+                : { fill: page.backgroundColor })}
+              shadowColor={canvasColors.artboardShadow}
+              shadowBlur={canvasColors.artboardShadowBlur}
+              shadowOffsetY={canvasColors.artboardShadowOffsetY}
+              cornerRadius={2}
+            />
+          );
+        })}
       </Layer>
 
       {/* Elements layer */}
-      <Layer
-        x={offsetX}
-        y={offsetY}
-        scaleX={scale}
-        scaleY={scale}
-        clipX={0}
-        clipY={0}
-        clipWidth={format.width}
-        clipHeight={format.height}
-      >
-        {visibleElements.map((el) => {
-          const isSelected = selectedIds.includes(el.id);
-          const onSelect = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) =>
-            handleElementSelect(el.id, e);
-          const drag = makeDragHandlers(el.id);
+      <Layer x={offsetX} y={offsetY} scaleX={scale} scaleY={scale}>
+        {pages.map((page, pageIndex) => {
+          const isActivePage = page.id === activePageId;
+          return (
+            <Group
+              key={page.id}
+              y={pageOffsetY(pageIndex)}
+              clipX={0}
+              clipY={0}
+              clipWidth={format.width}
+              clipHeight={format.height}
+            >
+            {page.elements.filter((el) => !el.hidden).map((el) => {
+              const isSelected = selectedIds.includes(el.id);
+              const onSelect = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) =>
+                handleElementSelect(el.id, e);
+              const drag = makeDragHandlers(el.id);
 
-          switch (el.type) {
-            case "shape":
-              return (
-                <ShapeNode
-                  key={el.id}
-                  el={el}
-                  isSelected={isSelected}
-                  onSelect={onSelect}
-                  drag={drag}
-                  disableDrag={handMode}
-                />
-              );
-            case "text":
-              return (
-                <TextNode
-                  key={el.id}
-                  el={el}
-                  isSelected={isSelected}
-                  onSelect={onSelect}
-                  drag={drag}
-                  onStartEditing={onStartEditing}
-                  isEditing={editingId === el.id}
-                  disableDrag={handMode}
-                />
-              );
-            case "image":
-              return (
-                <ImageNode
-                  key={el.id}
-                  el={el}
-                  isSelected={isSelected}
-                  onSelect={onSelect}
-                  drag={drag}
-                  disableDrag={handMode}
-                />
-              );
-            default:
-              return null;
-          }
-        })}
-        {guides.map((g, i) => (
-          <Line
-            key={`${g.orientation}-${i}-${g.pos}`}
-            points={
-              g.orientation === "v"
-                ? [g.pos, g.start, g.pos, g.end]
-                : [g.start, g.pos, g.end, g.pos]
-            }
-            stroke={canvasColors.snapGuide}
-            strokeWidth={1 / scale}
-            dash={[6 / scale, 4 / scale]}
-            listening={false}
-          />
-        ))}
-        <Transformer
-          ref={transformerRef}
-          // With >1 element selected, make the whole selection bounding box a
-          // drag handle so the user can grab the group anywhere inside it
-          // (including empty gaps) instead of having to hit an element exactly.
-          shouldOverdrawWholeArea={selectedIds.length > 1}
-          onTransformStart={() => {
-            isInteractingRef.current = true;
-            onSelectionRectRef.current?.(null);
-          }}
-          onTransformEnd={() => {
-            setGuides([]);
-            isInteractingRef.current = false;
-            requestAnimationFrame(() => reportRef.current());
-          }}
-          boundBoxFunc={(oldBox, newBox) => {
-            if (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5) {
-              return oldBox;
-            }
-            // Skip snap when rotated — bbox geometry gets complex
-            if (Math.abs(newBox.rotation) > 0.01) {
-              return newBox;
-            }
-            const state = useEditorStore.getState();
-            const selectedSet = new Set(state.selectedIds);
-            const others: BBox[] = state.elements
-              .filter((x) => !x.hidden && !selectedSet.has(x.id))
-              .map((x) => ({ x: x.x, y: x.y, width: x.width, height: x.height }));
-            const threshold = 6 / (state.zoom / 100);
-            const result = snapResize(
-              oldBox,
-              newBox,
-              others,
-              { width: format.width, height: format.height },
-              threshold
-            );
-            if (result.box.width < 5 || result.box.height < 5) {
-              setGuides([]);
-              return newBox;
-            }
-            setGuides((prev) => {
-              if (
-                prev.length === result.guides.length &&
-                prev.every(
-                  (g, i) =>
-                    g.orientation === result.guides[i].orientation &&
-                    g.pos === result.guides[i].pos
-                )
-              ) {
-                return prev;
+              switch (el.type) {
+                case "shape":
+                  return (
+                    <ShapeNode
+                      key={el.id}
+                      el={el}
+                      isSelected={isSelected}
+                      onSelect={onSelect}
+                      drag={drag}
+                      disableDrag={handMode}
+                    />
+                  );
+                case "text":
+                  return (
+                    <TextNode
+                      key={el.id}
+                      el={el}
+                      isSelected={isSelected}
+                      onSelect={onSelect}
+                      drag={drag}
+                      onStartEditing={onStartEditing}
+                      isEditing={editingId === el.id}
+                      disableDrag={handMode}
+                    />
+                  );
+                case "image":
+                  return (
+                    <ImageNode
+                      key={el.id}
+                      el={el}
+                      isSelected={isSelected}
+                      onSelect={onSelect}
+                      drag={drag}
+                      disableDrag={handMode}
+                    />
+                  );
+                default:
+                  return null;
               }
-              return result.guides;
-            });
-            return { ...result.box, rotation: newBox.rotation };
-          }}
-          anchorSize={7}
-          anchorCornerRadius={2}
-          anchorStrokeWidth={1.5}
-          borderStrokeWidth={1.5}
-          borderStroke={canvasColors.selection}
-          anchorStroke={canvasColors.selection}
-          anchorFill={canvasColors.anchorFill}
-          rotateAnchorOffset={20}
-          rotateAnchorAngle={180}
-          enabledAnchors={
-            isSingleText
-              ? [
-                  "top-left",
-                  "top-right",
-                  "bottom-left",
-                  "bottom-right",
-                  "middle-left",
-                  "middle-right",
-                ]
-              : [
-                  "top-left",
-                  "top-right",
-                  "bottom-left",
-                  "bottom-right",
-                  "middle-left",
-                  "middle-right",
-                  "top-center",
-                  "bottom-center",
-                ]
-          }
-        />
+            })}
+            {/* Guides and the Transformer sit inside the active page's group: both
+                work in page-local coordinates (computeSnap and boundBoxFunc compare
+                against element positions and the artboard box), which is only true
+                inside the group that carries the page's y offset. */}
+            {isActivePage &&
+              guides.map((g, i) => (
+                <Line
+                  key={`${g.orientation}-${i}-${g.pos}`}
+                  points={
+                    g.orientation === "v"
+                      ? [g.pos, g.start, g.pos, g.end]
+                      : [g.start, g.pos, g.end, g.pos]
+                  }
+                  stroke={canvasColors.snapGuide}
+                  strokeWidth={1 / scale}
+                  dash={[6 / scale, 4 / scale]}
+                  listening={false}
+                />
+              ))}
+            {isActivePage && (
+              <Transformer
+                ref={transformerRef}
+                // With >1 element selected, make the whole selection bounding box a
+                // drag handle so the user can grab the group anywhere inside it
+                // (including empty gaps) instead of having to hit an element exactly.
+                shouldOverdrawWholeArea={selectedIds.length > 1}
+                onTransformStart={() => {
+                  isInteractingRef.current = true;
+                  onSelectionRectRef.current?.(null);
+                }}
+                onTransformEnd={() => {
+                  setGuides([]);
+                  isInteractingRef.current = false;
+                  requestAnimationFrame(() => reportRef.current());
+                }}
+                boundBoxFunc={(oldBox, newBox) => {
+                  if (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5) {
+                    return oldBox;
+                  }
+                  // Skip snap when rotated — bbox geometry gets complex
+                  if (Math.abs(newBox.rotation) > 0.01) {
+                    return newBox;
+                  }
+                  const state = useEditorStore.getState();
+                  const selectedSet = new Set(state.selectedIds);
+                  const others: BBox[] = state.elements
+                    .filter((x) => !x.hidden && !selectedSet.has(x.id))
+                    .map((x) => ({ x: x.x, y: x.y, width: x.width, height: x.height }));
+                  const threshold = 6 / (state.zoom / 100);
+                  const result = snapResize(
+                    oldBox,
+                    newBox,
+                    others,
+                    { width: format.width, height: format.height },
+                    threshold
+                  );
+                  if (result.box.width < 5 || result.box.height < 5) {
+                    setGuides([]);
+                    return newBox;
+                  }
+                  setGuides((prev) => {
+                    if (
+                      prev.length === result.guides.length &&
+                      prev.every(
+                        (g, i) =>
+                          g.orientation === result.guides[i].orientation &&
+                          g.pos === result.guides[i].pos
+                      )
+                    ) {
+                      return prev;
+                    }
+                    return result.guides;
+                  });
+                  return { ...result.box, rotation: newBox.rotation };
+                }}
+                anchorSize={7}
+                anchorCornerRadius={2}
+                anchorStrokeWidth={1.5}
+                borderStrokeWidth={1.5}
+                borderStroke={canvasColors.selection}
+                anchorStroke={canvasColors.selection}
+                anchorFill={canvasColors.anchorFill}
+                rotateAnchorOffset={20}
+                rotateAnchorAngle={180}
+                enabledAnchors={
+                  isSingleText
+                    ? [
+                        "top-left",
+                        "top-right",
+                        "bottom-left",
+                        "bottom-right",
+                        "middle-left",
+                        "middle-right",
+                      ]
+                    : [
+                        "top-left",
+                        "top-right",
+                        "bottom-left",
+                        "bottom-right",
+                        "middle-left",
+                        "middle-right",
+                        "top-center",
+                        "bottom-center",
+                      ]
+                }
+              />
+            )}
+            </Group>
+          );
+        })}
       </Layer>
 
       {/* Marquee overlay (screen coords) */}
