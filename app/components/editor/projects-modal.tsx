@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { db, type Project } from "../../lib/db";
 import { deleteProjectSynced, pushProject } from "../../lib/project-sync";
 import { normalizePages, countElements } from "../../lib/project-data";
+import DesignThumbnail from "../design-thumbnail";
 import { useEditorStore } from "../../store/editor-store";
 import { toast } from "../../store/toast-store";
 import { PlusIcon, TrashIcon } from "./icons";
@@ -156,16 +157,16 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
                     }
                   }}
                 >
-                  {/* Color preview — the first page stands in for the project */}
+                  {/* Live preview of page one, drawn from the stored document */}
                   <div
-                    className="w-10 h-10 rounded-md border border-border-subtle shrink-0 flex items-center justify-center"
+                    className="w-10 h-10 rounded-md border border-border-subtle shrink-0 overflow-hidden"
                     style={{ backgroundColor: coverColor(p) }}
                   >
-                    <span className="text-[8px] font-medium" style={{
-                      color: isLight(coverColor(p)) ? "#666" : "#ccc",
-                    }}>
-                      {p.format.width}×{p.format.height}
-                    </span>
+                    <DesignThumbnail
+                      pages={normalizePages(p)}
+                      format={p.format}
+                      className="w-full h-full"
+                    />
                   </div>
 
                   {/* Info */}
@@ -232,10 +233,3 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function isLight(hex: string): boolean {
-  const c = hex.replace("#", "");
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
-}

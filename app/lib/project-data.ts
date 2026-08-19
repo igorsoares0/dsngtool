@@ -8,16 +8,6 @@ import type { Page, EditorElement, GradientFill } from "../types/editor";
  *
  * Writes always emit the new shape; the legacy fields are never written back.
  */
-export interface LegacyPageFields {
-  elements?: EditorElement[];
-  backgroundColor?: string;
-  backgroundGradient?: GradientFill | null;
-}
-
-export interface PagedFields {
-  pages?: unknown;
-}
-
 let migratedCounter = 0;
 
 function isPage(v: unknown): v is Page {
@@ -27,27 +17,33 @@ function isPage(v: unknown): v is Page {
 }
 
 /**
- * Coerce either storage shape into a page stack. Always returns at least one
- * page — an empty or malformed record opens as a blank artboard rather than
- * throwing the user back to a broken editor.
+ * Coerce either storage shape into a page stack. Takes `unknown` on purpose:
+ * the input is a JSON column from the server or a row from IndexedDB, neither
+ * of which is typechecked at the boundary. Always returns at least one page —
+ * an empty or malformed record opens as a blank artboard rather than throwing
+ * the user back to a broken editor.
  */
-export function normalizePages(data: (LegacyPageFields & PagedFields) | null | undefined): Page[] {
-  const pages = data?.pages;
-  if (Array.isArray(pages)) {
-    const valid = pages.filter(isPage).map((p) => ({
+export function normalizePages(data: unknown): Page[] {
+  const record = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+
+  if (Array.isArray(record.pages)) {
+    const valid = record.pages.filter(isPage).map((p) => ({
       id: p.id,
       elements: p.elements ?? [],
-      backgroundColor: p.backgroundColor ?? "#ffffff",
-      backgroundGradient: p.backgroundGradient ?? null,
+      backgroundColor:
+        typeof p.backgroundColor === "string" ? p.backgroundColor : "#ffffff",
+      backgroundGradient: (p.backgroundGradient ?? null) as GradientFill | null,
     }));
     if (valid.length > 0) return valid;
   }
+
   return [
     {
       id: `pg_migrated_${++migratedCounter}_${Date.now()}`,
-      elements: data?.elements ?? [],
-      backgroundColor: data?.backgroundColor ?? "#ffffff",
-      backgroundGradient: data?.backgroundGradient ?? null,
+      elements: Array.isArray(record.elements) ? (record.elements as EditorElement[]) : [],
+      backgroundColor:
+        typeof record.backgroundColor === "string" ? record.backgroundColor : "#ffffff",
+      backgroundGradient: (record.backgroundGradient ?? null) as GradientFill | null,
     },
   ];
 }

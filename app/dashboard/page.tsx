@@ -10,6 +10,8 @@ import { toast } from "../store/toast-store";
 import Toaster from "../components/editor/toaster";
 import ThemeSelect from "../components/ui/theme-select";
 import { cx } from "../components/ui/cx";
+import DesignThumbnail from "../components/design-thumbnail";
+import { normalizePages } from "../lib/project-data";
 import {
   TemplatesIcon,
   SearchIcon,
@@ -31,7 +33,16 @@ interface Me {
 interface ProjectRow {
   id: string;
   name: string;
-  data: { format?: { name?: string; label?: string; width?: number; height?: number } };
+  // The whole stored document — /api/projects has always returned `data` in
+  // full, which is what lets the cards draw a real preview without a second
+  // request or a stored image.
+  data: {
+    format?: { name?: string; label?: string; width?: number; height?: number };
+    pages?: unknown;
+    elements?: unknown;
+    backgroundColor?: string;
+    backgroundGradient?: unknown;
+  };
   updatedAt: string;
   deletedAt: string | null;
 }
@@ -65,6 +76,17 @@ function formatLabel(p: ProjectRow): string {
   if (f.name) return f.name;
   if (f.width && f.height) return `${f.width}×${f.height}`;
   return "Other";
+}
+
+/** The document's canvas size, or null when the record predates it. */
+function thumbnailFormat(p: ProjectRow) {
+  const f = p.data.format;
+  if (!f?.width || !f?.height) return null;
+  return { label: f.label ?? "Custom", width: f.width, height: f.height };
+}
+
+function pageCount(p: ProjectRow): number {
+  return normalizePages(p.data).length;
 }
 
 export default function DashboardPage() {
@@ -340,9 +362,25 @@ export default function DashboardPage() {
                   <div key={p.id} className="group relative flex flex-col gap-2">
                     <Link
                       href={`/?project=${p.id}`}
-                      className="block aspect-square rounded-lg bg-surface-2 border border-border-subtle shadow-raise flex items-center justify-center text-[11px] font-mono tabular-nums text-text-ghost transition-all group-hover:outline-2 group-hover:outline-accent group-hover:outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                      aria-label={`Open ${p.name}`}
+                      className="relative block aspect-square rounded-lg bg-surface-2 border border-border-subtle shadow-raise overflow-hidden transition-all group-hover:outline-2 group-hover:outline-accent group-hover:outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                     >
-                      {p.data.format?.width ?? "?"} × {p.data.format?.height ?? "?"}
+                      {thumbnailFormat(p) ? (
+                        <DesignThumbnail
+                          pages={normalizePages(p.data)}
+                          format={thumbnailFormat(p)!}
+                          className="w-full h-full"
+                        />
+                      ) : (
+                        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-mono tabular-nums text-text-ghost">
+                          {p.data.format?.width ?? "?"} × {p.data.format?.height ?? "?"}
+                        </span>
+                      )}
+                      {pageCount(p) > 1 && (
+                        <span className="absolute bottom-1.5 right-1.5 text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded-full bg-surface-1/90 text-text-secondary border border-border-subtle">
+                          {pageCount(p)} pages
+                        </span>
+                      )}
                     </Link>
 
                     <button
