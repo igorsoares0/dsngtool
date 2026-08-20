@@ -166,25 +166,37 @@ export async function POST(req: Request) {
   const month = currentMonth();
 
   // Reserve the credit before spending money upstream, so a crash mid-call
-  // can't be replayed for free. The claim is a conditional UPDATE rather than a
-  // read-then-write, so parallel requests can't all pass the same "under the
-  // limit" read and overspend the month in one burst.
-  const before = await prisma.aiUsage.upsert({
-    where: { userId_month: { userId, month } },
-    create: { userId, month, count: 0 },
-    update: {},
+  // can't be replayed for free. Two statements, both race-safe:
+  //
+  // 1. Make sure the month's row exists. `createMany` + skipDuplicates is
+  //    INSERT ... ON CONFLICT DO NOTHING. An `upsert` looks like the natural
+  //    call here but compiles to a bare INSERT — Prisma can't build an
+  //    ON CONFLICT clause out of an empty `update` — so two requests arriving
+  //    on the month's *first* generation collide on the unique key and one
+  //    dies with P2002, thrown before the try below exists to catch it.
+  // 2. Claim with a conditional UPDATE rather than a read-then-write, so
+  //    parallel requests can't all pass the same "under the limit" read and
+  //    overspend the month in one burst. The RETURNING gives us the post-claim
+  //    count, which is the only count worth reporting: anything read before
+  //    the update is already stale.
+  await prisma.aiUsage.createMany({
+    data: { userId, month, count: 0 },
+    skipDuplicates: true,
   });
-  const quotaExceeded = Response.json(
-    { error: "quota_exceeded", limit, tier: isPro ? "pro" : "free" },
-    { status: 402 }
-  );
-  if (before.count >= limit) return quotaExceeded;
 
-  const claimed = await prisma.aiUsage.updateMany({
+  const claimed = await prisma.aiUsage.updateManyAndReturn({
     where: { userId, month, count: { lt: limit } },
     data: { count: { increment: 1 } },
+    select: { count: true },
   });
-  if (claimed.count === 0) return quotaExceeded; // lost the race for the last credit
+  if (claimed.length === 0) {
+    // Either the month was already spent or we lost the race for its last credit.
+    return Response.json(
+      { error: "quota_exceeded", limit, tier: isPro ? "pro" : "free" },
+      { status: 402 }
+    );
+  }
+  const remaining = Math.max(0, limit - claimed[0].count);
 
   try {
     // 1. Pick the structure. Tiny output, and the enum makes an unknown
@@ -243,7 +255,11 @@ export async function POST(req: Request) {
     return Response.json({
       template: template.name,
       result: JSON.parse(textFrom(fill)),
-      remaining: Math.max(0, limit - (before.count + 1)),
+      // `limit` travels with every success, not just the 402: without it the
+      // editor's usage chip has half the fraction and stays hidden until the
+      // quota is already spent.
+      limit,
+      remaining,
     });
   } catch (err) {
     // Upstream failure isn't the user's fault — hand the credit back.
