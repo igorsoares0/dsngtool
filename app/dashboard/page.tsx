@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient, signOut } from "../lib/auth-client";
@@ -12,6 +12,7 @@ import ThemeSelect from "../components/ui/theme-select";
 import { cx } from "../components/ui/cx";
 import DesignThumbnail from "../components/design-thumbnail";
 import { normalizePages } from "../lib/project-data";
+import { POST_AUTH_PATH } from "../lib/routes";
 import {
   TemplatesIcon,
   SearchIcon,
@@ -25,10 +26,17 @@ interface StorageStatus {
   limit: number;
   remaining: number;
 }
+interface AuthMethods {
+  /** A `credential` account with a password exists on this user. */
+  hasPassword: boolean;
+  /** Linked social providers, e.g. ["google"]. Never includes "credential". */
+  providers: string[];
+}
 interface Me {
   user: { id: string; email: string; name: string };
   pro: boolean;
   storage: StorageStatus;
+  auth: AuthMethods;
 }
 interface ProjectRow {
   id: string;
@@ -48,6 +56,10 @@ interface ProjectRow {
 }
 
 type Nav = "projects" | "account";
+
+/** Set on the URL when we send someone off to re-authenticate mid-deletion, so
+ *  the trip back reopens the confirmation instead of the default tab. */
+const RESUME_DELETE_PARAM = "delete-account";
 
 function formatBytes(bytes: number): string {
   const mb = bytes / (1024 * 1024);
@@ -89,13 +101,22 @@ function pageCount(p: ProjectRow): number {
   return normalizePages(p.data).length;
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const router = useRouter();
+  // Set when a provider re-authentication was started from the danger zone
+  // (see DangerZone). Read as a prop rather than off `location` in an effect,
+  // so the account panel is the one already rendered on the way back — no
+  // flash of the projects tab and no setState cascade on mount.
+  const resumeDelete = use(searchParams)[RESUME_DELETE_PARAM] !== undefined;
   const [me, setMe] = useState<Me | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
-  const [nav, setNav] = useState<Nav>("projects");
+  const [nav, setNav] = useState<Nav>(resumeDelete ? "account" : "projects");
   const [query, setQuery] = useState("");
   const [formatFilter, setFormatFilter] = useState("All");
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -286,7 +307,11 @@ export default function DashboardPage() {
         </header>
 
         {nav === "account" ? (
-          <AccountPanel me={me} onSignOut={async () => { await signOut(); router.push("/"); }} />
+          <AccountPanel
+            me={me}
+            resumeDelete={resumeDelete}
+            onSignOut={async () => { await signOut(); router.push("/"); }}
+          />
         ) : (
           <>
             {/* Metric cards. Only two: AI-generation and device counts have no
@@ -487,7 +512,15 @@ function MetricCard({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-function AccountPanel({ me, onSignOut }: { me: Me | null; onSignOut: () => void }) {
+function AccountPanel({
+  me,
+  resumeDelete,
+  onSignOut,
+}: {
+  me: Me | null;
+  resumeDelete: boolean;
+  onSignOut: () => void;
+}) {
   return (
     <div className="max-w-[520px] flex flex-col gap-3">
       <div className="bg-surface-1 border border-border-subtle rounded-lg p-4 flex flex-col gap-3">
@@ -513,40 +546,89 @@ function AccountPanel({ me, onSignOut }: { me: Me | null; onSignOut: () => void 
         Sign out
       </button>
 
-      <DangerZone isPro={Boolean(me?.pro)} />
+      <DangerZone
+        isPro={Boolean(me?.pro)}
+        auth={me?.auth ?? null}
+        autoOpen={resumeDelete}
+      />
     </div>
   );
 }
 
-/** Permanent account deletion. Collapsed until asked for, then password-gated. */
-function DangerZone({ isPro }: { isPro: boolean }) {
+/** Permanent account deletion. Collapsed until asked for, then gated on
+ *  whatever proof this account can actually give: a password when one exists,
+ *  a recently established session when it doesn't. */
+function DangerZone({
+  isPro,
+  auth,
+  autoOpen,
+}: {
+  isPro: boolean;
+  auth: AuthMethods | null;
+  autoOpen: boolean;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  // null = nobody has touched the section yet, so it follows `autoOpen`.
+  // Once the user opens or dismisses it, their choice wins.
+  const [toggled, setToggled] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+
+  // An account created through Google has no `credential` row and therefore no
+  // password to confirm with. Asking for one anyway is not a cosmetic problem:
+  // a `required` password field that the user cannot possibly fill is a dead
+  // end, and deletion becomes unreachable for them.
+  const hasPassword = auth?.hasPassword ?? false;
+  const provider = auth?.providers[0] ?? null;
+  const providerName = provider
+    ? provider.charAt(0).toUpperCase() + provider.slice(1)
+    : null;
+  const confirmed = confirmation.trim().toUpperCase() === "DELETE";
+
+  // Gated on `me` having answered: opening early would render the passwordless
+  // form to someone who does have a password.
+  const open = toggled ?? Boolean(autoOpen && auth);
+
+  const close = () => {
+    setToggled(false);
+    setPassword("");
+    setConfirmation("");
+    setError(null);
+    setStale(false);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPending(true);
     setError(null);
 
-    let res = await authClient.deleteUser({ password });
-    // Accounts created through Google have no credential row, so the password
-    // branch can't apply. better-auth then falls back to requiring a *fresh*
-    // session, which a retry without the password opts into.
+    // Send the password only when there is one — an empty string would just
+    // come back INVALID_PASSWORD. Without it better-auth accepts a *fresh*
+    // session instead. The retry is insurance against a stale `me`: the
+    // server, not this component, decides which proof counts.
+    let res = hasPassword
+      ? await authClient.deleteUser({ password })
+      : await authClient.deleteUser({});
     if (res.error?.code === "CREDENTIAL_ACCOUNT_NOT_FOUND") {
       res = await authClient.deleteUser({});
     }
 
     if (res.error) {
       setPending(false);
+      // Passwordless deletion requires a session younger than better-auth's
+      // freshAge (24h by default), so this is the ordinary outcome for anyone
+      // who signed in with Google yesterday — not an error worth a dead end.
+      if (res.error.code === "SESSION_EXPIRED") {
+        setStale(true);
+        return;
+      }
       setError(
         res.error.code === "INVALID_PASSWORD"
           ? "That password doesn't match."
-          : res.error.code === "SESSION_EXPIRED"
-            ? "For security, sign in again before deleting your account."
-            : "Couldn't delete your account. Please try again."
+          : "Couldn't delete your account. Please try again."
       );
       return;
     }
@@ -567,8 +649,9 @@ function DangerZone({ isPro }: { isPro: boolean }) {
           </p>
         </div>
         <button
-          onClick={() => setOpen(true)}
-          className="shrink-0 text-[11.5px] font-medium text-danger border border-danger/30 hover:bg-danger-tint px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
+          onClick={() => setToggled(true)}
+          disabled={!auth}
+          className="shrink-0 text-[11.5px] font-medium text-danger border border-danger/30 hover:bg-danger-tint disabled:opacity-50 px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
         >
           Delete…
         </button>
@@ -587,39 +670,88 @@ function DangerZone({ isPro }: { isPro: boolean }) {
         immediately{isPro ? ", and your subscription is cancelled" : ""}. Export anything you
         want to keep first.
       </p>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[11.5px] font-medium text-text-secondary">
-          Confirm your password
-        </span>
-        <input
-          type="password"
-          required
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="bg-surface-3 border border-border-default rounded-md px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[1.5px] focus:border-danger transition-colors duration-150 ease-standard"
-        />
-      </label>
+
+      {stale ? (
+        <div className="flex flex-col gap-2.5">
+          <p role="alert" className="text-[11.5px] text-text-secondary leading-relaxed">
+            For security this needs a recent sign-in.{" "}
+            {providerName
+              ? `Confirm with ${providerName} and you'll come straight back here.`
+              : "Sign out, sign in again, then delete."}
+          </p>
+          {provider && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={async () => {
+                setPending(true);
+                // Full-page redirect out to the provider; the callback lands
+                // back on this panel with the confirmation already open.
+                await authClient.signIn.social({
+                  provider,
+                  callbackURL: `${POST_AUTH_PATH}?${RESUME_DELETE_PARAM}=1`,
+                });
+                setPending(false);
+              }}
+              className="self-start bg-surface-3 hover:bg-surface-4 border border-border-default text-text-primary text-[12px] font-medium px-3 py-2 rounded-md transition-colors duration-150 ease-standard disabled:opacity-60"
+            >
+              {pending ? "Redirecting…" : `Continue with ${providerName}`}
+            </button>
+          )}
+        </div>
+      ) : hasPassword ? (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[11.5px] font-medium text-text-secondary">
+            Confirm your password
+          </span>
+          <input
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="bg-surface-3 border border-border-default rounded-md px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[1.5px] focus:border-danger transition-colors duration-150 ease-standard"
+          />
+        </label>
+      ) : (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[11.5px] font-medium text-text-secondary">
+            You sign in with {providerName ?? "a linked account"}, so there&apos;s no password to
+            confirm. Type <span className="font-semibold text-text-primary">DELETE</span>{" "}
+            instead.
+          </span>
+          <input
+            type="text"
+            required
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            aria-label="Type DELETE to confirm"
+            value={confirmation}
+            onChange={(e) => setConfirmation(e.target.value)}
+            className="bg-surface-3 border border-border-default rounded-md px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[1.5px] focus:border-danger transition-colors duration-150 ease-standard"
+          />
+        </label>
+      )}
+
       {error && (
         <p role="alert" className="text-[11.5px] text-danger">
           {error}
         </p>
       )}
       <div className="flex items-center gap-2">
-        <button
-          type="submit"
-          disabled={pending}
-          className="bg-danger disabled:opacity-60 text-white text-[12px] font-semibold px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
-        >
-          {pending ? "Deleting…" : "Delete my account"}
-        </button>
+        {!stale && (
+          <button
+            type="submit"
+            disabled={pending || (!hasPassword && !confirmed)}
+            className="bg-danger disabled:opacity-60 text-white text-[12px] font-semibold px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
+          >
+            {pending ? "Deleting…" : "Delete my account"}
+          </button>
+        )}
         <button
           type="button"
-          onClick={() => {
-            setOpen(false);
-            setPassword("");
-            setError(null);
-          }}
+          onClick={close}
           className="text-[11.5px] text-text-secondary hover:text-text-primary px-3 py-2 transition-colors duration-150 ease-standard"
         >
           Cancel
