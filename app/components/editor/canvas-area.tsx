@@ -10,6 +10,8 @@ import type { InlineEditRequest, SelectionRect } from "./canvas-stage";
 import SelectionToolbar from "./selection-toolbar";
 import ContextMenu, { type ContextMenuRequest } from "./context-menu";
 import AiBar from "./ai-bar";
+import { IS_DESKTOP } from "../../lib/platform";
+import { useDesktopMenuCommand } from "../../hooks/use-desktop-menu";
 import PageControls from "./page-controls";
 import IconButton from "../ui/icon-button";
 import { ZoomInIcon, ZoomOutIcon } from "./icons";
@@ -277,6 +279,13 @@ export default function CanvasArea({
     useEditorStore.getState().resetPan();
   }, [dims, format, setZoom]);
 
+  // The View menu's zoom items are wired here rather than in the layout: this
+  // is the component that owns the viewport, and "Fit" needs the measured
+  // container size that never leaves it.
+  useDesktopMenuCommand("zoom-in", () => setZoom(useEditorStore.getState().zoom + 10));
+  useDesktopMenuCommand("zoom-out", () => setZoom(useEditorStore.getState().zoom - 10));
+  useDesktopMenuCommand("zoom-fit", fitToScreen);
+
   // Auto-fit on first render and whenever the format changes.
   useEffect(() => {
     if (dims.width === 0 || dims.height === 0) return;
@@ -376,7 +385,10 @@ export default function CanvasArea({
         >
           {/* One ghost line and nothing else — the canvas is the subject. */}
           <p className="text-[13px] text-text-ghost text-center max-w-[240px] leading-relaxed animate-fade-in">
-            Nothing here yet. Pick a template from the left, or describe a post below.
+            {/* "below" is the AI bar, which the desktop build does not ship. */}
+            {IS_DESKTOP
+              ? "Nothing here yet. Pick a template from the left to get started."
+              : "Nothing here yet. Pick a template from the left, or describe a post below."}
           </p>
         </div>
       )}
@@ -426,7 +438,8 @@ export default function CanvasArea({
         </button>
       </div>
 
-      <AiBar focusSignal={aiFocusSignal} />
+      {/* AI generation is a server-side, metered feature — web only. */}
+      {!IS_DESKTOP && <AiBar focusSignal={aiFocusSignal} />}
     </div>
   );
 }

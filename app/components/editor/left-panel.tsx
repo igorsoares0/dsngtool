@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useEditorStore } from "../../store/editor-store";
 import { useEntitlementStore } from "../../store/entitlement-store";
+import { IS_DESKTOP } from "../../lib/platform";
+import { importDesktopImage } from "../../lib/desktop-assets";
 import { TEMPLATES } from "../../data/templates";
 import { ASSETS } from "../../data/assets";
 import { LockIcon, UploadIcon, SearchIcon } from "./icons";
@@ -188,10 +190,41 @@ function UploadsPanel() {
     if (file) uploadFile(file);
   };
 
+  /** Drop an image onto the artboard, scaled to fit and centred. */
+  const placeImage = (url: string, natW: number, natH: number) => {
+    const maxW = format.width * 0.6;
+    const w = Math.min(natW, maxW);
+    const h = w * (natH / natW);
+
+    addElement({
+      type: "image",
+      src: url,
+      x: (format.width - w) / 2,
+      y: (format.height - h) / 2,
+      width: w,
+      height: h,
+      rotation: 0,
+      opacity: 1,
+    });
+  };
+
   const uploadFile = async (file: File) => {
     // Measure natural dimensions locally, then upload the bytes to R2 via our
     // API (which enforces the storage quota) and place the returned URL.
     const dims = await imageDimensions(file).catch(() => null);
+
+    // Desktop: no server, no quota. The bytes are copied into the app's own
+    // asset folder and addressed by content hash — see desktop/main.js.
+    if (IS_DESKTOP) {
+      try {
+        const url = await importDesktopImage(file);
+        const natW = dims?.w ?? format.width * 0.6;
+        placeImage(url, natW, dims?.h ?? natW);
+      } catch {
+        toast.error("Couldn't import that image.");
+      }
+      return;
+    }
 
     const form = new FormData();
     form.append("file", file);
@@ -231,21 +264,7 @@ function UploadsPanel() {
     };
 
     const natW = width ?? dims?.w ?? format.width * 0.6;
-    const natH = height ?? dims?.h ?? natW;
-    const maxW = format.width * 0.6;
-    const w = Math.min(natW, maxW);
-    const h = w * (natH / natW);
-
-    addElement({
-      type: "image",
-      src: url,
-      x: (format.width - w) / 2,
-      y: (format.height - h) / 2,
-      width: w,
-      height: h,
-      rotation: 0,
-      opacity: 1,
-    });
+    placeImage(url, natW, height ?? dims?.h ?? natW);
     // The quota just moved — keep the meter honest.
     refreshEntitlement();
   };

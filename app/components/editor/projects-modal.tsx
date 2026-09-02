@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db, type Project } from "../../lib/db";
+import { projectRepo, type Project } from "../../lib/project-repo";
 import { deleteProjectSynced, pushProject } from "../../lib/project-sync";
 import { normalizePages, countElements } from "../../lib/project-data";
 import DesignThumbnail from "../design-thumbnail";
@@ -24,9 +24,10 @@ function formatDate(date: Date) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// Rows are read straight from IndexedDB, and one cached before the multi-page
-// change may not have gone through the Dexie v3 upgrade yet — so every read of
-// the stack goes through normalizePages rather than trusting `pages`.
+// Rows come straight out of local storage, and one cached before the
+// multi-page change may not have gone through that layer's v3 upgrade yet — so
+// every read of the stack goes through normalizePages rather than trusting
+// `pages`.
 function coverColor(p: Project): string {
   return normalizePages(p)[0].backgroundColor;
 }
@@ -47,7 +48,7 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
 
   const loadProjects = async () => {
     try {
-      const all = await db.projects.orderBy("updatedAt").reverse().toArray();
+      const all = await projectRepo.list();
       setProjects(all);
     } catch {
       // silent
@@ -87,7 +88,7 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
         toast.action("Project deleted", "Undo", async () => {
           // Re-create locally with a fresh timestamp and push it back up.
           const restored = { ...removed, updatedAt: new Date(), dirty: false };
-          await db.projects.put(restored);
+          await projectRepo.put(restored);
           void pushProject(restored);
           loadProjects();
         });

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../store/editor-store";
-import { db } from "../lib/db";
+import { projectRepo, type Project } from "../lib/project-repo";
 import { normalizePages } from "../lib/project-data";
 import { syncProjects, syncDirty, setPushRejectedHandler } from "../lib/project-sync";
 import { toast } from "../store/toast-store";
@@ -14,12 +14,12 @@ const REJECTION_MESSAGES: Record<string, string> = {
   name_too_long: "That project name is too long to sync.",
 };
 
-function loadRecord(p: import("../lib/db").Project) {
+function loadRecord(p: Project) {
   useEditorStore.getState().loadProject({
     id: p.id,
     name: p.name,
-    // A row cached before the multi-page change may predate the Dexie v3
-    // upgrade in this browser, so normalise rather than trusting `pages`.
+    // A row cached before the multi-page change may predate the storage
+    // layer's v3 upgrade here, so normalise rather than trusting `pages`.
     pages: normalizePages(p),
     format: p.format,
   });
@@ -27,7 +27,7 @@ function loadRecord(p: import("../lib/db").Project) {
 
 async function loadLatest(): Promise<boolean> {
   try {
-    const latest = await db.projects.orderBy("updatedAt").reverse().first();
+    const latest = await projectRepo.latest();
     if (!latest) return false;
     loadRecord(latest);
     return true;
@@ -39,7 +39,7 @@ async function loadLatest(): Promise<boolean> {
 /** Load a specific project by id (from the dashboard). Falls back to latest. */
 async function loadById(id: string): Promise<boolean> {
   try {
-    const p = await db.projects.get(id);
+    const p = await projectRepo.get(id);
     if (!p) return loadLatest();
     loadRecord(p);
     return true;
@@ -67,7 +67,7 @@ export function useProjectLoader() {
     }
 
     // A permanently refused push is silent otherwise: the design stays in
-    // IndexedDB and the editor carries on, so the user would only find out
+    // local storage and the editor carries on, so the user would only find out
     // their work never left this device on the next machine they sign in from.
     setPushRejectedHandler((error) => {
       const message = REJECTION_MESSAGES[error];
@@ -108,7 +108,7 @@ export function useProjectLoader() {
           return;
         }
 
-        const count = await db.projects.count();
+        const count = await projectRepo.count();
         if (count > 0) {
           // Have local projects: show the latest instantly, sync in background.
           await loadLatest();
@@ -122,7 +122,7 @@ export function useProjectLoader() {
           setReady(true);
         }
       } catch {
-        setReady(true); // IndexedDB unavailable — start fresh
+        setReady(true); // local storage unavailable — start fresh
       }
     }
   }, []);

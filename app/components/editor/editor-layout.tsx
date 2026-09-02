@@ -19,6 +19,8 @@ import UpgradeModal from "./upgrade-modal";
 import ExportModal from "./export-modal";
 import Toaster from "./toaster";
 import IosInstallHint from "./ios-install-hint";
+import { IS_DESKTOP } from "../../lib/platform";
+import { useDesktopMenuActions } from "../../hooks/use-desktop-menu";
 
 export default function EditorLayout() {
   const [activeTool, setActiveTool] = useState<SidebarTool | null>(null);
@@ -33,6 +35,12 @@ export default function EditorLayout() {
   useClipboardEvents();
   useAutosave();
   useEntitlement();
+  // Native File/Edit menu items. No-op in the web build.
+  useDesktopMenuActions({
+    onOpenProjects: () => setShowProjects(true),
+    onOpenExport: () => setShowExport(true),
+    onOpenShortcuts: () => setShowShortcuts((s) => !s),
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -83,9 +91,10 @@ export default function EditorLayout() {
         onClose={() => setShowExport(false)}
         stageRef={stageRef}
       />
-      <UpgradeModal />
+      {/* Subscriptions and the PWA install prompt are web-only concerns. */}
+      {!IS_DESKTOP && <UpgradeModal />}
       <Toaster />
-      <IosInstallHint />
+      {!IS_DESKTOP && <IosInstallHint />}
     </div>
   );
 }

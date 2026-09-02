@@ -1,0 +1,67 @@
+{
+  "name": "modo-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop shell for Modo — the visual editor, offline, with SQLite on disk.",
+  "author": "Modo",
+  "main": "main.js",
+  "scripts": {
+    "build:renderer": "node build.mjs",
+    "start": "electron .",
+    "dev": "node build.mjs && electron .",
+    "pack": "node build.mjs && electron-builder --dir",
+    "dist": "node build.mjs && electron-builder",
+    "dist:linux": "node build.mjs && electron-builder --linux",
+    "dist:win": "node build.mjs && electron-builder --win",
+    "dist:mac": "node build.mjs && electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^44.1.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "pro.getmodo.desktop",
+    "productName": "Modo",
+    "copyright": "Copyright © Modo",
+    "directories": {
+      "buildResources": "resources",
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "db.js",
+      "menu.js",
+      "files.js",
+      "staged/out/**/*"
+    ],
+    "asar": true,
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Graphics",
+      "synopsis": "Visual design editor for social media content",
+      "maintainer": "Modo <support@getmodo.pro>",
+      "syncDesktopName": true
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.graphics-design"
+    }
+  },
+  "homepage": "https://getmodo.pro",
+  "desktopName": "modo.desktop"
+}

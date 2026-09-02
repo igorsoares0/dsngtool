@@ -1,12 +1,19 @@
 "use client";
 
-import { db, type Project } from "./db";
+import { projectRepo, type Project } from "./project-repo";
+import { IS_DESKTOP } from "./platform";
 import { normalizePages } from "./project-data";
 
-// Bidirectional last-write-wins sync between IndexedDB (local cache + offline
-// buffer) and the server (source of truth across devices). The client's
-// `updatedAt` is the LWW clock. Deletions are queued locally so an offline
-// delete isn't resurrected by the next pull.
+// Bidirectional last-write-wins sync between the local store (cache + offline
+// buffer — see project-repo.ts) and the server (source of truth across
+// devices). The client's `updatedAt` is the LWW clock. Deletions are queued
+// locally so an offline delete isn't resurrected by the next pull.
+//
+// There is no server in the desktop build: SQLite *is* the source of truth, not
+// a cache of one. Every entry point here therefore returns early under
+// IS_DESKTOP, which keeps that decision in one file instead of scattering
+// platform checks through the editor. Callers stay identical on both targets —
+// they just call into a no-op.
 
 const PENDING_DELETES_KEY = "pendingProjectDeletes";
 
@@ -28,16 +35,15 @@ interface ServerProject {
 }
 
 async function getPendingDeletes(): Promise<string[]> {
-  const row = await db.settings.get(PENDING_DELETES_KEY);
-  return (row?.value as string[]) ?? [];
+  return (await projectRepo.getSetting<string[]>(PENDING_DELETES_KEY)) ?? [];
 }
 async function setPendingDeletes(ids: string[]) {
-  await db.settings.put({ key: PENDING_DELETES_KEY, value: ids });
+  await projectRepo.setSetting(PENDING_DELETES_KEY, ids);
 }
 
 async function markDirty(id: string, dirty: boolean) {
-  const p = await db.projects.get(id);
-  if (p) await db.projects.put({ ...p, dirty });
+  const p = await projectRepo.get(id);
+  if (p) await projectRepo.put({ ...p, dirty });
 }
 
 function toPayload(p: Project) {
@@ -67,7 +73,8 @@ function fromServer(sp: ServerProject, createdAt: Date): Project {
  * Server rejections that retrying will never fix: the project is over the size
  * cap, the account is at its project ceiling, or the payload is malformed.
  * Re-sending on every sync would just burn the rate limit, so these clear the
- * dirty flag — the work stays in IndexedDB and the editor keeps working, it
+ * dirty flag — the work stays in the local store and the editor keeps
+ * working, it
  * simply stops trying to push.
  */
 const TERMINAL_PUSH_STATUS = new Set([400, 403, 409, 413]);
@@ -80,6 +87,7 @@ const notifiedRejections = new Set<string>();
 
 /** Push one project to the server. Marks it dirty locally if the push fails. */
 export async function pushProject(p: Project): Promise<boolean> {
+  if (IS_DESKTOP) return true; // nowhere to push; the local write already won
   try {
     const res = await fetch(`/api/projects/${p.id}`, {
       method: "PUT",
@@ -123,13 +131,17 @@ export function setPushRejectedHandler(fn: ((error: string) => void) | null) {
 
 /** Delete locally and queue the server-side tombstone (survives offline). */
 export async function deleteProjectSynced(id: string) {
-  await db.projects.delete(id);
+  await projectRepo.delete(id);
+  // No tombstone to propagate, and queueing one would grow a list of ids that
+  // nothing ever drains.
+  if (IS_DESKTOP) return;
   const pending = await getPendingDeletes();
   if (!pending.includes(id)) await setPendingDeletes([...pending, id]);
   await flushDeletes();
 }
 
 async function flushDeletes() {
+  if (IS_DESKTOP) return;
   const pending = await getPendingDeletes();
   if (pending.length === 0) return;
   const remaining: string[] = [];
@@ -150,6 +162,7 @@ async function flushDeletes() {
  * locally-newer projects up. No-ops gracefully when offline or signed out.
  */
 export async function syncProjects(): Promise<void> {
+  if (IS_DESKTOP) return;
   await flushDeletes();
   const pendingDeletes = new Set(await getPendingDeletes());
 
@@ -167,18 +180,18 @@ export async function syncProjects(): Promise<void> {
   // Server -> local
   for (const sp of serverProjects) {
     if (pendingDeletes.has(sp.id)) continue; // locally deleted; don't resurrect
-    const local = await db.projects.get(sp.id);
+    const local = await projectRepo.get(sp.id);
     if (sp.deletedAt) {
-      if (local) await db.projects.delete(sp.id);
+      if (local) await projectRepo.delete(sp.id);
       continue;
     }
     if (!local || new Date(sp.updatedAt) > new Date(local.updatedAt)) {
-      await db.projects.put(fromServer(sp, local?.createdAt ?? new Date()));
+      await projectRepo.put(fromServer(sp, local?.createdAt ?? new Date()));
     }
   }
 
   // Local -> server
-  for (const lp of await db.projects.toArray()) {
+  for (const lp of await projectRepo.list()) {
     const sp = serverMap.get(lp.id);
     const localNewer =
       !sp || (!sp.deletedAt && new Date(lp.updatedAt) > new Date(sp.updatedAt));
@@ -190,7 +203,7 @@ export async function syncProjects(): Promise<void> {
  * Wipe every trace of the signed-in account from this browser.
  *
  * Must be called after the server confirms an account deletion. Deleting the
- * account server-side does not touch IndexedDB, and the leftovers are not
+ * account server-side does not touch the local store, and the leftovers are not
  * merely stale — they are actively dangerous. `syncProjects` treats a local
  * project the server has never seen as "local is newer" and pushes it up, so
  * signing up again on this browser would upload the *deleted* account's designs
@@ -199,13 +212,14 @@ export async function syncProjects(): Promise<void> {
  */
 export async function wipeLocalAccountData(): Promise<void> {
   notifiedRejections.clear();
-  await db.projects.clear();
-  await db.settings.clear();
+  await projectRepo.clear();
+  await projectRepo.clearSettings();
 }
 
 /** Retry only the buffered work (dirty projects + queued deletes). */
 export async function syncDirty(): Promise<void> {
+  if (IS_DESKTOP) return;
   await flushDeletes();
-  const dirty = (await db.projects.toArray()).filter((p) => p.dirty);
+  const dirty = (await projectRepo.list()).filter((p) => p.dirty);
   for (const p of dirty) await pushProject(p);
 }

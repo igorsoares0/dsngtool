@@ -4,7 +4,7 @@ export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
 /** Read synchronously by the pre-paint script in `app/layout.tsx`. It has to be
- *  localStorage and not the Dexie `settings` table (`app/lib/db.ts`): Dexie is
+ *  localStorage and not the Dexie `settings` table (`app/lib/project-repo.ts`): Dexie is
  *  await-based, so reading the preference there would always paint the wrong
  *  theme first and flash. */
 export const THEME_STORAGE_KEY = "modo-theme";

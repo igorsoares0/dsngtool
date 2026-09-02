@@ -5,6 +5,9 @@ import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import { toast } from "../../store/toast-store";
 import { downloadProjectFile, FILE_EXTENSION } from "../../lib/project-io";
+import { IS_DESKTOP } from "../../lib/platform";
+import { saveImagesToDisk, saveProjectToDisk } from "../../lib/desktop-files";
+import type { ImageToSave } from "../../lib/desktop-bridge";
 import { stackGeometry } from "../../lib/canvas-layout";
 import Modal from "../ui/modal";
 import { cx } from "../ui/cx";
@@ -85,6 +88,9 @@ export default function ExportModal({
     const bgLayer = stage.getLayers()[0];
     const indices = allPages && multiPage ? state.pages.map((_, i) => i) : [activeIndex];
     const baseName = projectName || "design";
+    // Desktop collects the rendered pages and hands them to one native dialog;
+    // the browser has to fire a download per page as it goes.
+    const rendered: ImageToSave[] = [];
 
     for (const index of indices) {
       const page = state.pages[index];
@@ -107,9 +113,16 @@ export default function ExportModal({
 
       bgRect?.show();
 
-      const link = document.createElement("a");
-      link.download =
+      const fileName =
         indices.length > 1 ? `${baseName}-${index + 1}.${kind}` : `${baseName}.${kind}`;
+
+      if (IS_DESKTOP) {
+        rendered.push({ fileName, dataUrl });
+        continue;
+      }
+
+      const link = document.createElement("a");
+      link.download = fileName;
       link.href = dataUrl;
       link.click();
 
@@ -117,6 +130,22 @@ export default function ExportModal({
       // gap between them is what makes a 10-page export actually deliver 10
       // files.
       if (indices.length > 1) await new Promise((r) => setTimeout(r, 300));
+    }
+
+    if (IS_DESKTOP) {
+      let saved = 0;
+      try {
+        saved = await saveImagesToDisk(rendered);
+      } catch {
+        toast.error("Couldn't save the export");
+        return;
+      }
+      // Zero means the user dismissed the dialog — leave the modal open rather
+      // than reporting an export that did not happen.
+      if (saved === 0) return;
+      onClose();
+      toast.success(saved > 1 ? `Exported ${saved} pages` : `Exported ${rendered[0].fileName}`);
+      return;
     }
 
     onClose();
@@ -141,11 +170,22 @@ export default function ExportModal({
     const s = useEditorStore.getState();
     // The project file is always the whole document — scope only applies to
     // the flattened image formats.
-    downloadProjectFile({
-      name: s.projectName,
-      format: s.format,
-      pages: s.pages,
-    });
+    const document_ = { name: s.projectName, format: s.format, pages: s.pages };
+
+    if (IS_DESKTOP) {
+      void (async () => {
+        try {
+          if (!(await saveProjectToDisk(document_))) return; // dialog dismissed
+          onClose();
+          toast.success("Project file saved");
+        } catch {
+          toast.error("Couldn't save the project file");
+        }
+      })();
+      return;
+    }
+
+    downloadProjectFile(document_);
     onClose();
     toast.success("Project file downloaded");
   }, [onClose]);

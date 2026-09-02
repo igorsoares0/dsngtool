@@ -1,0 +1,4 @@
+node_modules/
+# Staged Next.js export (built from ../app; never edit by hand).
+staged/
+dist/

@@ -90,7 +90,17 @@ export async function readProjectFile(file: File): Promise<ImportedProject> {
   } catch {
     throw new ImportError("Could not read file");
   }
+  return parseProjectJson(text);
+}
 
+/**
+ * Validate and normalise the contents of a project file.
+ *
+ * Split out from readProjectFile so a caller that already has the text can
+ * reuse it — the desktop build reads the file in the main process, through a
+ * native dialog, and never has a `File` object to hand.
+ */
+export function parseProjectJson(text: string): ImportedProject {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);

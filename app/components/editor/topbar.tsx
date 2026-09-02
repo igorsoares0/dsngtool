@@ -4,10 +4,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useEditorStore } from "../../store/editor-store";
 import { useEntitlementStore } from "../../store/entitlement-store";
 import { CANVAS_FORMATS } from "../../types/editor";
-import { db } from "../../lib/db";
+import { saveCurrentProject } from "../../lib/save-project";
 import { toast } from "../../store/toast-store";
 import { useInstallPrompt } from "../../hooks/use-install-prompt";
 import AccountMenu from "./account-menu";
+import { IS_DESKTOP } from "../../lib/platform";
 import IconButton from "../ui/icon-button";
 import { cx } from "../ui/cx";
 import {
@@ -121,23 +122,7 @@ export default function Topbar({
     setShowFormatMenu(false);
   }, [customW, customH, setFormat]);
 
-  const handleSave = useCallback(async () => {
-    const s = useEditorStore.getState();
-    try {
-      await db.projects.put({
-        id: s.projectId,
-        name: s.projectName,
-        pages: s.pages,
-        format: s.format,
-        createdAt: (await db.projects.get(s.projectId))?.createdAt ?? new Date(),
-        updatedAt: new Date(),
-      });
-      s.markSaved();
-      toast.success("Project saved");
-    } catch {
-      toast.error("Couldn't save project");
-    }
-  }, []);
+  const handleSave = useCallback(() => void saveCurrentProject(), []);
 
   const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -444,7 +429,8 @@ export default function Topbar({
           Export
         </button>
 
-        <AccountMenu />
+        {/* No accounts in the desktop build. */}
+        {!IS_DESKTOP && <AccountMenu />}
       </div>
     </header>
   );

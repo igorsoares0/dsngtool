@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Instrument_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SwRegister from "./components/sw-register";
+import { IS_DESKTOP } from "./lib/platform";
 import ThemeSync from "./components/theme-sync";
 import { FONT_VARIABLES } from "./lib/fonts";
 
@@ -54,7 +55,13 @@ export default async function RootLayout({
   // Reading the nonce makes every route dynamic, which nonce-based CSP requires
   // anyway: a nonce baked into a static shell at build time would be reused
   // across all visitors and defeat the point.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  //
+  // The desktop build has no server to stamp one, and `headers()` is a dynamic
+  // server function that `output: "export"` forbids outright — so it is skipped
+  // there and the policy is attached to the protocol response instead (see the
+  // CSP note in desktop/main.js). IS_DESKTOP is a compile-time false in the web
+  // build, which leaves this as exactly the call it has always been.
+  const nonce = IS_DESKTOP ? undefined : ((await headers()).get("x-nonce") ?? undefined);
 
   return (
     <html

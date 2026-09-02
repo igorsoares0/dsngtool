@@ -10,6 +10,7 @@ import {
   SparkleIcon,
 } from "./icons";
 import IconButton from "../ui/icon-button";
+import { IS_DESKTOP } from "../../lib/platform";
 
 /** Tools that open the contextual panel. AI is deliberately not one of them —
  *  it lives in the floating bar over the canvas. */
@@ -59,17 +60,22 @@ export default function LeftSidebar({
       })}
 
       {/* AI is an action, not a panel — separated and tinted rather than filled,
-          so it never competes with the active tool for the accent. */}
-      <div className="w-6 h-px bg-border-subtle my-2" />
-      <IconButton
-        label="Generate with AI"
-        size="rail"
-        variant="tint"
-        tooltipSide="right"
-        onClick={onFocusAi}
-      >
-        <SparkleIcon className="w-[18px] h-[18px]" />
-      </IconButton>
+          so it never competes with the active tool for the accent. Absent from
+          the desktop build, where generation has no server to run on. */}
+      {!IS_DESKTOP && (
+        <>
+          <div className="w-6 h-px bg-border-subtle my-2" />
+          <IconButton
+            label="Generate with AI"
+            size="rail"
+            variant="tint"
+            tooltipSide="right"
+            onClick={onFocusAi}
+          >
+            <SparkleIcon className="w-[18px] h-[18px]" />
+          </IconButton>
+        </>
+      )}
     </aside>
   );
 }

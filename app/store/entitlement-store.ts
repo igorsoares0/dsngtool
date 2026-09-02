@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { IS_DESKTOP } from "../lib/platform";
 
 export interface StorageStatus {
   used: number;
@@ -22,9 +23,12 @@ interface EntitlementState {
 }
 
 export const useEntitlementStore = create<EntitlementState>((set) => ({
-  pro: false,
+  // The desktop build has no subscription and no metered storage — projects and
+  // images live on the user's own disk — so everything the paid tier unlocks is
+  // simply on, and `hydrated` starts true because there is nothing to wait for.
+  pro: IS_DESKTOP,
   storage: null,
-  hydrated: false,
+  hydrated: IS_DESKTOP,
   modalOpen: false,
   upsellReason: null,
 
@@ -32,6 +36,7 @@ export const useEntitlementStore = create<EntitlementState>((set) => ({
   closeModal: () => set({ modalOpen: false, upsellReason: null }),
 
   refresh: async () => {
+    if (IS_DESKTOP) return;
     try {
       const res = await fetch("/api/me");
       if (!res.ok) {
