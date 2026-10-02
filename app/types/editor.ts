@@ -85,6 +85,16 @@ export const CANVAS_FORMATS: CanvasFormat[] = [
   { label: "Pinterest", width: 1000, height: 1500 },
 ];
 
+/** URL slugs for the presets, as used by `/?new=1&format=<slug>` (the
+ *  dashboard's format cards and the landing's sign-up links). */
+export const FORMAT_SLUGS = {
+  post: CANVAS_FORMATS[0],
+  story: CANVAS_FORMATS[1],
+  pinterest: CANVAS_FORMATS[2],
+} as const satisfies Record<string, CanvasFormat>;
+
+export type FormatSlug = keyof typeof FORMAT_SLUGS;
+
 /** One artboard. A project is an ordered stack of these, rendered top to bottom. */
 export interface Page {
   id: string;
@@ -93,8 +103,10 @@ export interface Page {
   backgroundGradient: GradientFill | null;
 }
 
-/** Vertical gap between stacked artboards, in canvas units (scales with zoom). */
-export const PAGE_GAP = 80;
+/** Vertical gap between stacked artboards, in *screen* pixels — constant
+ *  across zoom, so there is always room for the page label and the crop marks
+ *  (which reach 26px out from each corner) between two pages. */
+export const PAGE_GAP = 96;
 
 /**
  * Ceiling on pages per project. Not arbitrary: the whole project is pushed as

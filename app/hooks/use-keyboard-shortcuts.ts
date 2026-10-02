@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useEditorStore } from "../store/editor-store";
 import { toastDeleted } from "../store/toast-store";
+import { elementLabel } from "../lib/element-label";
+import { addTextPreset } from "../lib/text-presets";
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
@@ -29,8 +31,29 @@ export function useKeyboardShortcuts() {
         if (selectedIds.length > 0) {
           e.preventDefault();
           const count = selectedIds.length;
+          const only = count === 1 ? useEditorStore.getState().elements.find((el) => el.id === selectedIds[0]) : undefined;
           removeSelectedElements();
-          toastDeleted(count);
+          toastDeleted(count, only ? elementLabel(only) : undefined);
+        }
+      }
+
+      // T / ⇧T / ⌥T add a heading / subheading / body. Matched on e.code:
+      // on macOS ⌥T types "†", so e.key is useless for the Option variant.
+      if (e.code === "KeyT" && !ctrl && !target.isContentEditable) {
+        e.preventDefault();
+        addTextPreset(e.altKey ? "body" : e.shiftKey ? "subheading" : "heading");
+      }
+
+      // ⌘L toggles lock on the selection.
+      if (ctrl && e.code === "KeyL") {
+        const { selectedIds, elements, updateMultipleElements } = useEditorStore.getState();
+        if (selectedIds.length > 0) {
+          e.preventDefault();
+          const sel = elements.filter((el) => selectedIds.includes(el.id));
+          const lock = !sel.every((el) => el.locked);
+          const updates = new Map<string, { locked: boolean }>();
+          for (const el of sel) updates.set(el.id, { locked: lock });
+          updateMultipleElements(updates);
         }
       }
 

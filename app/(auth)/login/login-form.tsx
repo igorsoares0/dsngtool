@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "../../lib/auth-client";
 import { POST_AUTH_PATH } from "../../lib/routes";
-import { AuthCard, AuthLink, Field, GoogleButton, Note, SubmitButton } from "../../components/auth/ui";
+import { AuthCard, AuthLink, Field, GoogleButton, LegalLine, Note, SubmitButton } from "../../components/auth/ui";
 
 /** Only allow same-app relative paths as redirect targets (no open redirect). */
 function safeRedirect(raw: string | null): string {
@@ -48,7 +48,7 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
   if (unverified) {
     return (
       <AuthCard
-        title="Confirm your email"
+        title="Confirm your email."
         footer={<>Wrong address? <AuthLink href="/signup">Create an account</AuthLink></>}
       >
         <Note kind="success">
@@ -58,7 +58,7 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
         <button
           type="button"
           onClick={() => setUnverified(false)}
-          className="text-[11.5px] text-text-secondary hover:text-text-primary transition-colors duration-150 ease-standard"
+          className="self-start text-[13px] font-semibold text-text-primary underline underline-offset-[3px] decoration-border-default hover:decoration-text-primary"
         >
           Back to sign in
         </button>
@@ -67,11 +67,7 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
   }
 
   return (
-    <AuthCard
-      title="Welcome back"
-      subtitle="Sign in to sync your license and AI credits across devices."
-      footer={<>No account yet? <AuthLink href="/signup">Create one</AuthLink></>}
-    >
+    <AuthCard tabs="login" title="Welcome back." footer={<LegalLine />}>
       {googleEnabled && <GoogleButton callbackURL={redirectTo} />}
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Field
@@ -93,9 +89,9 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
           onChange={(e) => setPassword(e.target.value)}
         />
         <Note kind="error">{error}</Note>
-        <SubmitButton pending={pending}>Sign in</SubmitButton>
+        <SubmitButton pending={pending}>Log in</SubmitButton>
       </form>
-      <p className="text-[11.5px] text-center">
+      <p className="text-[12.5px]">
         <AuthLink href="/forgot-password">Forgot your password?</AuthLink>
       </p>
     </AuthCard>

@@ -1,0 +1,264 @@
+@import "tailwindcss";
+
+/* Tailwind v4 has no built-in class-based dark variant. */
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Modo redesign — "H / Final".
+   Same architecture as before: raw values live in :root / .dark, @theme inline
+   only aliases them (see docs/design-guidelines.md § "How theming works").
+   Existing token NAMES are kept so current utilities (bg-surface-1,
+   text-text-secondary, bg-accent…) keep compiling. New tokens are marked NEW.
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces — warm paper. */
+  --surface-0: #f2efe8; /* app background, canvas viewport */
+  --surface-1: #faf8f3; /* topbar, rail, docked panels, status bar */
+  --surface-2: #fffdf8; /* popovers, modals */
+  --surface-3: #efebe2; /* inputs and controls inside a panel */
+  --surface-4: #e7e2d7; /* hover / pressed */
+  --surface-inverse: #161513; /* NEW — floating selection toolbar, toasts, active tool fill */
+  --text-inverse: #f2efe8;    /* NEW */
+
+  /* Rules. Hairlines everywhere; --border-strong is the ink rule used under
+     search fields, table headers and page titles. */
+  --border-subtle: rgb(22 21 19 / 0.08);
+  --border-default: rgb(22 21 19 / 0.13);
+  --border-strong: #161513;
+
+  --text-primary: #161513;
+  --text-secondary: #5e5a52;
+  --text-tertiary: #6f6a61; /* ≥4.5:1 on surface-0/1 */
+  --text-ghost: #8c877d;    /* placeholders only */
+
+  /* Accent — riso red. ONLY primary actions (Export, New design, Go Pro)
+     and the underline on active text tabs. Not selection, not focus. */
+  --accent: #ff4a1c;
+  --accent-hover: #e8390d;
+  --accent-fg: #161513;
+  --accent-tint: rgb(255 74 28 / 0.1);
+  --accent-tint-fg: #b8300a;
+
+  /* NEW — Selection / focus — cobalt. Bounding boxes, handles, selected
+     layer row, focused input ring, dimension badge. */
+  --selection: #2f4bff;
+  --selection-tint: rgb(47 75 255 / 0.12);
+
+  /* NEW — AI — butter. Exclusive to AI: BRIEF tag, brief card, quota pips. */
+  --ai: oklch(0.87 0.13 92);
+  --ai-fg: #161513;
+
+  /* State. */
+  --danger: #9e1f2e;
+  --danger-tint: rgb(158 31 46 / 0.08);
+  --danger-on-inverse: #ff8f8f; /* NEW — trash icon on the inverse toolbar */
+  --success: #3e7d4e;
+  --warning: #9a6200;
+
+  /* NEW — Tool identity. Same lightness/chroma, hue only. Used ONLY for the
+     34×34 icon tile of each tool in the left column. */
+  --tool-templates-bg: oklch(0.89 0.055 55);
+  --tool-uploads-bg: oklch(0.89 0.055 235);
+  --tool-text-bg: oklch(0.89 0.055 295);
+  --tool-shapes-bg: oklch(0.89 0.055 10);
+  --tool-assets-bg: oklch(0.89 0.055 160);
+  --tool-overlays-bg: oklch(0.89 0.055 195);
+  --tool-fg: #161513;
+
+  --sh-pop: 0 10px 26px rgb(0 0 0 / 0.25);
+  --sh-modal: 0 20px 60px rgb(0 0 0 / 0.2);
+  --sh-raise: none;
+  --sh-canvas: 0 18px 44px -8px rgb(60 40 10 / 0.22);
+
+  --canvas-dot: transparent; /* H has a plain canvas — no dots, no rulers */
+
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --surface-0: #121211;
+  --surface-1: #1a1a18;
+  --surface-2: #1f1f1d;
+  --surface-3: #242422;
+  --surface-4: #2c2c29;
+  --surface-inverse: #eeebe3;
+  --text-inverse: #121211;
+
+  --border-subtle: rgb(238 235 227 / 0.07);
+  --border-default: rgb(238 235 227 / 0.11);
+  --border-strong: #eeebe3;
+
+  --text-primary: #eeebe3;
+  --text-secondary: #a9a498;
+  --text-tertiary: #928d83;
+  --text-ghost: #6f6b63;
+
+  --accent: #ff5a2e;
+  --accent-hover: #ff7650;
+  --accent-fg: #121211;
+  --accent-tint: rgb(255 90 46 / 0.14);
+  --accent-tint-fg: #ff8a66;
+
+  --selection: #7b8cff;
+  --selection-tint: rgb(123 140 255 / 0.16);
+
+  --ai: oklch(0.82 0.13 92);
+  --ai-fg: #161513;
+
+  --danger: #f08080;
+  --danger-tint: rgb(240 128 128 / 0.1);
+  --danger-on-inverse: #a3192b;
+  --success: #7fbf8a;
+  --warning: #e8b04a;
+
+  /* Dark: tile goes neutral, colour moves to the icon. */
+  --tool-templates-bg: #242422;
+  --tool-uploads-bg: #242422;
+  --tool-text-bg: #242422;
+  --tool-shapes-bg: #242422;
+  --tool-assets-bg: #242422;
+  --tool-overlays-bg: #242422;
+  --tool-fg: currentColor;
+  --tool-templates-fg: oklch(0.8 0.1 55);
+  --tool-uploads-fg: oklch(0.8 0.1 235);
+  --tool-text-fg: oklch(0.8 0.1 295);
+  --tool-shapes-fg: oklch(0.8 0.1 10);
+  --tool-assets-fg: oklch(0.8 0.1 160);
+  --tool-overlays-fg: oklch(0.8 0.1 195);
+
+  --sh-pop: 0 12px 30px rgb(0 0 0 / 0.6);
+  --sh-modal: 0 24px 60px rgb(0 0 0 / 0.55);
+  --sh-raise: none;
+  --sh-canvas: 0 30px 60px -10px rgb(0 0 0 / 0.65);
+}
+
+/* Light: icon is ink on the pastel tile. */
+:root:not(.dark) {
+  --tool-templates-fg: #161513;
+  --tool-uploads-fg: #161513;
+  --tool-text-fg: #161513;
+  --tool-shapes-fg: #161513;
+  --tool-assets-fg: #161513;
+  --tool-overlays-fg: #161513;
+}
+
+@theme inline {
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
+  --color-surface-inverse: var(--surface-inverse);
+  --color-text-inverse: var(--text-inverse);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-ghost: var(--text-ghost);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-tint-fg: var(--accent-tint-fg);
+
+  --color-selection: var(--selection);
+  --color-selection-tint: var(--selection-tint);
+  --color-ai: var(--ai);
+  --color-ai-fg: var(--ai-fg);
+
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-danger-on-inverse: var(--danger-on-inverse);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --color-tool-templates: var(--tool-templates-bg);
+  --color-tool-uploads: var(--tool-uploads-bg);
+  --color-tool-text: var(--tool-text-bg);
+  --color-tool-shapes: var(--tool-shapes-bg);
+  --color-tool-assets: var(--tool-assets-bg);
+  --color-tool-overlays: var(--tool-overlays-bg);
+  --color-tool-templates-fg: var(--tool-templates-fg);
+  --color-tool-uploads-fg: var(--tool-uploads-fg);
+  --color-tool-text-fg: var(--tool-text-fg);
+  --color-tool-shapes-fg: var(--tool-shapes-fg);
+  --color-tool-assets-fg: var(--tool-assets-fg);
+  --color-tool-overlays-fg: var(--tool-overlays-fg);
+
+  /* Archivo (variable, wdth 62–125) for all chrome text; IBM Plex Mono for
+     every numeric readout, dimension, shortcut and section code. */
+  --font-body: var(--font-archivo), system-ui, sans-serif;
+  --font-display: var(--font-archivo), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  /* Square chrome. Existing rounded-sm/md/lg/xl become 0 on purpose.
+     Exceptions: rounded-float (selection toolbar, toasts, menus) and
+     rounded-full (avatar, colour swatches, status dot). */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-float: 4px;
+
+  --shadow-pop: var(--sh-pop);
+  --shadow-modal: var(--sh-modal);
+  --shadow-raise: var(--sh-raise);
+  --shadow-canvas: var(--sh-canvas);
+
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+}
+
+body {
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  overflow: hidden;
+}
+
+::selection {
+  background: var(--selection-tint);
+}
+
+/* Expanded display cut for titles / logo / primary buttons. */
+.font-expanded { font-stretch: 118%; }
+.font-wide { font-stretch: 125%; }
+
+.canvas-dots {
+  background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scale-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes canvas-appear { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+
+.animate-fade-in { animation: fade-in 0.4s var(--ease-standard) forwards; }
+.animate-scale-in { animation: scale-in 0.5s var(--ease-standard) forwards; }
+.animate-canvas-appear { animation: canvas-appear 0.7s var(--ease-standard) forwards; }
+.animate-toast-in { animation: toast-in 0.28s var(--ease-standard) forwards; }
+.skeleton {
+  background: var(--surface-3) linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.5) 50%, transparent 70%) 0 0 / 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+.dark .skeleton { background-image: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.06) 50%, transparent 70%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-scale-in, .animate-canvas-appear, .animate-toast-in, .skeleton { animation: none; }
+}

@@ -11,9 +11,9 @@ export interface SegmentedOption<T extends string> {
 }
 
 /**
- * Segmented control: a recessed track with the active item raised out of it.
- * Used by the topbar tool group, text alignment, export formats and the theme
- * picker.
+ * Segmented control: a row of square cells split by hairlines, the active cell
+ * filled with ink (surface-inverse). Used by text style/alignment, the theme
+ * picker, GRID | LIST and the export formats.
  */
 export default function Segmented<T extends string>({
   options,
@@ -32,7 +32,7 @@ export default function Segmented<T extends string>({
     <div
       role="group"
       className={cx(
-        "flex items-center bg-surface-4 rounded-md p-[3px] gap-[2px]",
+        "flex items-stretch border border-border-default overflow-hidden divide-x divide-border-default",
         className
       )}
     >
@@ -47,12 +47,12 @@ export default function Segmented<T extends string>({
             aria-label={opt.title}
             aria-pressed={active}
             className={cx(
-              "flex-1 flex items-center justify-center rounded-sm transition-colors duration-150 ease-standard",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-              size === "sm" ? "px-2 py-1 text-[11px]" : "px-2.5 py-1 text-[11.5px]",
+              "flex-1 flex items-center justify-center transition-colors duration-150 ease-standard",
+              "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection",
+              size === "sm" ? "h-[26px] px-2 text-[11.5px]" : "h-7 px-2.5 text-[12px]",
               active
-                ? "bg-surface-2 text-text-primary font-medium shadow-raise"
-                : "text-text-secondary hover:text-text-primary"
+                ? "bg-surface-inverse text-text-inverse font-semibold"
+                : "text-text-secondary hover:text-text-primary hover:bg-surface-3"
             )}
           >
             {opt.label}

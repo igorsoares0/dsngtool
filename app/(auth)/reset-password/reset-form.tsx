@@ -46,14 +46,14 @@ export default function ResetPasswordForm() {
 
   if (invalidLink || (!token && !done)) {
     return (
-      <AuthCard title="Link expired" footer={<AuthLink href="/forgot-password">Request a new link</AuthLink>}>
+      <AuthCard title="Link expired." footer={<AuthLink href="/forgot-password">Request a new link</AuthLink>}>
         <Note kind="error">This reset link is invalid or has expired.</Note>
       </AuthCard>
     );
   }
 
   return (
-    <AuthCard title="Set a new password" footer={<AuthLink href="/login">Back to sign in</AuthLink>}>
+    <AuthCard title="Set a new password." footer={<AuthLink href="/login">Back to sign in</AuthLink>}>
       {done ? (
         <Note kind="success">Password updated — taking you to sign in…</Note>
       ) : (

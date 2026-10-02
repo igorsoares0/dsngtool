@@ -3,13 +3,16 @@
 import { useState } from "react";
 import { signUp } from "../../lib/auth-client";
 import { POST_AUTH_PATH } from "../../lib/routes";
-import { AuthCard, AuthLink, Field, GoogleButton, Note, SubmitButton } from "../../components/auth/ui";
+import { AuthCard, AuthLink, Field, GoogleButton, LegalLine, Note, SubmitButton } from "../../components/auth/ui";
 
 export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Field-level: shown under the password once a too-short value is submitted,
+  // and cleared as soon as it is long enough.
+  const [pwTooShort, setPwTooShort] = useState(false);
   const [pending, setPending] = useState(false);
   // Email verification is required, so a successful sign-up produces no session
   // — there is nowhere to navigate to. The form hands off to the inbox instead.
@@ -18,7 +21,7 @@ export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) {
-      setError("Use at least 8 characters for your password.");
+      setPwTooShort(true);
       return;
     }
     setPending(true);
@@ -46,14 +49,14 @@ export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }
   if (sent) {
     return (
       <AuthCard
-        title="Confirm your email"
+        title="Check your inbox."
         footer={<>Wrong address? <AuthLink href="/signup">Start over</AuthLink></>}
       >
         <Note kind="success">
           We sent a confirmation link to {email}. Click it and you&apos;ll be signed in
           automatically.
         </Note>
-        <p className="text-[11.5px] text-text-secondary leading-relaxed">
+        <p className="text-[13px] text-text-secondary leading-relaxed">
           Nothing in your inbox? Check spam — or just{" "}
           <AuthLink href="/login">try signing in</AuthLink>, and we&apos;ll send a fresh link.
         </p>
@@ -62,11 +65,7 @@ export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }
   }
 
   return (
-    <AuthCard
-      title="Create your account"
-      subtitle="Keep your projects, license and AI credits with you on any device."
-      footer={<>Already have an account? <AuthLink href="/login">Sign in</AuthLink></>}
-    >
+    <AuthCard tabs="signup" title="Make your first post in a minute." footer={<LegalLine />}>
       {googleEnabled && <GoogleButton />}
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Field
@@ -94,7 +93,11 @@ export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }
           autoComplete="new-password"
           placeholder="At least 8 characters"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          error={pwTooShort ? "At least 8 characters" : null}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (e.target.value.length >= 8) setPwTooShort(false);
+          }}
         />
         <Note kind="error">{error}</Note>
         <SubmitButton pending={pending}>Create account</SubmitButton>

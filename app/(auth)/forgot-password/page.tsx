@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthCard
-      title="Reset your password"
+      title="Reset your password."
       subtitle={sent ? undefined : "Enter your email and we'll send you a reset link."}
       footer={<AuthLink href="/login">Back to sign in</AuthLink>}
     >

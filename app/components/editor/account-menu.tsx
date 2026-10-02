@@ -34,14 +34,14 @@ export default function AccountMenu() {
 
   // Avoid a flash of the signed-out state while the session is loading.
   if (isPending) {
-    return <div className="w-7 h-7 rounded-full bg-surface-2 animate-pulse" aria-hidden="true" />;
+    return <div className="w-7 h-7 rounded-full bg-surface-3 animate-pulse" aria-hidden="true" />;
   }
 
   if (!session) {
     return (
       <Link
         href="/login"
-        className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary bg-surface-2 border border-border-default hover:bg-surface-4 text-[11.5px] font-medium px-2.5 py-1.5 rounded-md transition-colors duration-150 ease-standard"
+        className="flex items-center text-text-primary border border-border-strong hover:bg-surface-3 text-[12px] font-semibold px-2.5 h-7 transition-colors duration-150 ease-standard"
       >
         Sign in
       </Link>
@@ -49,7 +49,7 @@ export default function AccountMenu() {
   }
 
   const user = session.user;
-  const initial = (user.name || user.email || "?").trim().charAt(0).toUpperCase();
+  const initials = initialsOf(user.name || user.email || "?");
 
   return (
     <div className="relative" ref={ref}>
@@ -58,43 +58,44 @@ export default function AccountMenu() {
         aria-label="Account menu"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="w-[27px] h-[27px] rounded-full bg-surface-4 text-text-secondary text-[11px] font-semibold flex items-center justify-center hover:bg-surface-3 transition-colors duration-150 ease-standard overflow-hidden shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="w-7 h-7 rounded-full bg-surface-3 text-text-primary shadow-[inset_0_0_0_1px_var(--border-default)] font-mono text-[11px] font-medium flex items-center justify-center hover:bg-surface-4 transition-colors duration-150 ease-standard overflow-hidden shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
       >
         {user.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={user.image} alt="" className="w-full h-full object-cover" />
         ) : (
-          initial
+          initials
         )}
       </button>
 
       {open && (
-        <div className="absolute top-full mt-2 right-0 bg-surface-2 border border-border-default rounded-lg min-w-[232px] shadow-pop animate-scale-in z-50 overflow-hidden">
-          <div className="px-3 py-2.5 border-b border-border-subtle">
-            <p className="text-[11.5px] font-medium text-text-primary truncate">
+        <div className="absolute top-full mt-2 right-0 bg-surface-2 border border-border-default rounded-float min-w-[256px] shadow-pop animate-scale-in z-50 overflow-hidden">
+          <div className="px-3.5 py-3 border-b border-border-default">
+            <p className="text-[14px] font-bold text-text-primary truncate">
               {user.name || "Your account"}
             </p>
-            <p className="text-[11px] text-text-ghost truncate">{user.email}</p>
+            <p className="font-mono text-[11px] text-text-tertiary truncate">{user.email}</p>
             {!user.emailVerified && (
-              <p className="text-[11px] text-warning mt-1">Email not verified</p>
+              <p className="font-mono text-[10.5px] uppercase text-warning mt-1">Email not verified</p>
             )}
           </div>
 
           {/* Storage lives here now — the redesigned topbar has no room for a
               persistent meter. */}
-          <div className="px-3 py-2.5 border-b border-border-subtle">
+          <div className="px-3.5 py-3 border-b border-border-default flex flex-col gap-2">
+            <span className="font-mono text-[10.5px] uppercase text-text-tertiary">Storage</span>
             <StorageMeter />
           </div>
 
-          <div className="px-3 py-2.5 border-b border-border-subtle flex items-center justify-between gap-2">
-            <span className="text-[11.5px] text-text-secondary">Theme</span>
+          <div className="px-3.5 py-3 border-b border-border-default flex flex-col gap-2">
+            <span className="font-mono text-[10.5px] uppercase text-text-tertiary">Theme</span>
             <ThemeSelect />
           </div>
 
           <Link
             href="/dashboard"
             onClick={() => setOpen(false)}
-            className="w-full text-left px-3 py-2 text-[11.5px] text-text-secondary hover:text-text-primary hover:bg-surface-4 transition-colors duration-150 ease-standard flex items-center gap-2"
+            className="w-full text-left px-3.5 py-2.5 text-[12.5px] text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors duration-150 ease-standard flex items-center gap-2"
           >
             <GridIcon />
             Dashboard
@@ -105,7 +106,7 @@ export default function AccountMenu() {
               await signOut();
               router.refresh();
             }}
-            className="w-full text-left px-3 py-2 text-[11.5px] text-text-secondary hover:text-text-primary hover:bg-surface-4 transition-colors duration-150 ease-standard flex items-center gap-2 border-t border-border-subtle"
+            className="w-full text-left px-3.5 py-2.5 text-[12.5px] text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors duration-150 ease-standard flex items-center gap-2 border-t border-border-default"
           >
             <LogoutIcon />
             Sign out
@@ -114,6 +115,14 @@ export default function AccountMenu() {
       )}
     </div>
   );
+}
+
+/** "Igor Soares" → "IS"; a single word or an email → its first two letters. */
+export function initialsOf(nameOrEmail: string): string {
+  const base = nameOrEmail.includes("@") ? nameOrEmail.split("@")[0] : nameOrEmail;
+  const words = base.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+  return (words[0] ?? "?").slice(0, 2).toUpperCase();
 }
 
 function GridIcon() {

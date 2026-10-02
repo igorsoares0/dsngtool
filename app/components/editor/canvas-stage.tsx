@@ -674,7 +674,8 @@ export default function CanvasStage({
   const { offsetX, offsetY } = geometry;
   // Page offsets inside the (already scaled) elements layer, in canvas units —
   // so elements keep page-local coordinates and drag handlers stay unchanged.
-  const pageOffsetY = (index: number) => index * (format.height + PAGE_GAP);
+  // PAGE_GAP is screen pixels, hence the division by scale.
+  const pageOffsetY = (index: number) => index * (format.height + PAGE_GAP / scale);
 
   useEffect(() => {
     const tr = transformerRef.current;
@@ -922,7 +923,8 @@ export default function CanvasStage({
       0,
       state.pages.findIndex((pg) => pg.id === state.activePageId)
     );
-    const pageOriginY = offsetY + activeIndex * (format.height + PAGE_GAP) * scale;
+    // Same arithmetic as stackGeometry().pageTop — PAGE_GAP is screen pixels.
+    const pageOriginY = offsetY + activeIndex * (format.height * scale + PAGE_GAP);
 
     const canvasMinX = (minX - offsetX) / scale;
     const canvasMaxX = (maxX - offsetX) / scale;
@@ -1233,7 +1235,7 @@ export default function CanvasStage({
               shadowColor={canvasColors.artboardShadow}
               shadowBlur={canvasColors.artboardShadowBlur}
               shadowOffsetY={canvasColors.artboardShadowOffsetY}
-              cornerRadius={2}
+              cornerRadius={0}
             />
           );
         })}
@@ -1373,8 +1375,8 @@ export default function CanvasStage({
                   });
                   return { ...result.box, rotation: newBox.rotation };
                 }}
-                anchorSize={7}
-                anchorCornerRadius={2}
+                anchorSize={8}
+                anchorCornerRadius={0}
                 anchorStrokeWidth={1.5}
                 borderStrokeWidth={1.5}
                 borderStroke={canvasColors.selection}

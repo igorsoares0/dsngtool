@@ -8,6 +8,7 @@ import { downloadProjectFile, FILE_EXTENSION } from "../../lib/project-io";
 import { stackGeometry } from "../../lib/canvas-layout";
 import Modal from "../ui/modal";
 import { cx } from "../ui/cx";
+import { btnPrimary, btnSecondary } from "../ui/buttons";
 import { DownloadIcon } from "./icons";
 
 type ExportKind = "png" | "jpeg" | "json";
@@ -85,6 +86,7 @@ export default function ExportModal({
     const bgLayer = stage.getLayers()[0];
     const indices = allPages && multiPage ? state.pages.map((_, i) => i) : [activeIndex];
     const baseName = projectName || "design";
+    let totalBytes = 0;
 
     for (const index of indices) {
       const page = state.pages[index];
@@ -106,6 +108,8 @@ export default function ExportModal({
       });
 
       bgRect?.show();
+      // base64 → bytes, for the toast's size readout.
+      totalBytes += Math.round(((dataUrl.length - dataUrl.indexOf(",") - 1) * 3) / 4);
 
       const link = document.createElement("a");
       link.download =
@@ -120,9 +124,12 @@ export default function ExportModal({
     }
 
     onClose();
-    toast.success(
-      indices.length > 1 ? `Exported ${indices.length} pages` : `Exported ${baseName}.${kind}`
-    );
+    const kb = totalBytes / 1024;
+    toast.show({
+      type: "success",
+      message: indices.length > 1 ? `Exported ${indices.length} pages` : `Exported ${baseName}.${kind}`,
+      sub: `${format.width} × ${format.height} · ${kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`}`,
+    });
   }, [
     stageRef,
     zoom,
@@ -161,29 +168,29 @@ export default function ExportModal({
       width="max-w-[412px]"
       footer={
         <>
-          <span className="text-[11.5px] text-text-tertiary font-mono tabular-nums">
+          <span className="font-mono text-[10.5px] uppercase text-text-tertiary tabular-nums">
             {estimate ? `~${estimate} estimated` : `.${FILE_EXTENSION} project file`}
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="text-[11.5px] font-medium text-text-secondary hover:text-text-primary bg-surface-2 border border-border-default hover:bg-surface-4 px-3 py-1.5 rounded-md transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className={cx(btnSecondary, "h-8 px-3 text-[12.5px]")}
             >
               Cancel
             </button>
             <button
               onClick={kind === "json" ? exportProjectFile : exportImage}
-              className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-accent-fg text-[11.5px] font-semibold px-3.5 py-1.5 rounded-md transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className={cx(btnPrimary, "h-8 px-4 text-[13px]")}
             >
-              <DownloadIcon className="w-3.5 h-3.5" />
               Download
+              <DownloadIcon className="w-3.5 h-3.5" />
             </button>
           </div>
         </>
       }
     >
       <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 border-l border-t border-border-default">
           {KINDS.map((k) => {
             const selected = kind === k.id;
             return (
@@ -192,22 +199,17 @@ export default function ExportModal({
                 onClick={() => setKind(k.id)}
                 aria-pressed={selected}
                 className={cx(
-                  "text-left px-3 py-[11px] rounded-[10px] border transition-colors duration-150 ease-standard",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  "text-left px-3 py-[11px] border-r border-b border-border-default transition-colors duration-150 ease-standard",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection",
                   selected
-                    ? "border-[1.5px] border-accent bg-accent-tint"
-                    : "border-border-default hover:bg-surface-4"
+                    ? "bg-selection-tint shadow-[inset_0_0_0_1.5px_var(--selection)]"
+                    : "hover:bg-surface-3"
                 )}
               >
-                <span
-                  className={cx(
-                    "block text-[13px] font-semibold",
-                    selected ? "text-accent-tint-fg" : "text-text-primary"
-                  )}
-                >
+                <span className="block text-[14px] font-extrabold font-expanded text-text-primary">
                   {k.label}
                 </span>
-                <span className="block text-[11px] text-text-tertiary mt-0.5">{k.hint}</span>
+                <span className="block font-mono text-[10.5px] uppercase text-text-tertiary mt-0.5">{k.hint}</span>
               </button>
             );
           })}
@@ -215,10 +217,10 @@ export default function ExportModal({
 
         {multiPage && kind !== "json" && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-text-ghost">
+            <span className="font-mono text-[10.5px] uppercase text-text-tertiary">
               Pages
             </span>
-            <div className="flex bg-surface-4 rounded-md p-[3px] gap-[2px]">
+            <div className="flex border border-border-default divide-x divide-border-default">
               {[
                 { id: false, label: `Current (page ${activeIndex + 1})` },
                 { id: true, label: `All ${pages.length}` },
@@ -228,11 +230,11 @@ export default function ExportModal({
                   onClick={() => setAllPages(opt.id)}
                   aria-pressed={allPages === opt.id}
                   className={cx(
-                    "flex-1 text-[11.5px] py-1 rounded-sm transition-colors duration-150 ease-standard",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                    "flex-1 text-[12px] h-7 transition-colors duration-150 ease-standard",
+                    "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection",
                     allPages === opt.id
-                      ? "bg-surface-1 text-text-primary font-medium shadow-sm"
-                      : "text-text-secondary hover:text-text-primary"
+                      ? "bg-surface-inverse text-text-inverse font-semibold"
+                      : "text-text-secondary hover:text-text-primary hover:bg-surface-3"
                   )}
                 >
                   {opt.label}
@@ -244,8 +246,8 @@ export default function ExportModal({
 
         {kind === "jpeg" && (
           <label className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-text-ghost">
-              Quality — <span className="font-mono tabular-nums">{quality}%</span>
+            <span className="font-mono text-[10.5px] uppercase text-text-tertiary">
+              Quality — <span className="tabular-nums text-text-primary">{quality}%</span>
             </span>
             <input
               type="range"
@@ -254,7 +256,8 @@ export default function ExportModal({
               step={5}
               value={quality}
               onChange={(e) => setQuality(Number(e.target.value))}
-              className="w-full accent-accent h-1"
+              className="modo-range w-full"
+              style={{ "--fill": `${((quality - 10) / 90) * 100}%` } as React.CSSProperties}
             />
           </label>
         )}
@@ -265,14 +268,14 @@ export default function ExportModal({
               type="checkbox"
               checked={transparentBg}
               onChange={(e) => setTransparentBg(e.target.checked)}
-              className="accent-accent w-3.5 h-3.5 rounded-sm"
+              className="w-3.5 h-3.5 accent-[var(--text-primary)]"
             />
-            <span className="text-[11.5px] text-text-secondary">Transparent background</span>
+            <span className="text-[12.5px] text-text-secondary">Transparent background</span>
           </label>
         )}
 
         {kind === "json" && (
-          <p className="text-[11.5px] text-text-tertiary leading-relaxed">
+          <p className="text-[12.5px] text-text-secondary leading-relaxed">
             Downloads the editable project — every page, with its layers, fonts and
             colours — so you can re-import it here later.
           </p>

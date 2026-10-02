@@ -7,24 +7,26 @@ export type IconButtonVariant = "ghost" | "accent" | "tint" | "danger" | "raised
 export type IconButtonSize = "sm" | "md" | "rail" | "toolbar";
 
 /** The state matrix from the design system, in one place:
- *  rest = text-secondary / no fill · hover = surface-4 + text-primary ·
- *  active = accent fill · focus = 2px accent ring, no glow ·
+ *  rest = text-secondary / no fill · hover = surface-3 + text-primary ·
+ *  active = ink fill (surface-inverse) — never the accent, which is reserved
+ *  for primary CTAs · focus = 2px selection ring, offset 2px ·
  *  disabled = opacity only, no colour change. */
 const VARIANTS: Record<IconButtonVariant, string> = {
-  ghost: "text-text-secondary hover:text-text-primary hover:bg-surface-4",
+  ghost: "text-text-secondary hover:text-text-primary hover:bg-surface-3",
   accent: "bg-accent text-accent-fg hover:bg-accent-hover",
-  tint: "bg-accent-tint text-accent-tint-fg hover:bg-accent/20",
+  /** AI only. */
+  tint: "bg-ai text-ai-fg hover:brightness-95",
   danger: "text-text-secondary hover:text-danger hover:bg-danger-tint",
-  /** Selected item inside a recessed group — lifted out rather than filled. */
-  raised: "bg-surface-2 text-text-primary shadow-raise",
+  /** Pressed / toggled-on state: an ink fill. */
+  raised: "bg-surface-inverse text-text-inverse",
 };
 
 const SIZES: Record<IconButtonSize, string> = {
-  sm: "w-[26px] h-[26px] rounded-md",
-  md: "w-7 h-7 rounded-md",
-  rail: "w-[38px] h-[38px] rounded-[10px]",
-  /** Inside the topbar's centre group. */
-  toolbar: "w-[28px] h-[26px] rounded-[7px]",
+  sm: "w-[26px] h-[26px]",
+  md: "w-7 h-7",
+  rail: "w-[38px] h-[38px]",
+  /** The topbar tool cell (select / hand / undo / redo). */
+  toolbar: "w-8 h-[30px]",
 };
 
 const TOOLTIP_SIDE = {
@@ -58,7 +60,7 @@ export default function IconButton({
   children: React.ReactNode;
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "children">) {
   const [hovered, setHovered] = useState(false);
-  const effective: IconButtonVariant = active && variant === "ghost" ? "accent" : variant;
+  const effective: IconButtonVariant = active && variant === "ghost" ? "raised" : variant;
 
   return (
     <div className="relative">
@@ -73,7 +75,7 @@ export default function IconButton({
         onBlur={() => setHovered(false)}
         className={cx(
           "flex items-center justify-center shrink-0 transition-colors duration-150 ease-standard",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection",
           "disabled:opacity-35 disabled:pointer-events-none",
           SIZES[size],
           VARIANTS[effective],
@@ -89,7 +91,7 @@ export default function IconButton({
           role="tooltip"
           className={cx(
             "absolute z-50 pointer-events-none whitespace-nowrap animate-fade-in",
-            "bg-text-primary text-surface-2 text-[11px] font-medium px-2 py-1 rounded-md shadow-pop",
+            "bg-surface-inverse text-text-inverse text-[11px] font-medium px-2 py-1 rounded-float shadow-pop",
             TOOLTIP_SIDE[tooltipSide]
           )}
         >

@@ -33,8 +33,8 @@ export default function IosInstallHint() {
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,380px)] animate-fade-in">
-      <div className="flex items-start gap-3 bg-surface-2 border border-border-default rounded-xl px-4 py-3 shadow-pop">
-        <div className="shrink-0 mt-0.5 text-accent">
+      <div className="flex items-start gap-3 bg-surface-inverse text-text-inverse rounded-float px-4 py-3 shadow-pop">
+        <div className="shrink-0 mt-0.5">
           {/* iOS share glyph */}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 16V4" />
@@ -42,15 +42,15 @@ export default function IosInstallHint() {
             <path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7" />
           </svg>
         </div>
-        <div className="flex-1 text-xs text-text-secondary leading-relaxed">
-          <span className="text-text-primary font-medium">Install Modo</span> — tap{" "}
-          <span className="text-accent">Share</span> then{" "}
-          <span className="text-accent">Add to Home Screen</span>.
+        <div className="flex-1 text-[12.5px] leading-relaxed">
+          <span className="font-bold">Install Modo</span> — tap{" "}
+          <strong className="font-bold">Share</strong> then{" "}
+          <strong className="font-bold">Add to Home Screen</strong>.
         </div>
         <button
           onClick={dismiss}
           aria-label="Dismiss install hint"
-          className="shrink-0 -mr-1 p-1 text-text-tertiary hover:text-text-secondary rounded-md hover:bg-surface-3 transition-colors"
+          className="shrink-0 -mr-1 p-1 opacity-60 hover:opacity-100 transition-opacity"
         >
           <CloseIcon className="w-3.5 h-3.5" />
         </button>

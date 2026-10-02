@@ -6,6 +6,9 @@ import { db } from "../lib/db";
 import { normalizePages } from "../lib/project-data";
 import { syncProjects, syncDirty, setPushRejectedHandler } from "../lib/project-sync";
 import { toast } from "../store/toast-store";
+import { FORMAT_SLUGS, type CanvasFormat } from "../types/editor";
+
+const FORMAT_PARAMS: Record<string, CanvasFormat | undefined> = FORMAT_SLUGS;
 
 /** Server-side rejection codes from PUT /api/projects/[id], in the user's terms. */
 const REJECTION_MESSAGES: Record<string, string> = {
@@ -86,6 +89,8 @@ export function useProjectLoader() {
       const params = new URLSearchParams(window.location.search);
       const wantNew = params.get("new");
       const wantProject = params.get("project");
+      // The dashboard's format cards pass ?format=post|story|pinterest.
+      const wantFormat = FORMAT_PARAMS[params.get("format") ?? ""];
 
       // Clean intent params so a refresh doesn't re-create/re-open.
       if (wantNew || wantProject) {
@@ -95,7 +100,7 @@ export function useProjectLoader() {
       try {
         if (wantNew) {
           // Coming from the dashboard's "New project" — start blank, sync in bg.
-          useEditorStore.getState().newProject();
+          useEditorStore.getState().newProject(wantFormat);
           setReady(true);
           syncProjects().catch(() => {});
           return;

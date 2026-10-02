@@ -2,6 +2,7 @@
 
 import { db, type Project } from "./db";
 import { normalizePages } from "./project-data";
+import { useProjectNumbers } from "./project-number";
 
 // Bidirectional last-write-wins sync between IndexedDB (local cache + offline
 // buffer) and the server (source of truth across devices). The client's
@@ -23,6 +24,7 @@ interface ServerProject {
     backgroundGradient?: Project["pages"][number]["backgroundGradient"];
     format?: Project["format"];
   };
+  createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
 }
@@ -162,6 +164,8 @@ export async function syncProjects(): Promise<void> {
     return;
   }
 
+  useProjectNumbers.getState().setFromServer(serverProjects);
+
   const serverMap = new Map(serverProjects.map((sp) => [sp.id, sp]));
 
   // Server -> local
@@ -173,7 +177,7 @@ export async function syncProjects(): Promise<void> {
       continue;
     }
     if (!local || new Date(sp.updatedAt) > new Date(local.updatedAt)) {
-      await db.projects.put(fromServer(sp, local?.createdAt ?? new Date()));
+      await db.projects.put(fromServer(sp, local?.createdAt ?? new Date(sp.createdAt)));
     }
   }
 

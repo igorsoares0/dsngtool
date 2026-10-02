@@ -58,7 +58,7 @@ export default function Modal({
       {/* Ink at low alpha rather than pure black — a hard black scrim reads
           bruised over the warm paper surfaces. */}
       <div
-        className="absolute inset-0 bg-[#1b1a18]/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#161513]/45"
         onClick={onClose}
       />
       <div
@@ -68,24 +68,24 @@ export default function Modal({
         aria-label={title}
         tabIndex={-1}
         className={cx(
-          "relative bg-surface-2 border border-border-default rounded-lg shadow-modal",
+          "relative bg-surface-2 border border-border-default shadow-modal",
           "w-full flex flex-col max-h-[85vh] outline-none animate-scale-in",
           width
         )}
       >
         <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
           <div className="min-w-0">
-            <h2 className="text-[15px] font-semibold text-text-primary truncate">
+            <h2 className="text-[19px] font-extrabold font-expanded tracking-[-0.01em] text-text-primary truncate">
               {title}
             </h2>
             {subtitle && (
-              <p className="text-[11.5px] text-text-tertiary mt-0.5 truncate">{subtitle}</p>
+              <p className="font-mono text-[10.5px] uppercase text-text-tertiary mt-1 truncate">{subtitle}</p>
             )}
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="shrink-0 -mt-1 -mr-1 p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="shrink-0 -mt-1 -mr-1 p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-selection"
           >
             <CloseIcon className="w-4 h-4" />
           </button>
@@ -94,7 +94,7 @@ export default function Modal({
         <div className={cx("px-5 overflow-y-auto", bodyClassName ?? "pb-5")}>{children}</div>
 
         {footer && (
-          <div className="border-t border-border-subtle px-5 py-3.5 flex items-center justify-between gap-3">
+          <div className="border-t border-border-default px-5 py-3.5 flex items-center justify-between gap-3">
             {footer}
           </div>
         )}

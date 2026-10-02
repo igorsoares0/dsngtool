@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;1,400&family=Bebas+Neue&family=Caveat:wght@500&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#d6d1c6;font-family:'Archivo',system-ui,sans-serif}a{color:#FF4A1C}a:hover{color:#161513}*{box-sizing:border-box}</style>
+</helmet>
+<div style="display:flex;flex-direction:column;gap:28px;padding:56px;width:max-content">
+<div style="display:flex;align-items:flex-start;gap:16px;color:#161513">
+  <span style="background:#161513;color:#F2EFE8;font:500 13px 'IBM Plex Mono',monospace;padding:4px 8px">H</span>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span style="font-size:28px;font-weight:800;font-stretch:118%;letter-spacing:-.01em">Telas externas</span>
+    <span style="font-size:13.5px;color:#5E5A52;max-width:980px">Landing, login/cadastro e conta, no mesmo sistema da <a href="Modo Redesign H - Final.dc.html">versão final</a>. Tweaks: tema das telas de login e conta.</span>
+  </div>
+</div>
+<div style="{{ vars }}">
+<div style="display:flex;gap:48px;align-items:flex-start">
+
+<div data-screen-label="Landing" style="width:1440px;flex-shrink:0;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden">
+  <header style="height:56px;display:flex;align-items:stretch;border-bottom:1px solid var(--line);background:var(--panel);white-space:nowrap">
+    <div style="display:flex;align-items:center;padding:0 28px;border-right:1px solid var(--line);font-weight:900;font-stretch:125%;font-size:19px;letter-spacing:-.02em">modo<span style="color:var(--acc)">.</span></div>
+    <div style="display:flex;align-items:center;padding:0 20px;font-size:14px;color:var(--ink2)">Templates</div>
+    <div style="display:flex;align-items:center;padding:0 20px;font-size:14px;color:var(--ink2)">AI briefs</div>
+    <div style="display:flex;align-items:center;padding:0 20px;font-size:14px;color:var(--ink2)">Pricing</div>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;padding:0 24px;border-left:1px solid var(--line);font-size:14px;font-weight:600">Log in</div>
+    <div style="display:flex;align-items:center;padding:0 28px;background:var(--acc);color:var(--accfg);font-size:14px;font-weight:800;font-stretch:112%;text-transform:uppercase;letter-spacing:.02em">Start free</div>
+  </header>
+  <section style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);border-bottom:1px solid var(--line)">
+    <div style="padding:72px 56px 56px;display:flex;flex-direction:column;gap:28px;border-right:1px solid var(--line)">
+      <span style="font:500 12px 'IBM Plex Mono',monospace;color:var(--ink3);letter-spacing:.06em">Nº 001 — A DESIGN TOOL FOR SOCIAL POSTS</span>
+      <h1 style="margin:0;font-size:104px;line-height:.86;font-weight:900;font-stretch:125%;letter-spacing:-.045em;text-wrap:balance">Posts that look made, not generated<span style="color:var(--acc)">.</span></h1>
+      <p style="margin:0;font-size:19px;line-height:1.45;color:var(--ink2);max-width:520px;text-wrap:pretty">Start from a template or a one-line brief. Adjust type, color and layout like a designer would. Export for Instagram and Pinterest.</p>
+      <div style="display:flex;align-items:stretch;height:56px;max-width:600px;border:1px solid var(--ink);background:var(--panel)">
+        <span style="display:flex;align-items:center;padding:0 16px;background:var(--butter);color:#161513;font-weight:900;font-stretch:125%;font-size:13px;letter-spacing:.06em">BRIEF</span>
+        <span style="flex:1;display:flex;align-items:center;padding:0 16px;font-size:15px;color:var(--ink3)">An opening-day post for my bakery, warm and simple</span>
+        <span style="display:flex;align-items:center;padding:0 20px;background:var(--ink);color:var(--panel);font-size:14px;font-weight:700">Try it →</span>
+      </div>
+      <span style="font:400 12px 'IBM Plex Mono',monospace;color:var(--ink3)">FREE · NO CARD · 5 AI BRIEFS A MONTH</span>
+    </div>
+    <div style="position:relative;min-height:640px;background:var(--bg);overflow:hidden">
+      <div style="position:absolute;left:64px;top:70px;width:340px;height:340px;background:#F1ECE2;color:#2B2B2B;box-shadow:0 30px 60px -12px rgba(60,40,10,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Playfair Display',serif;transform:rotate(-3deg)"><span style="font-size:58px;line-height:1">sonder</span><span style="font-size:13px;margin-top:12px;opacity:.7">/ˈsɒndər/ · noun</span></div>
+      <div style="position:absolute;left:330px;top:150px;width:200px;height:356px;background:#7C3AED;color:#fff;box-shadow:0 30px 60px -12px rgba(60,40,10,.35);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:54px;transform:rotate(4deg)">ASK ME</div>
+      <div style="position:absolute;left:150px;top:390px;width:220px;height:220px;background:#2D3A2D;color:#E8DFD0;box-shadow:0 30px 60px -12px rgba(60,40,10,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(2deg)"><span style="font-family:'Caveat',cursive;font-size:48px;line-height:1">botanica</span><span style="font-size:10px;letter-spacing:.24em;margin-top:4px">PLANT SHOP</span></div>
+      <div style="position:absolute;left:64px;top:46px;font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">FIG. 1 — MADE IN MODO</div>
+      <div style="position:absolute;left:376px;top:120px;display:flex;height:22px;background:var(--sel);color:#fff;font:500 10.5px 'IBM Plex Mono',monospace;white-space:nowrap"><span style="display:flex;align-items:center;padding:0 7px">STORY</span><span style="display:flex;align-items:center;padding:0 7px;border-left:1px solid rgba(255,255,255,.3)">1080 × 1920</span></div>
+    </div>
+  </section>
+  <section style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--line)">
+    <sc-for list="{{ steps }}" as="s" hint-placeholder-count="3">
+      <div style="padding:36px 40px 40px;display:flex;flex-direction:column;gap:14px;border-right:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:12px"><span style="width:40px;height:40px;background:{{ s.bg }};color:#161513;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{ s.d }}"></path></svg></span><span style="font:500 12px 'IBM Plex Mono',monospace;color:var(--acc)">{{ s.k }}</span></div>
+        <span style="font-size:30px;font-weight:800;font-stretch:115%;letter-spacing:-.015em;line-height:1">{{ s.t }}</span>
+        <span style="font-size:15px;line-height:1.5;color:var(--ink2);text-wrap:pretty">{{ s.p }}</span>
+      </div>
+    </sc-for>
+  </section>
+  <section style="padding:56px;display:grid;grid-template-columns:360px minmax(0,1fr);gap:48px;border-bottom:1px solid var(--line)">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <span style="font:500 12px 'IBM Plex Mono',monospace;color:var(--ink3);letter-spacing:.06em">PRICING</span>
+      <span style="font-size:56px;line-height:.9;font-weight:900;font-stretch:125%;letter-spacing:-.035em">Two plans. No seats.</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--ink)">
+      <div style="padding:28px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--ink)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:24px;font-weight:800;font-stretch:112%">Free</span><span style="font:500 13px 'IBM Plex Mono',monospace">$0</span></div>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--line)">
+          <sc-for list="{{ free }}" as="f" hint-placeholder-count="3"><div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px"><span style="color:var(--ink2)">{{ f.k }}</span><span style="font:500 13px 'IBM Plex Mono',monospace">{{ f.v }}</span></div></sc-for>
+        </div>
+        <span style="align-self:flex-start;white-space:nowrap;border:1px solid var(--ink);font-size:14px;font-weight:700;padding:10px 18px">Start free</span>
+      </div>
+      <div style="padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--panel)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:24px;font-weight:800;font-stretch:112%">Pro</span><span style="font:500 13px 'IBM Plex Mono',monospace">$10 / MO</span></div>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--line)">
+          <sc-for list="{{ pro }}" as="f" hint-placeholder-count="3"><div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px"><span style="color:var(--ink2)">{{ f.k }}</span><span style="font:500 13px 'IBM Plex Mono',monospace">{{ f.v }}</span></div></sc-for>
+        </div>
+        <span style="align-self:flex-start;white-space:nowrap;background:var(--acc);color:var(--accfg);font-size:14px;font-weight:800;font-stretch:112%;text-transform:uppercase;padding:11px 18px">Go Pro</span>
+      </div>
+    </div>
+  </section>
+  <footer style="display:flex;align-items:flex-end;justify-content:space-between;padding:40px 56px 32px;background:var(--panel)">
+    <span style="font-size:120px;line-height:.75;font-weight:900;font-stretch:125%;letter-spacing:-.05em">modo<span style="color:var(--acc)">.</span></span>
+    <div style="display:flex;gap:28px;font-size:13.5px;color:var(--ink2)"><span>Templates</span><span>Pricing</span><span>Privacy</span><span>Terms</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:var(--ink3)">© 2026</span></div>
+  </footer>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:48px">
+<div style="{{ appVars }}">
+<div data-screen-label="Login / Cadastro" style="width:1440px;height:900px;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) 560px;background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden">
+  <div style="position:relative;border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:space-between;padding:40px 48px">
+    <span style="font-weight:900;font-stretch:125%;font-size:22px;letter-spacing:-.02em">modo<span style="color:var(--acc)">.</span></span>
+    <div style="position:relative;height:520px">
+      <div style="position:absolute;left:40px;top:20px;width:320px;height:320px;background:#F1ECE2;color:#2B2B2B;box-shadow:0 30px 60px -12px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Playfair Display',serif;transform:rotate(-3deg)"><span style="font-size:54px">sonder</span><span style="font-size:12px;opacity:.7;margin-top:8px">/ˈsɒndər/ · noun</span></div>
+      <div style="position:absolute;left:300px;top:110px;width:190px;height:338px;background:#0F0F0F;color:#FFD600;box-shadow:0 30px 60px -12px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:58px;line-height:.9;text-align:center;transform:rotate(4deg)">BIG<br>SALE</div>
+    </div>
+    <span style="font:400 11px 'IBM Plex Mono',monospace;color:var(--ink3)">FIG. 2 — TWO OF 53 STARTING POINTS</span>
+  </div>
+  <div style="background:var(--panel);display:flex;flex-direction:column;justify-content:center;padding:0 72px;gap:26px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line);font-size:14px">
+      <span style="padding:12px 0;font-weight:700;box-shadow:inset 0 -2px 0 var(--ink)">Create account</span>
+      <span style="padding:12px 0;color:var(--ink3)">Log in</span>
+    </div>
+    <span style="font-size:44px;line-height:.92;font-weight:900;font-stretch:122%;letter-spacing:-.03em">Make your first post in a minute.</span>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="height:46px;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--line);font-size:14px;font-weight:600"><span style="width:16px;height:16px;border-radius:99px;box-shadow:inset 0 0 0 2px var(--ink)"></span>Continue with Google</div>
+      <div style="display:flex;align-items:center;gap:12px;font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)"><span style="flex:1;height:1px;background:var(--line)"></span>OR WITH EMAIL<span style="flex:1;height:1px;background:var(--line)"></span></div>
+      <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink2)">NAME</span><div style="height:44px;display:flex;align-items:center;padding:0 12px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--line);font-size:14px">Igor Soares</div></div>
+      <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink2)">EMAIL</span><div style="height:44px;display:flex;align-items:center;padding:0 12px;background:var(--panel);box-shadow:inset 0 0 0 1.5px var(--sel);font-size:14px">igor@<span style="display:inline-block;width:1px;height:16px;background:var(--ink);margin-left:1px"></span></div></div>
+      <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink2)">PASSWORD</span><div style="height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--err);font-size:14px"><span style="letter-spacing:.2em">•••••</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:var(--ink3)">SHOW</span></div><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--err)">AT LEAST 8 CHARACTERS</span></div>
+    </div>
+    <div style="height:48px;display:flex;align-items:center;justify-content:center;background:var(--acc);color:var(--accfg);font-size:14px;font-weight:800;font-stretch:112%;text-transform:uppercase;letter-spacing:.02em">Create account</div>
+    <span style="font-size:12.5px;color:var(--ink3);line-height:1.5">By continuing you agree to the <span style="color:var(--ink);text-decoration:underline">Terms</span> and <span style="color:var(--ink);text-decoration:underline">Privacy Policy</span>.</span>
+  </div>
+</div>
+</div>
+
+<div style="{{ appVars }}">
+<div data-screen-label="Account" style="width:1440px;height:900px;flex-shrink:0;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;white-space:nowrap">
+  <header style="height:48px;flex-shrink:0;display:flex;align-items:stretch;border-bottom:1px solid var(--line);background:var(--panel)">
+    <div style="display:flex;align-items:center;padding:0 22px;border-right:1px solid var(--line);font-weight:900;font-stretch:125%;font-size:17px;letter-spacing:-.02em">modo<span style="color:var(--acc)">.</span></div>
+    <div style="display:flex;align-items:center;padding:0 20px;font-size:13px;color:var(--ink2)">Projects</div>
+    <div style="display:flex;align-items:center;padding:0 20px;font-size:13px;font-weight:700;box-shadow:inset 0 -2px 0 var(--ink)">Account</div>
+    <div style="flex:1"></div>
+    <div style="width:48px;display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line)"><span style="width:28px;height:28px;border-radius:99px;background:var(--soft);box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;justify-content:center;font:500 11px 'IBM Plex Mono',monospace">IS</span></div>
+  </header>
+  <div style="flex:1;display:grid;grid-template-columns:240px minmax(0,1fr);overflow:hidden">
+    <nav style="border-right:1px solid var(--line);padding:34px 0;display:flex;flex-direction:column">
+      <sc-for list="{{ accNav }}" as="n" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:12px;height:40px;padding:0 24px;font-size:13.5px;font-weight:{{ n.fw }};color:{{ n.fg }};box-shadow:{{ n.sh }}"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">{{ n.k }}</span>{{ n.t }}</div></sc-for>
+    </nav>
+    <main style="padding:34px 48px;display:flex;flex-direction:column;gap:30px;overflow:hidden">
+      <span style="font-size:72px;line-height:.82;font-weight:900;font-stretch:125%;letter-spacing:-.04em">Account</span>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;border-top:1px solid var(--ink);padding-top:24px">
+        <div style="display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:8px;padding-bottom:12px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">A</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">PROFILE</span></div>
+          <sc-for list="{{ profile }}" as="p" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:120px minmax(0,1fr) auto;align-items:center;height:52px;border-top:1px solid var(--line)"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">{{ p.k }}</span><span style="font-size:14.5px">{{ p.v }}</span><span style="font-size:13px;font-weight:600;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px">{{ p.a }}</span></div></sc-for>
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr) auto;align-items:center;height:52px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">THEME</span><div style="display:flex;height:30px;border:1px solid var(--line);font-size:12.5px;width:max-content"><span style="display:flex;align-items:center;padding:0 12px;background:var(--ink);color:var(--panel);font-weight:600">Light</span><span style="display:flex;align-items:center;padding:0 12px;border-left:1px solid var(--line);color:var(--ink2)">Dark</span><span style="display:flex;align-items:center;padding:0 12px;border-left:1px solid var(--line);color:var(--ink2)">System</span></div><span></span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">B</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">PLAN &amp; USAGE</span></div>
+          <div style="border:1px solid var(--ink);background:var(--panel);display:flex;flex-direction:column">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:18px 20px;border-bottom:1px solid var(--line)"><span style="font-size:28px;font-weight:900;font-stretch:120%">Free</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:var(--ink3)">RESETS NOV 1</span></div>
+            <div style="padding:16px 20px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">STORAGE</span><span style="font:500 11px 'IBM Plex Mono',monospace">184 / 250 MB</span></div><div style="display:flex;gap:2px"><sc-for list="{{ vu }}" as="v" hint-placeholder-count="20"><span style="flex:1;height:12px;background:{{ v }}"></span></sc-for></div></div>
+            <div style="padding:16px 20px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">AI BRIEFS</span><span style="font:500 11px 'IBM Plex Mono',monospace">1 / 5</span></div><div style="display:flex;gap:2px"><sc-for list="{{ ai }}" as="v" hint-placeholder-count="5"><span style="flex:1;height:12px;background:{{ v }}"></span></sc-for></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;white-space:normal;gap:16px"><span style="font-size:13px;color:var(--ink2);line-height:1.45">Pro: more storage and AI briefs, no watermark on exports.</span><span style="flex-shrink:0;background:var(--acc);color:var(--accfg);font-size:13px;font-weight:800;font-stretch:112%;text-transform:uppercase;padding:10px 16px;white-space:nowrap">Go Pro · $10</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border:1px solid var(--line);white-space:normal;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:700;color:var(--err)">Delete account</span><span style="font-size:13px;color:var(--ink2)">Removes all 9 projects and uploads. This can’t be undone.</span></div>
+        <span style="flex-shrink:0;border:1px solid var(--err);color:var(--err);font-size:13px;font-weight:700;padding:8px 14px;white-space:nowrap">Delete…</span>
+      </div>
+    </main>
+  </div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;tema&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;claro&quot;,&quot;escuro&quot;],&quot;default&quot;:&quot;claro&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const light = { '--bg':'#F2EFE8','--panel':'#FAF8F3','--soft':'#EFEBE2','--line':'rgba(22,21,19,.13)','--ink':'#161513','--ink2':'#5E5A52','--ink3':'#6F6A61','--acc':'#FF4A1C','--accfg':'#161513','--sel':'#2F4BFF','--err':'#9E1F2E','--butter':'oklch(0.87 0.13 92)' };
+    const dark = { '--bg':'#121211','--panel':'#1A1A18','--soft':'#242422','--line':'rgba(238,235,227,.11)','--ink':'#EEEBE3','--ink2':'#A9A498','--ink3':'#928D83','--acc':'#FF5A2E','--accfg':'#121211','--sel':'#7B8CFF','--err':'#F08080','--butter':'oklch(0.82 0.13 92)' };
+    const appVars = (this.props.tema ?? "claro") === "escuro" ? dark : light;
+    return {
+      vars: light, appVars,
+      steps: [
+        { k:"01", t:"Pick a format", p:"Instagram post, story or Pinterest pin. Start from one of 53 templates or a blank page.", bg:"oklch(0.89 0.055 55)", d:"M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" },
+        { k:"02", t:"Brief or edit", p:"Describe the post and AI drafts it, or adjust every layer yourself: type, color, overlays.", bg:"oklch(0.87 0.13 92)", d:"M4 7V4h16v3M9 20h6M12 4v16" },
+        { k:"03", t:"Export", p:"PNG or JPG at the exact size each platform expects. Your projects stay saved for later.", bg:"oklch(0.89 0.055 235)", d:"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" }
+      ],
+      free: [{k:"Storage",v:"250 MB"},{k:"AI briefs",v:"5 / MO"},{k:"Templates",v:"ALL 53"}],
+      pro: [{k:"Storage",v:"1 GB"},{k:"AI briefs",v:"100 / MO"},{k:"Templates",v:"ALL 53"}],
+      accNav: [{k:"A",t:"Profile",on:true},{k:"B",t:"Plan & usage"},{k:"C",t:"Billing"},{k:"D",t:"Danger zone"}].map(n => ({ ...n, fw: n.on ? 700 : 500, fg: n.on ? "var(--ink)" : "var(--ink2)", sh: n.on ? "inset 3px 0 0 var(--ink)" : "none" })),
+      profile: [{k:"NAME",v:"Igor Soares",a:"Edit"},{k:"EMAIL",v:"igor@example.com",a:"Change"},{k:"PASSWORD",v:"••••••••",a:"Reset"}],
+      vu: Array.from({length:20},(_,i) => i < 15 ? "var(--ink)" : "var(--line)"),
+      ai: [1,0,0,0,0].map(v => v ? "var(--ink3)" : "var(--butter)")
+    };
+  }
+}
+</script>
+</body>
+</html>

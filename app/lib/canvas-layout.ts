@@ -11,11 +11,12 @@ import { PAGE_GAP } from "../types/editor";
  */
 
 /** Screen-space margin above the stack once it is taller than the viewport. */
-export const STACK_TOP_MARGIN = 40;
+export const STACK_TOP_MARGIN = 72;
 
-/** Total height of the stack in canvas units, gaps included. */
-export function documentHeight(pageCount: number, format: CanvasFormat): number {
-  return pageCount * format.height + Math.max(0, pageCount - 1) * PAGE_GAP;
+/** Total on-screen height of the stack at `scale`, gaps included. The gaps are
+ *  screen pixels (PAGE_GAP) and do not scale with the pages. */
+export function documentHeight(pageCount: number, format: CanvasFormat, scale: number): number {
+  return pageCount * format.height * scale + Math.max(0, pageCount - 1) * PAGE_GAP;
 }
 
 export interface StackGeometry {
@@ -43,13 +44,13 @@ export function stackGeometry(opts: {
   // Centre the stack while it fits, then pin it to the top and let panning do
   // the rest. Centring a stack taller than the viewport would open the project
   // showing its middle instead of page one.
-  const docH = documentHeight(pageCount, format) * scale;
+  const docH = documentHeight(pageCount, format, scale);
   const centred = (containerHeight - docH) / 2;
   const offsetY = Math.max(STACK_TOP_MARGIN, centred) + panY;
 
   return {
     offsetX,
     offsetY,
-    pageTop: (index: number) => offsetY + index * (format.height + PAGE_GAP) * scale,
+    pageTop: (index: number) => offsetY + index * (format.height * scale + PAGE_GAP),
   };
 }

@@ -1,105 +1,16 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authClient, signOut } from "../lib/auth-client";
-import { wipeLocalAccountData } from "../lib/project-sync";
-import { openSubscriptionCheckout } from "../lib/paddle-checkout";
 import { toast } from "../store/toast-store";
+import { useEntitlementStore } from "../store/entitlement-store";
+import { numberProjects } from "../lib/project-number";
 import Toaster from "../components/editor/toaster";
-import ThemeSelect from "../components/ui/theme-select";
-import { cx } from "../components/ui/cx";
-import DesignThumbnail from "../components/design-thumbnail";
-import { normalizePages } from "../lib/project-data";
-import { POST_AUTH_PATH } from "../lib/routes";
-import {
-  TemplatesIcon,
-  SearchIcon,
-  MoreIcon,
-  PlusIcon,
-  SunIcon,
-} from "../components/editor/icons";
-
-interface StorageStatus {
-  used: number;
-  limit: number;
-  remaining: number;
-}
-interface AuthMethods {
-  /** A `credential` account with a password exists on this user. */
-  hasPassword: boolean;
-  /** Linked social providers, e.g. ["google"]. Never includes "credential". */
-  providers: string[];
-}
-interface Me {
-  user: { id: string; email: string; name: string };
-  pro: boolean;
-  storage: StorageStatus;
-  auth: AuthMethods;
-}
-interface ProjectRow {
-  id: string;
-  name: string;
-  // The whole stored document — /api/projects has always returned `data` in
-  // full, which is what lets the cards draw a real preview without a second
-  // request or a stored image.
-  data: {
-    format?: { name?: string; label?: string; width?: number; height?: number };
-    pages?: unknown;
-    elements?: unknown;
-    backgroundColor?: string;
-    backgroundGradient?: unknown;
-  };
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-type Nav = "projects" | "account";
-
-/** Set on the URL when we send someone off to re-authenticate mid-deletion, so
- *  the trip back reopens the confirmation instead of the default tab. */
-const RESUME_DELETE_PARAM = "delete-account";
-
-function formatBytes(bytes: number): string {
-  const mb = bytes / (1024 * 1024);
-  if (mb >= 1024) return `${(mb / 1024).toFixed(2)} GB`;
-  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
-}
-
-function relativeDate(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.round(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
-}
-
-/** A project's format, as a chip label. Derived from the stored document — the
- *  dashboard adds no data of its own. */
-function formatLabel(p: ProjectRow): string {
-  const f = p.data.format;
-  if (!f) return "Other";
-  if (f.label) return f.label;
-  if (f.name) return f.name;
-  if (f.width && f.height) return `${f.width}×${f.height}`;
-  return "Other";
-}
-
-/** The document's canvas size, or null when the record predates it. */
-function thumbnailFormat(p: ProjectRow) {
-  const f = p.data.format;
-  if (!f?.width || !f?.height) return null;
-  return { label: f.label ?? "Custom", width: f.width, height: f.height };
-}
-
-function pageCount(p: ProjectRow): number {
-  return normalizePages(p.data).length;
-}
+import UpgradeModal from "../components/editor/upgrade-modal";
+import DashboardTopbar from "../components/dashboard/dashboard-topbar";
+import ProjectsView from "../components/dashboard/projects-view";
+import AccountView, { RESUME_DELETE_PARAM } from "../components/dashboard/account-view";
+import type { Me, Nav, ProjectRow } from "../components/dashboard/types";
 
 export default function DashboardPage({
   searchParams,
@@ -114,28 +25,35 @@ export default function DashboardPage({
   const resumeDelete = use(searchParams)[RESUME_DELETE_PARAM] !== undefined;
   const [me, setMe] = useState<Me | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [numbers, setNumbers] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [subscribing, setSubscribing] = useState(false);
   const [nav, setNav] = useState<Nav>(resumeDelete ? "account" : "projects");
-  const [query, setQuery] = useState("");
-  const [formatFilter, setFormatFilter] = useState("All");
-  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [meRes, projRes] = await Promise.all([
-        fetch("/api/me"),
-        fetch("/api/projects"),
-      ]);
+      const [meRes, projRes] = await Promise.all([fetch("/api/me"), fetch("/api/projects")]);
       if (meRes.status === 401) {
         router.push("/login?redirect=/dashboard");
         return;
       }
       const meData = (await meRes.json()) as Me;
       const projData = (await projRes.json()) as { projects: ProjectRow[] };
+      const rows = projData.projects ?? [];
       setMe(meData);
+      // The topbar meter, the upgrade modal and the account menu all read the
+      // shared entitlement store — seed it from the same response rather than
+      // fetching /api/me twice.
+      useEntitlementStore.setState({
+        pro: meData.pro,
+        storage: meData.storage,
+        ai: meData.ai ?? null,
+        hydrated: true,
+      });
+      // Numbered over every row, tombstones included, so deleting a project
+      // never renumbers the rest.
+      setNumbers(numberProjects(rows));
       setProjects(
-        (projData.projects ?? [])
+        rows
           .filter((p) => !p.deletedAt)
           .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
       );
@@ -150,622 +68,35 @@ export default function DashboardPage({
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!menuFor) return;
-    const close = () => setMenuFor(null);
-    window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
-  }, [menuFor]);
-
   const del = async (id: string) => {
+    const name = projects.find((p) => p.id === id)?.name;
     setProjects((prev) => prev.filter((p) => p.id !== id));
     try {
       await fetch(`/api/projects/${id}`, { method: "DELETE" });
-      toast.success("Project deleted");
+      toast.show({ type: "info", message: "Project deleted", sub: name ? `“${name}”` : undefined });
     } catch {
       toast.error("Couldn't delete project");
       load();
     }
   };
 
-  const subscribe = async () => {
-    if (!me) return;
-    setSubscribing(true);
-    try {
-      await openSubscriptionCheckout({ userId: me.user.id, email: me.user.email });
-      toast.info("Finishing up your subscription…");
-      for (let i = 0; i < 15; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const res = await fetch("/api/me");
-        const data = (await res.json()) as Me;
-        if (data.pro) {
-          setMe(data);
-          toast.success("You're on Pro — 1GB unlocked 🎉");
-          break;
-        }
-      }
-    } catch (e) {
-      const msg = (e as Error)?.message;
-      if (msg && msg !== "closed") toast.error("Checkout couldn't start. Try again.");
-    } finally {
-      setSubscribing(false);
-    }
-  };
-
-  const initial = (me?.user.name || me?.user.email || "?").trim().charAt(0).toUpperCase();
-  const pct = me ? Math.min(100, Math.round((me.storage.used / me.storage.limit) * 100)) : 0;
-  const barColor = pct >= 80 ? "bg-danger" : "bg-accent";
-
-  const formats = useMemo(
-    () => ["All", ...Array.from(new Set(projects.map(formatLabel)))],
-    [projects]
-  );
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return projects.filter(
-      (p) =>
-        (formatFilter === "All" || formatLabel(p) === formatFilter) &&
-        (q === "" || p.name.toLowerCase().includes(q))
-    );
-  }, [projects, query, formatFilter]);
-
   // `body { overflow: hidden }` is global for the editor's sake, so this page
   // has to own its own scroll container.
   return (
-    <div className="h-full flex overflow-hidden bg-surface-0 text-text-primary">
-      {/* ---------- Side nav ---------- */}
-      <nav className="hidden md:flex w-[212px] shrink-0 bg-surface-1 border-r border-border-subtle flex-col justify-between p-3">
-        <div className="flex flex-col gap-1">
-          <Link href="/" className="flex items-center gap-2.5 px-2 py-2 mb-2">
-            <span className="w-[26px] h-[26px] rounded-md bg-accent text-accent-fg text-[12px] font-semibold flex items-center justify-center">
-              M
-            </span>
-            <span className="text-[15px] font-semibold">Modo</span>
-          </Link>
-
-          <NavItem
-            active={nav === "projects"}
-            onClick={() => setNav("projects")}
-            icon={<TemplatesIcon className="w-4 h-4" />}
-          >
-            Projects
-          </NavItem>
-          <NavItem
-            active={nav === "account"}
-            onClick={() => setNav("account")}
-            icon={<SunIcon className="w-4 h-4" />}
-          >
-            Account
-          </NavItem>
-        </div>
-
-        {me && (
-          <div className="bg-accent-tint rounded-lg p-3 flex flex-col gap-2">
-            <span className="text-[12.5px] font-semibold text-accent-tint-fg">
-              {me.pro ? "Pro plan" : "Free plan"}
-            </span>
-            <span className="text-[11.5px] text-accent-tint-fg/80 leading-relaxed">
-              {me.pro
-                ? "1 GB of storage and every premium template."
-                : `${formatBytes(me.storage.remaining)} of storage left.`}
-            </span>
-            {!me.pro && (
-              <button
-                onClick={subscribe}
-                disabled={subscribing}
-                className="bg-accent hover:bg-accent-hover disabled:opacity-60 text-accent-fg text-[11.5px] font-semibold py-2 rounded-md transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                {subscribing ? "Opening checkout…" : "See Pro"}
-              </button>
-            )}
-          </div>
-        )}
-      </nav>
-
-      {/* ---------- Content ---------- */}
-      <main className="flex-1 min-w-0 overflow-y-auto p-5 sm:px-[22px] flex flex-col gap-4">
-        <header className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="min-w-0">
-            <h1 className="text-[20px] font-semibold leading-tight">
-              {nav === "projects" ? "Your projects" : "Account"}
-            </h1>
-            <p className="text-[11.5px] text-text-tertiary mt-0.5">
-              {nav === "projects"
-                ? `${projects.length} design${projects.length !== 1 ? "s" : ""}`
-                : me?.user.email}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {nav === "projects" && (
-              <>
-                <div className="relative hidden sm:block">
-                  <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-ghost pointer-events-none" />
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search"
-                    aria-label="Search projects"
-                    className="w-[200px] bg-surface-2 border border-border-default rounded-md pl-8 pr-2.5 py-[7px] text-[11.5px] placeholder:text-text-ghost outline-none focus:border-accent transition-colors duration-150 ease-standard"
-                  />
-                </div>
-                <Link
-                  href="/?new=1"
-                  className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-accent-fg text-[11.5px] font-semibold px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
-                >
-                  <PlusIcon className="w-3.5 h-3.5" />
-                  New design
-                </Link>
-              </>
-            )}
-            <span className="w-[27px] h-[27px] rounded-full bg-surface-4 text-text-secondary text-[11px] font-semibold flex items-center justify-center shrink-0">
-              {initial}
-            </span>
-          </div>
-        </header>
-
+    <div className="h-full flex flex-col overflow-hidden bg-surface-0 text-text-primary">
+      <DashboardTopbar nav={nav} onNav={setNav} />
+      <main className="flex-1 min-h-0 overflow-y-auto flex flex-col">
         {nav === "account" ? (
-          <AccountPanel
-            me={me}
-            resumeDelete={resumeDelete}
-            onSignOut={async () => { await signOut(); router.push("/"); }}
-          />
+          <AccountView me={me} projectCount={projects.length} resumeDelete={resumeDelete} />
         ) : (
-          <>
-            {/* Metric cards. Only two: AI-generation and device counts have no
-                source on /api/me, and inventing them would be a lie. */}
-            <div className="grid gap-3 sm:grid-cols-2 max-w-[720px]">
-              <MetricCard label="Storage">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-[17px] font-mono tabular-nums text-text-primary">
-                    {me ? formatBytes(me.storage.used) : "—"}
-                  </span>
-                  <span className="text-[11.5px] text-text-tertiary">
-                    of {me ? formatBytes(me.storage.limit) : "—"}
-                  </span>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-surface-4 overflow-hidden mt-2.5">
-                  <div className={cx("h-full transition-all", barColor)} style={{ width: `${pct}%` }} />
-                </div>
-              </MetricCard>
-
-              <MetricCard label="Plan">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[17px] font-semibold text-text-primary">
-                    {me?.pro ? "Pro" : "Free"}
-                  </span>
-                  {!me?.pro && (
-                    <button
-                      onClick={subscribe}
-                      disabled={subscribing}
-                      className="bg-accent hover:bg-accent-hover disabled:opacity-60 text-accent-fg text-[11.5px] font-semibold px-3 py-1.5 rounded-md transition-colors duration-150 ease-standard"
-                    >
-                      {subscribing ? "Opening…" : "Upgrade — $10/mo"}
-                    </button>
-                  )}
-                </div>
-                <p className="text-[11.5px] text-text-tertiary mt-2">
-                  {me?.pro
-                    ? "Manage or cancel from your Paddle receipt email."
-                    : "250 MB storage · 5 AI generations a month."}
-                </p>
-              </MetricCard>
-            </div>
-
-            {/* Filters */}
-            {projects.length > 0 && (
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex flex-wrap gap-1.5">
-                  {formats.map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setFormatFilter(f)}
-                      aria-pressed={formatFilter === f}
-                      className={cx(
-                        "text-[11.5px] px-2.5 py-1 rounded-full transition-colors duration-150 ease-standard",
-                        formatFilter === f
-                          ? "bg-text-primary text-surface-2 font-medium"
-                          : "bg-surface-4 text-text-secondary hover:text-text-primary"
-                      )}
-                    >
-                      {f}
-                    </button>
-                  ))}
-                </div>
-                <span className="text-[11.5px] text-text-tertiary">Sorted by recent</span>
-              </div>
-            )}
-
-            {/* Grid */}
-            {loading ? (
-              <p className="text-[11.5px] text-text-ghost py-12 text-center">Loading…</p>
-            ) : (
-              <div className="grid gap-[14px] grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-                {visible.map((p) => (
-                  <div key={p.id} className="group relative flex flex-col gap-2">
-                    <Link
-                      href={`/?project=${p.id}`}
-                      aria-label={`Open ${p.name}`}
-                      className="relative block aspect-square rounded-lg bg-surface-2 border border-border-subtle shadow-raise overflow-hidden transition-all group-hover:outline-2 group-hover:outline-accent group-hover:outline-offset-2 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
-                    >
-                      {thumbnailFormat(p) ? (
-                        <DesignThumbnail
-                          pages={normalizePages(p.data)}
-                          format={thumbnailFormat(p)!}
-                          className="w-full h-full"
-                        />
-                      ) : (
-                        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-mono tabular-nums text-text-ghost">
-                          {p.data.format?.width ?? "?"} × {p.data.format?.height ?? "?"}
-                        </span>
-                      )}
-                      {pageCount(p) > 1 && (
-                        <span className="absolute bottom-1.5 right-1.5 text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded-full bg-surface-1/90 text-text-secondary border border-border-subtle">
-                          {pageCount(p)} pages
-                        </span>
-                      )}
-                    </Link>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMenuFor(menuFor === p.id ? null : p.id);
-                      }}
-                      aria-label={`Options for ${p.name}`}
-                      className="absolute top-1.5 right-1.5 w-[22px] h-[22px] rounded-[7px] bg-surface-2 border border-border-default text-text-secondary hover:text-text-primary flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shadow-raise transition-opacity"
-                    >
-                      <MoreIcon className="w-3.5 h-3.5" />
-                    </button>
-
-                    {menuFor === p.id && (
-                      <div className="absolute top-8 right-1.5 z-20 bg-surface-2 border border-border-default rounded-md shadow-pop py-1 min-w-[120px] animate-scale-in">
-                        <Link
-                          href={`/?project=${p.id}`}
-                          className="block px-3 py-1.5 text-[11.5px] text-text-secondary hover:text-text-primary hover:bg-surface-4"
-                        >
-                          Open
-                        </Link>
-                        <button
-                          onClick={() => del(p.id)}
-                          className="w-full text-left px-3 py-1.5 text-[11.5px] text-danger hover:bg-danger-tint"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="min-w-0">
-                      <p className="text-[11.5px] font-medium truncate">{p.name}</p>
-                      <p className="text-[10.5px] text-text-ghost">
-                        {relativeDate(p.updatedAt)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Blank slot — always last, always available. */}
-                <Link
-                  href="/?new=1"
-                  className="aspect-square rounded-lg border border-dashed border-border-default flex flex-col items-center justify-center gap-1.5 text-text-ghost hover:border-accent hover:text-accent transition-colors duration-150 ease-standard"
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  <span className="text-[11.5px]">Blank</span>
-                </Link>
-              </div>
-            )}
-
-            {!loading && projects.length > 0 && visible.length === 0 && (
-              <p className="text-[11.5px] text-text-ghost py-8 text-center">
-                No projects match your filters.
-              </p>
-            )}
-          </>
+          <ProjectsView me={me} projects={projects} numbers={numbers} loading={loading} onDelete={del} />
         )}
       </main>
 
       {/* The dashboard fires toasts too — before this, every one of them was
           dropped because <Toaster /> only existed inside the editor. */}
       <Toaster />
-    </div>
-  );
-}
-
-function NavItem({
-  active,
-  onClick,
-  icon,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-current={active ? "page" : undefined}
-      className={cx(
-        "flex items-center gap-2.5 px-[10px] py-2 rounded-[9px] text-[12px] text-left transition-colors duration-150 ease-standard",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-        active
-          ? "bg-surface-2 text-text-primary font-medium shadow-raise [&_svg]:text-accent"
-          : "text-text-secondary hover:text-text-primary hover:bg-surface-4"
-      )}
-    >
-      {icon}
-      {children}
-    </button>
-  );
-}
-
-function MetricCard({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-surface-1 border border-border-subtle rounded-lg p-4">
-      <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-text-ghost block mb-2">
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-function AccountPanel({
-  me,
-  resumeDelete,
-  onSignOut,
-}: {
-  me: Me | null;
-  resumeDelete: boolean;
-  onSignOut: () => void;
-}) {
-  return (
-    <div className="max-w-[520px] flex flex-col gap-3">
-      <div className="bg-surface-1 border border-border-subtle rounded-lg p-4 flex flex-col gap-3">
-        <Row label="Name" value={me?.user.name || "—"} />
-        <Row label="Email" value={me?.user.email || "—"} />
-        <Row label="Plan" value={me?.pro ? "Pro" : "Free"} />
-      </div>
-
-      <div className="bg-surface-1 border border-border-subtle rounded-lg p-4 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-[12.5px] font-semibold">Appearance</p>
-          <p className="text-[11.5px] text-text-tertiary mt-0.5">
-            Auto follows your system setting.
-          </p>
-        </div>
-        <ThemeSelect />
-      </div>
-
-      <button
-        onClick={onSignOut}
-        className="self-start text-[11.5px] font-medium text-danger hover:bg-danger-tint px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
-      >
-        Sign out
-      </button>
-
-      <DangerZone
-        isPro={Boolean(me?.pro)}
-        auth={me?.auth ?? null}
-        autoOpen={resumeDelete}
-      />
-    </div>
-  );
-}
-
-/** Permanent account deletion. Collapsed until asked for, then gated on
- *  whatever proof this account can actually give: a password when one exists,
- *  a recently established session when it doesn't. */
-function DangerZone({
-  isPro,
-  auth,
-  autoOpen,
-}: {
-  isPro: boolean;
-  auth: AuthMethods | null;
-  autoOpen: boolean;
-}) {
-  const router = useRouter();
-  // null = nobody has touched the section yet, so it follows `autoOpen`.
-  // Once the user opens or dismisses it, their choice wins.
-  const [toggled, setToggled] = useState<boolean | null>(null);
-  const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [stale, setStale] = useState(false);
-
-  // An account created through Google has no `credential` row and therefore no
-  // password to confirm with. Asking for one anyway is not a cosmetic problem:
-  // a `required` password field that the user cannot possibly fill is a dead
-  // end, and deletion becomes unreachable for them.
-  const hasPassword = auth?.hasPassword ?? false;
-  const provider = auth?.providers[0] ?? null;
-  const providerName = provider
-    ? provider.charAt(0).toUpperCase() + provider.slice(1)
-    : null;
-  const confirmed = confirmation.trim().toUpperCase() === "DELETE";
-
-  // Gated on `me` having answered: opening early would render the passwordless
-  // form to someone who does have a password.
-  const open = toggled ?? Boolean(autoOpen && auth);
-
-  const close = () => {
-    setToggled(false);
-    setPassword("");
-    setConfirmation("");
-    setError(null);
-    setStale(false);
-  };
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPending(true);
-    setError(null);
-
-    // Send the password only when there is one — an empty string would just
-    // come back INVALID_PASSWORD. Without it better-auth accepts a *fresh*
-    // session instead. The retry is insurance against a stale `me`: the
-    // server, not this component, decides which proof counts.
-    let res = hasPassword
-      ? await authClient.deleteUser({ password })
-      : await authClient.deleteUser({});
-    if (res.error?.code === "CREDENTIAL_ACCOUNT_NOT_FOUND") {
-      res = await authClient.deleteUser({});
-    }
-
-    if (res.error) {
-      setPending(false);
-      // Passwordless deletion requires a session younger than better-auth's
-      // freshAge (24h by default), so this is the ordinary outcome for anyone
-      // who signed in with Google yesterday — not an error worth a dead end.
-      if (res.error.code === "SESSION_EXPIRED") {
-        setStale(true);
-        return;
-      }
-      setError(
-        res.error.code === "INVALID_PASSWORD"
-          ? "That password doesn't match."
-          : "Couldn't delete your account. Please try again."
-      );
-      return;
-    }
-
-    // The server is done; this browser still holds the whole account in
-    // IndexedDB. Clearing it is not tidiness — see wipeLocalAccountData.
-    await wipeLocalAccountData();
-    router.push("/login");
-  };
-
-  if (!open) {
-    return (
-      <div className="border border-danger/25 rounded-lg p-4 flex items-center justify-between gap-4 mt-3">
-        <div>
-          <p className="text-[12.5px] font-semibold text-danger">Delete account</p>
-          <p className="text-[11.5px] text-text-tertiary mt-0.5">
-            Permanently erases your designs, uploads and account.
-          </p>
-        </div>
-        <button
-          onClick={() => setToggled(true)}
-          disabled={!auth}
-          className="shrink-0 text-[11.5px] font-medium text-danger border border-danger/30 hover:bg-danger-tint disabled:opacity-50 px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
-        >
-          Delete…
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <form
-      onSubmit={submit}
-      className="border border-danger/40 bg-danger-tint/40 rounded-lg p-4 flex flex-col gap-3 mt-3"
-    >
-      <p className="text-[12.5px] font-semibold text-danger">Delete your account?</p>
-      <p className="text-[11.5px] text-text-secondary leading-relaxed">
-        This cannot be undone. Your projects, uploaded images and account are erased
-        immediately{isPro ? ", and your subscription is cancelled" : ""}. Export anything you
-        want to keep first.
-      </p>
-
-      {stale ? (
-        <div className="flex flex-col gap-2.5">
-          <p role="alert" className="text-[11.5px] text-text-secondary leading-relaxed">
-            For security this needs a recent sign-in.{" "}
-            {providerName
-              ? `Confirm with ${providerName} and you'll come straight back here.`
-              : "Sign out, sign in again, then delete."}
-          </p>
-          {provider && (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={async () => {
-                setPending(true);
-                // Full-page redirect out to the provider; the callback lands
-                // back on this panel with the confirmation already open.
-                await authClient.signIn.social({
-                  provider,
-                  callbackURL: `${POST_AUTH_PATH}?${RESUME_DELETE_PARAM}=1`,
-                });
-                setPending(false);
-              }}
-              className="self-start bg-surface-3 hover:bg-surface-4 border border-border-default text-text-primary text-[12px] font-medium px-3 py-2 rounded-md transition-colors duration-150 ease-standard disabled:opacity-60"
-            >
-              {pending ? "Redirecting…" : `Continue with ${providerName}`}
-            </button>
-          )}
-        </div>
-      ) : hasPassword ? (
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[11.5px] font-medium text-text-secondary">
-            Confirm your password
-          </span>
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="bg-surface-3 border border-border-default rounded-md px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[1.5px] focus:border-danger transition-colors duration-150 ease-standard"
-          />
-        </label>
-      ) : (
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[11.5px] font-medium text-text-secondary">
-            You sign in with {providerName ?? "a linked account"}, so there&apos;s no password to
-            confirm. Type <span className="font-semibold text-text-primary">DELETE</span>{" "}
-            instead.
-          </span>
-          <input
-            type="text"
-            required
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
-            aria-label="Type DELETE to confirm"
-            value={confirmation}
-            onChange={(e) => setConfirmation(e.target.value)}
-            className="bg-surface-3 border border-border-default rounded-md px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[1.5px] focus:border-danger transition-colors duration-150 ease-standard"
-          />
-        </label>
-      )}
-
-      {error && (
-        <p role="alert" className="text-[11.5px] text-danger">
-          {error}
-        </p>
-      )}
-      <div className="flex items-center gap-2">
-        {!stale && (
-          <button
-            type="submit"
-            disabled={pending || (!hasPassword && !confirmed)}
-            className="bg-danger disabled:opacity-60 text-white text-[12px] font-semibold px-3 py-2 rounded-md transition-colors duration-150 ease-standard"
-          >
-            {pending ? "Deleting…" : "Delete my account"}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={close}
-          className="text-[11.5px] text-text-secondary hover:text-text-primary px-3 py-2 transition-colors duration-150 ease-standard"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <span className="text-[11.5px] text-text-tertiary">{label}</span>
-      <span className="text-[12.5px] truncate">{value}</span>
+      <UpgradeModal />
     </div>
   );
 }

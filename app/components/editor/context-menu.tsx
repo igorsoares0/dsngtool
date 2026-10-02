@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useEditorStore } from "../../store/editor-store";
+import { elementLabel } from "../../lib/element-label";
 import { toastDeleted } from "../../store/toast-store";
 import { serializeElements } from "../../lib/clipboard";
 
@@ -173,8 +174,9 @@ export default function ContextMenu({
           danger: true,
           onClick: () => {
             const count = selectedIds.length;
+            const label = isSingle && single ? elementLabel(single) : undefined;
             removeSelectedElements();
-            toastDeleted(count);
+            toastDeleted(count, label);
           },
         },
       ]
@@ -204,29 +206,29 @@ export default function ContextMenu({
       ref={menuRef}
       role="menu"
       onContextMenu={(e) => e.preventDefault()}
-      className="absolute z-[110] min-w-[180px] bg-surface-2 border border-border-default rounded-lg shadow-pop py-1 animate-scale-in origin-top-left"
+      className="absolute z-[110] min-w-[200px] bg-surface-2 border border-border-default rounded-float shadow-pop py-1 animate-scale-in origin-top-left"
       style={{ left, top }}
     >
       {entries.map((entry, i) =>
         entry.type === "sep" ? (
-          <div key={`sep-${i}`} className="h-px bg-border-subtle my-1" />
+          <div key={`sep-${i}`} className="h-px bg-border-default my-1" />
         ) : (
           <button
             key={entry.label}
             role="menuitem"
             disabled={entry.disabled}
             onClick={() => !entry.disabled && run(entry.onClick)}
-            className={`w-full flex items-center justify-between gap-6 px-3 py-1.5 text-xs transition-colors ${
+            className={`w-full flex items-center justify-between gap-6 px-3 py-1.5 text-[12.5px] transition-colors focus-visible:outline-none focus-visible:bg-surface-3 ${
               entry.disabled
                 ? "text-text-ghost cursor-not-allowed"
                 : entry.danger
                 ? "text-danger hover:bg-danger-tint"
-                : "text-text-secondary hover:bg-surface-3 hover:text-text-primary"
+                : "text-text-primary hover:bg-surface-3"
             }`}
           >
             <span>{entry.label}</span>
             {entry.kbd && (
-              <span className="text-[11.5px] text-text-ghost tabular-nums">{entry.kbd}</span>
+              <span className="font-mono text-[10.5px] text-text-tertiary tabular-nums">{entry.kbd}</span>
             )}
           </button>
         )

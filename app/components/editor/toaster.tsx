@@ -4,39 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useToastStore, type Toast } from "../../store/toast-store";
 import { CloseIcon } from "./icons";
 
-function ToastIcon({ type }: { type: Toast["type"] }) {
-  if (type === "success") {
-    return (
-      <svg className="w-4 h-4 text-success shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 6 9 17l-5-5" />
-      </svg>
-    );
-  }
-  if (type === "error") {
-    return (
-      <svg className="w-4 h-4 text-danger shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-    );
-  }
-  if (type === "action") {
-    return (
-      <svg className="w-4 h-4 text-text-tertiary shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="3 6 5 6 21 6" />
-        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      </svg>
-    );
-  }
-  return (
-    <svg className="w-4 h-4 text-text-tertiary shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8" x2="12.01" y2="8" />
-    </svg>
-  );
-}
+/** The 4px bar on the toast's left edge carries the type — no icons. */
+const BAR: Record<Toast["type"], string> = {
+  success: "bg-success",
+  warning: "bg-warning",
+  error: "bg-danger",
+  info: "bg-text-tertiary",
+  action: "bg-text-tertiary",
+};
 
 function ToastItem({ toast }: { toast: Toast }) {
   const dismiss = useToastStore((s) => s.dismiss);
@@ -60,28 +35,34 @@ function ToastItem({ toast }: { toast: Toast }) {
       role="status"
       onMouseEnter={clearTimer}
       onMouseLeave={startTimer}
-      className="pointer-events-auto flex items-center gap-2.5 bg-surface-2 border border-border-default rounded-lg shadow-pop pl-3 pr-2 py-2.5 min-w-[240px] max-w-[360px] animate-toast-in"
+      className="pointer-events-auto flex items-stretch min-h-[52px] w-[340px] max-w-[calc(100vw-2rem)] bg-surface-inverse text-text-inverse rounded-float shadow-pop overflow-hidden animate-toast-in"
     >
-      <ToastIcon type={toast.type} />
-      <span className="text-[11.5px] text-text-primary flex-1">{toast.message}</span>
-      {toast.actionLabel && toast.onAction && (
+      <span className={`w-1 shrink-0 ${BAR[toast.type]}`} aria-hidden />
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5 px-3 py-2">
+        <span className="text-[13px] font-semibold leading-snug">{toast.message}</span>
+        {toast.sub && (
+          <span className="font-mono text-[10.5px] uppercase opacity-70 truncate">{toast.sub}</span>
+        )}
+      </div>
+      {toast.actionLabel && toast.onAction ? (
         <button
           onClick={() => {
             toast.onAction?.();
             dismiss(toast.id);
           }}
-          className="text-[11.5px] font-semibold text-accent hover:text-accent-hover px-2 py-1 rounded-md hover:bg-surface-4 transition-colors duration-150 ease-standard shrink-0"
+          className="flex items-center px-3.5 text-[12.5px] font-bold border-l border-[rgb(128_128_128/0.3)] hover:bg-[rgb(128_128_128/0.18)] shrink-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
         >
           {toast.actionLabel}
         </button>
+      ) : (
+        <button
+          onClick={() => dismiss(toast.id)}
+          aria-label="Dismiss"
+          className="flex items-center px-3 opacity-60 hover:opacity-100 border-l border-[rgb(128_128_128/0.3)] shrink-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
+        >
+          <CloseIcon className="w-3.5 h-3.5" />
+        </button>
       )}
-      <button
-        onClick={() => dismiss(toast.id)}
-        aria-label="Dismiss"
-        className="p-1 text-text-ghost hover:text-text-primary rounded-sm transition-colors duration-150 ease-standard shrink-0"
-      >
-        <CloseIcon className="w-3.5 h-3.5" />
-      </button>
     </div>
   );
 }
@@ -95,7 +76,8 @@ export default function Toaster() {
   if (!mounted) return null;
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[120] flex flex-col items-center gap-2 pointer-events-none">
+    // Bottom-right, above the editor's status bar.
+    <div className="fixed bottom-10 right-4 z-[120] flex flex-col items-end gap-2 pointer-events-none" aria-live="polite">
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} />
       ))}

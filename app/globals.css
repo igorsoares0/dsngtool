@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
-   Raw token values.
+   Modo redesign — "H / Final". Raw token values.
 
    These MUST live here, in plain :root / .dark blocks, and NOT inside
    @theme inline. `@theme inline` resolves a token's value at build time and
@@ -18,96 +18,149 @@
    value you also need from hand-written CSS (--ease-standard, --canvas-dot)
    must be declared here.
 
+   Existing token NAMES are kept from the previous system so utilities like
+   bg-surface-1 / text-text-secondary / bg-accent keep compiling.
+
    See docs/design-guidelines.md § "How theming works".
 --------------------------------------------------------------------------- */
 
 :root {
   color-scheme: light;
 
-  /* Surfaces — elevation is a step in lightness, never a shadow. */
-  --surface-0: #eceae5; /* app background, canvas viewport */
-  --surface-1: #f7f6f3; /* topbar, rail, docked panels */
-  --surface-2: #ffffff; /* panel content, popovers, modals, floating toolbars */
-  --surface-3: #f4f2ee; /* inputs and controls inside a panel */
-  --surface-4: #eeece7; /* hover / pressed */
+  /* Surfaces — warm paper. */
+  --surface-0: #f2efe8; /* app background, canvas viewport */
+  --surface-1: #faf8f3; /* topbar, rail, docked panels, status bar */
+  --surface-2: #fffdf8; /* popovers, modals */
+  --surface-3: #efebe2; /* inputs and controls inside a panel */
+  --surface-4: #e7e2d7; /* hover / pressed */
+  --surface-inverse: #161513; /* NEW — floating selection toolbar, toasts, active tool fill */
+  --text-inverse: #f2efe8;    /* NEW */
 
-  --border-subtle: rgb(0 0 0 / 0.06);
-  --border-default: rgb(0 0 0 / 0.08);
-  --border-strong: rgb(0 0 0 / 0.14);
+  /* Rules. Hairlines everywhere; --border-strong is the ink rule used under
+     search fields, table headers and page titles. */
+  --border-subtle: rgb(22 21 19 / 0.08);
+  --border-default: rgb(22 21 19 / 0.13);
+  --border-strong: #161513;
 
-  --text-primary: #1b1a18;
-  --text-secondary: #6b6862;
-  --text-tertiary: #8b877f;
-  --text-ghost: #a5a09a;
+  --text-primary: #161513;
+  --text-secondary: #5e5a52;
+  --text-tertiary: #6f6a61; /* ≥4.5:1 on surface-0/1 */
+  --text-ghost: #8c877d;    /* placeholders only */
 
-  /* Accent — iris. One accent with meaning: selection, active tool,
-     primary action, focus. */
-  --accent: #5b5bd6;
-  --accent-hover: #4a4ac4;
-  --accent-fg: #ffffff;
-  --accent-tint: #f0ecff;
-  --accent-tint-fg: #4a45b8;
+  /* Accent — riso red. ONLY primary actions (Export, New design, Go Pro)
+     and the underline on active text tabs. Not selection, not focus. */
+  --accent: #ff4a1c;
+  --accent-hover: #e8390d;
+  --accent-fg: #161513;
+  --accent-tint: rgb(255 74 28 / 0.1);
+  --accent-tint-fg: #b8300a;
 
-  /* Categorical, non-state accents. */
-  --danger: #c9553d;
-  --danger-tint: #fdf3f1;
-  --success: #5f8f6c;
-  --warning: #b8823a;
+  /* NEW — Selection / focus — cobalt. Bounding boxes, handles, selected
+     layer row, focused input ring, dimension badge. */
+  --selection: #2f4bff;
+  --selection-tint: rgb(47 75 255 / 0.12);
 
-  /* Shadows. Docked panels get a border and no shadow; only genuinely
-     floating surfaces get one. */
-  --sh-pop: 0 8px 24px rgb(0 0 0 / 0.16);
-  --sh-modal: 0 14px 40px rgb(0 0 0 / 0.16);
-  --sh-raise: 0 1px 3px rgb(0 0 0 / 0.06);
-  --sh-canvas: 0 18px 50px rgb(0 0 0 / 0.13), 0 2px 6px rgb(0 0 0 / 0.06);
+  /* NEW — AI — butter. Exclusive to AI: BRIEF tag, brief card, quota pips. */
+  --ai: oklch(0.87 0.13 92);
+  --ai-fg: #161513;
 
-  /* Canvas viewport dot grid. */
-  --canvas-dot: rgb(0 0 0 / 0.045);
+  /* State. */
+  --danger: #9e1f2e;
+  --danger-tint: rgb(158 31 46 / 0.08);
+  --danger-on-inverse: #ff8f8f; /* NEW — trash icon on the inverse toolbar */
+  --success: #3e7d4e;
+  --warning: #9a6200;
 
-  /* One easing for everything: fast out, soft settle. */
+  /* NEW — Tool identity. Same lightness/chroma, hue only. Used ONLY for the
+     34×34 icon tile of each tool in the left column. */
+  --tool-templates-bg: oklch(0.89 0.055 55);
+  --tool-uploads-bg: oklch(0.89 0.055 235);
+  --tool-text-bg: oklch(0.89 0.055 295);
+  --tool-shapes-bg: oklch(0.89 0.055 10);
+  --tool-assets-bg: oklch(0.89 0.055 160);
+  --tool-overlays-bg: oklch(0.89 0.055 195);
+  --tool-fg: #161513;
+
+  --sh-pop: 0 10px 26px rgb(0 0 0 / 0.25);
+  --sh-modal: 0 20px 60px rgb(0 0 0 / 0.2);
+  --sh-raise: none;
+  --sh-canvas: 0 18px 44px -8px rgb(60 40 10 / 0.22);
+
+  --canvas-dot: transparent; /* H has a plain canvas — no dots, no rulers */
+
+  /* Theme-invariant, so a literal is correct here. The matching raw var in
+     :root exists for hand-written CSS (@theme inline emits nothing to :root). */
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
   color-scheme: dark;
 
-  --surface-0: #0e0e10;
-  --surface-1: #161619;
-  --surface-2: #1c1c20;
-  --surface-3: #141417;
-  --surface-4: #26262b;
+  --surface-0: #121211;
+  --surface-1: #1a1a18;
+  --surface-2: #1f1f1d;
+  --surface-3: #242422;
+  --surface-4: #2c2c29;
+  --surface-inverse: #eeebe3;
+  --text-inverse: #121211;
 
-  --border-subtle: #ffffff0d;
-  --border-default: #ffffff12;
-  --border-strong: #ffffff24;
+  --border-subtle: rgb(238 235 227 / 0.07);
+  --border-default: rgb(238 235 227 / 0.11);
+  --border-strong: #eeebe3;
 
-  --text-primary: #ededf0;
-  --text-secondary: #9a9aa3;
-  --text-tertiary: #7d7d86;
-  --text-ghost: #5c5c65;
+  --text-primary: #eeebe3;
+  --text-secondary: #a9a498;
+  --text-tertiary: #928d83;
+  --text-ghost: #6f6b63;
 
-  --accent: #8b8bf5;
-  --accent-hover: #a5a5f8;
-  --accent-fg: #12121a;
-  --accent-tint: #8b8bf51f;
-  --accent-tint-fg: #a5a5f8;
+  --accent: #ff5a2e;
+  --accent-hover: #ff7650;
+  --accent-fg: #121211;
+  --accent-tint: rgb(255 90 46 / 0.14);
+  --accent-tint-fg: #ff8a66;
 
-  --danger: #e0836f;
-  --danger-tint: #c9553d1f;
-  --success: #8fbf9a;
-  --warning: #d9a75c;
+  --selection: #7b8cff;
+  --selection-tint: rgb(123 140 255 / 0.16);
+
+  --ai: oklch(0.82 0.13 92);
+  --ai-fg: #161513;
+
+  --danger: #f08080;
+  --danger-tint: rgb(240 128 128 / 0.1);
+  --danger-on-inverse: #a3192b;
+  --success: #7fbf8a;
+  --warning: #e8b04a;
+
+  /* Dark: tile goes neutral, colour moves to the icon. */
+  --tool-templates-bg: #242422;
+  --tool-uploads-bg: #242422;
+  --tool-text-bg: #242422;
+  --tool-shapes-bg: #242422;
+  --tool-assets-bg: #242422;
+  --tool-overlays-bg: #242422;
+  --tool-fg: currentColor;
+  --tool-templates-fg: oklch(0.8 0.1 55);
+  --tool-uploads-fg: oklch(0.8 0.1 235);
+  --tool-text-fg: oklch(0.8 0.1 295);
+  --tool-shapes-fg: oklch(0.8 0.1 10);
+  --tool-assets-fg: oklch(0.8 0.1 160);
+  --tool-overlays-fg: oklch(0.8 0.1 195);
 
   --sh-pop: 0 12px 30px rgb(0 0 0 / 0.6);
   --sh-modal: 0 24px 60px rgb(0 0 0 / 0.55);
-  --sh-raise: 0 1px 3px rgb(0 0 0 / 0.3);
-  --sh-canvas: 0 24px 60px rgb(0 0 0 / 0.55);
-
-  --canvas-dot: rgb(255 255 255 / 0.025);
+  --sh-raise: none;
+  --sh-canvas: 0 30px 60px -10px rgb(0 0 0 / 0.65);
 }
 
-/* ---------------------------------------------------------------------------
-   Utility namespace. Every entry aliases a raw var above — never a literal.
---------------------------------------------------------------------------- */
+/* Light: icon is ink on the pastel tile. */
+:root:not(.dark) {
+  --tool-templates-fg: #161513;
+  --tool-uploads-fg: #161513;
+  --tool-text-fg: #161513;
+  --tool-shapes-fg: #161513;
+  --tool-assets-fg: #161513;
+  --tool-overlays-fg: #161513;
+}
 
 @theme inline {
   --color-surface-0: var(--surface-0);
@@ -115,6 +168,8 @@
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
   --color-surface-4: var(--surface-4);
+  --color-surface-inverse: var(--surface-inverse);
+  --color-text-inverse: var(--text-inverse);
 
   --color-border-subtle: var(--border-subtle);
   --color-border-default: var(--border-default);
@@ -131,93 +186,131 @@
   --color-accent-tint: var(--accent-tint);
   --color-accent-tint-fg: var(--accent-tint-fg);
 
+  --color-selection: var(--selection);
+  --color-selection-tint: var(--selection-tint);
+  --color-ai: var(--ai);
+  --color-ai-fg: var(--ai-fg);
+
   --color-danger: var(--danger);
   --color-danger-tint: var(--danger-tint);
+  --color-danger-on-inverse: var(--danger-on-inverse);
   --color-success: var(--success);
   --color-warning: var(--warning);
 
-  --font-body: var(--font-instrument-sans), system-ui, sans-serif;
-  --font-display: var(--font-instrument-sans), system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-tool-templates: var(--tool-templates-bg);
+  --color-tool-uploads: var(--tool-uploads-bg);
+  --color-tool-text: var(--tool-text-bg);
+  --color-tool-shapes: var(--tool-shapes-bg);
+  --color-tool-assets: var(--tool-assets-bg);
+  --color-tool-overlays: var(--tool-overlays-bg);
+  --color-tool-templates-fg: var(--tool-templates-fg);
+  --color-tool-uploads-fg: var(--tool-uploads-fg);
+  --color-tool-text-fg: var(--tool-text-fg);
+  --color-tool-shapes-fg: var(--tool-shapes-fg);
+  --color-tool-assets-fg: var(--tool-assets-fg);
+  --color-tool-overlays-fg: var(--tool-overlays-fg);
 
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 11px;
-  --radius-xl: 14px;
+  /* Archivo (variable, wdth 62–125) for all chrome text; IBM Plex Mono for
+     every numeric readout, dimension, shortcut and section code. */
+  --font-body: var(--font-archivo), system-ui, sans-serif;
+  --font-display: var(--font-archivo), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  /* Square chrome. Existing rounded-sm/md/lg/xl become 0 on purpose.
+     Exceptions: rounded-float (selection toolbar, toasts, menus) and
+     rounded-full (avatar, colour swatches, status dot). */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-float: 4px;
 
   --shadow-pop: var(--sh-pop);
   --shadow-modal: var(--sh-modal);
   --shadow-raise: var(--sh-raise);
   --shadow-canvas: var(--sh-canvas);
 
-  /* Theme-invariant, so a literal is correct here. The matching raw var in
-     :root exists for hand-written CSS (@theme inline emits nothing to :root). */
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-color: var(--border-default) transparent;
 }
 
 body {
   background: var(--surface-0);
   color: var(--text-primary);
-  font-family: var(--font-instrument-sans), system-ui, sans-serif;
+  font-family: var(--font-archivo), system-ui, sans-serif;
   overflow: hidden;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  background: var(--selection-tint);
 }
 
-/* Canvas viewport dot grid — themed, so it stays visible on warm paper. */
+/* Expanded display cut for titles / logo / primary buttons. */
+.font-expanded { font-stretch: 118%; }
+.font-wide { font-stretch: 125%; }
+
 .canvas-dots {
   background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scale-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes canvas-appear { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes ai-progress { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
 
-@keyframes scale-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
-}
+.animate-fade-in { animation: fade-in 0.4s var(--ease-standard) forwards; }
+.animate-scale-in { animation: scale-in 0.5s var(--ease-standard) forwards; }
+.animate-canvas-appear { animation: canvas-appear 0.7s var(--ease-standard) forwards; }
+.animate-toast-in { animation: toast-in 0.28s var(--ease-standard) forwards; }
+/* Panel switch: a plain 150ms fade. */
+@keyframes panel-in { from { opacity: 0; } to { opacity: 1; } }
+.animate-panel-in { animation: panel-in 150ms var(--ease-standard); }
 
-@keyframes canvas-appear {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
+/* Range: a 2px hairline track, ink fill up to the value, 12px square thumb.
+   The fill position comes from an inline --fill (0–100%). */
+.modo-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  background: linear-gradient(var(--text-primary), var(--text-primary)) 0 50% / var(--fill, 0%) 2px no-repeat,
+    linear-gradient(var(--border-default), var(--border-default)) 0 50% / 100% 2px no-repeat;
+  cursor: pointer;
 }
+.modo-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--surface-1);
+  border: 2px solid var(--text-primary);
+  border-radius: 0;
+}
+.modo-range::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  background: var(--surface-1);
+  border: 2px solid var(--text-primary);
+  border-radius: 0;
+}
+.modo-range:focus-visible { outline: 2px solid var(--selection); outline-offset: 2px; }
 
-@keyframes toast-in {
-  from { opacity: 0; transform: translateY(12px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+/* Indeterminate: the request is one round trip, so there is no real progress
+   to report — a travelling segment says "working" without inventing a %. */
+.animate-ai-progress { animation: ai-progress 1.4s var(--ease-standard) infinite; }
+.skeleton {
+  background: var(--surface-3) linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.5) 50%, transparent 70%) 0 0 / 200% 100%;
+  animation: shimmer 1.2s linear infinite;
 }
-
-.animate-fade-in {
-  animation: fade-in 0.4s var(--ease-standard) forwards;
-}
-
-.animate-scale-in {
-  animation: scale-in 0.5s var(--ease-standard) forwards;
-}
-
-.animate-canvas-appear {
-  animation: canvas-appear 0.7s var(--ease-standard) forwards;
-}
-
-.animate-toast-in {
-  animation: toast-in 0.28s var(--ease-standard) forwards;
-}
+.dark .skeleton { background-image: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.06) 50%, transparent 70%); }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-in,
-  .animate-scale-in,
-  .animate-canvas-appear,
-  .animate-toast-in {
-    animation: none;
-  }
+  .animate-fade-in, .animate-scale-in, .animate-canvas-appear, .animate-toast-in, .skeleton { animation: none; }
+  .animate-ai-progress { animation: none; width: 100%; }
+  .animate-panel-in { animation: none; }
 }

@@ -11,6 +11,9 @@ import Topbar from "./topbar";
 import LeftSidebar, { type SidebarTool } from "./left-sidebar";
 import LeftPanel from "./left-panel";
 import CanvasArea from "./canvas-area";
+import AiBar from "./ai-bar";
+import PageStrip from "./page-strip";
+import StatusBar from "./status-bar";
 import RightPanel from "./right-panel";
 import FontLoader from "./font-loader";
 import ProjectsModal from "./projects-modal";
@@ -20,13 +23,18 @@ import ExportModal from "./export-modal";
 import Toaster from "./toaster";
 import IosInstallHint from "./ios-install-hint";
 
+/** Desktop opens with Templates showing (as the mock does); below xl the panel
+ *  is an overlay, so it starts collapsed there. */
+function initialTool(): SidebarTool | null {
+  if (typeof window === "undefined") return null;
+  return window.matchMedia("(min-width: 1280px)").matches ? "templates" : null;
+}
+
 export default function EditorLayout() {
-  const [activeTool, setActiveTool] = useState<SidebarTool | null>(null);
+  const [activeTool, setActiveTool] = useState<SidebarTool | null>(initialTool);
   const [showProjects, setShowProjects] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showExport, setShowExport] = useState(false);
-  // Incremented by the rail's AI button; the AI bar focuses its input in response.
-  const [aiFocusSignal, setAiFocusSignal] = useState(0);
   const stageRef = useRef<Konva.Stage>(null);
   const ready = useProjectLoader();
   useKeyboardShortcuts();
@@ -42,6 +50,11 @@ export default function EditorLayout() {
         e.preventDefault();
         setShowShortcuts((s) => !s);
       }
+      // ⌘E / Ctrl+E opens Export.
+      if ((e.metaKey || e.ctrlKey) && e.code === "KeyE") {
+        e.preventDefault();
+        setShowExport(true);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -51,8 +64,8 @@ export default function EditorLayout() {
     return (
       <div className="h-screen flex items-center justify-center bg-surface-0">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          <span className="text-[11.5px] text-text-ghost">Loading project…</span>
+          <div className="w-8 h-8 border-2 border-text-primary border-t-transparent rounded-full animate-spin" />
+          <span className="font-mono text-[10.5px] uppercase text-text-tertiary">Loading project…</span>
         </div>
       </div>
     );
@@ -66,16 +79,19 @@ export default function EditorLayout() {
         onOpenShortcuts={() => setShowShortcuts(true)}
         onOpenExport={() => setShowExport(true)}
       />
-      <div className="flex flex-1 overflow-hidden relative">
-        <LeftSidebar
-          activeTool={activeTool}
-          onToolChange={setActiveTool}
-          onFocusAi={() => setAiFocusSignal((n) => n + 1)}
-        />
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        <LeftSidebar activeTool={activeTool} onToolChange={setActiveTool} />
         <LeftPanel activePanel={activeTool} onClose={() => setActiveTool(null)} />
-        <CanvasArea stageRef={stageRef} aiFocusSignal={aiFocusSignal} />
+        {/* Below lg the inspector is a 45vh bottom sheet; the padding keeps the
+            brief bar and page strip above it. */}
+        <div className="flex-1 min-w-0 flex flex-col pb-[45vh] lg:pb-0">
+          <CanvasArea stageRef={stageRef} />
+          <AiBar />
+          <PageStrip />
+        </div>
         <RightPanel />
       </div>
+      <StatusBar onOpenShortcuts={() => setShowShortcuts(true)} />
       {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
       <ExportModal

@@ -38,6 +38,11 @@ type NewElement =
 // an edit rebuilds only the touched page's array, so every other page is
 // carried by reference. Snapshotting per-page instead would make undo behave
 // differently depending on which artboard you were looking at.
+
+/** idle = nothing saved this session · syncing = push in flight ·
+ *  synced = server has the last save · offline = buffered locally, will retry. */
+export type SyncState = "idle" | "syncing" | "synced" | "offline";
+
 interface HistorySnapshot {
   pages: Page[];
   activePageId: string;
@@ -64,6 +69,11 @@ interface EditorState {
   activeTool: "cursor" | "hand";
   spaceHeld: boolean;
   lastSavedAt: number | null;
+  /** Server mirror of the last local save — UI only, drives the status bar. */
+  syncState: SyncState;
+  /** Bumped to ask the canvas to fit the page to the viewport (the page
+   *  strip's FIT lives outside the canvas, which owns the viewport size). */
+  fitRequest: number;
   clipboard: EditorElement[] | null;
 
   // history
@@ -110,8 +120,11 @@ interface EditorState {
     pages: Page[];
     format: CanvasFormat;
   }) => void;
-  newProject: () => void;
+  /** Start a blank project. `format` defaults to the first preset. */
+  newProject: (format?: CanvasFormat) => void;
   markSaved: () => void;
+  setSyncState: (state: SyncState) => void;
+  requestFit: () => void;
 
   // pages
   setActivePage: (id: string) => void;
@@ -201,6 +214,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeTool: "cursor",
   spaceHeld: false,
   lastSavedAt: null,
+  syncState: "idle",
+  fitRequest: 0,
   clipboard: null,
 
   past: [],
@@ -590,7 +605,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
-  newProject: () => {
+  newProject: (format = CANVAS_FORMATS[0]) => {
     const page = makePage();
     set({
       projectId: `proj_${Date.now()}`,
@@ -599,17 +614,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       activePageId: page.id,
       ...mirrorOf([page], page.id),
       selectedIds: [],
-      format: CANVAS_FORMATS[0],
+      format,
       zoom: 100,
       panX: 0,
       panY: 0,
       lastSavedAt: null,
+      syncState: "idle",
       past: [],
       future: [],
     });
   },
 
   markSaved: () => set({ lastSavedAt: Date.now() }),
+  setSyncState: (syncState) => set({ syncState }),
+  requestFit: () => set((s) => ({ fitRequest: s.fitRequest + 1 })),
 
   setActivePage: (id) => {
     set((s) => {

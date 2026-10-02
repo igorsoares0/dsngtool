@@ -6,7 +6,7 @@ import Segmented from "./segmented";
 const OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
-  { value: "system", label: "Auto" },
+  { value: "system", label: "System" },
 ];
 
 /** Light / Dark / System picker. Lives in the account menu and the dashboard. */

@@ -6,13 +6,12 @@ import { TEMPLATES } from "../../../data/templates";
 import { FONT_FAMILY_NAMES } from "../../../lib/font-catalog";
 import { buildManifest, buildTemplateIndex } from "../../../lib/ai/manifest";
 import { LIMITS, rateLimit, tooManyRequests } from "../../../lib/server/rate-limit";
+import { FREE_MONTHLY, PRO_MONTHLY, currentMonth } from "../../../lib/ai-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MODEL = "claude-opus-4-8";
-const FREE_MONTHLY = 5;
-const PRO_MONTHLY = 100;
 
 // Constructed lazily: the SDK throws when ANTHROPIC_API_KEY is missing, and at
 // module scope that would break the build on any machine without the key set.
@@ -113,10 +112,6 @@ background describes the canvas ground:
   and wants a clean ground.
 
 name: a short project name, 2-4 words, in the brief's language.`;
-
-function currentMonth() {
-  return new Date().toISOString().slice(0, 7); // "2026-07"
-}
 
 function textFrom(message: Anthropic.Message): string {
   const block = message.content.find((b) => b.type === "text");

@@ -6,6 +6,7 @@ import { useSession } from "../../lib/auth-client";
 import { openSubscriptionCheckout } from "../../lib/paddle-checkout";
 import { toast } from "../../store/toast-store";
 import Modal from "../ui/modal";
+import { btnPrimary } from "../ui/buttons";
 
 // Only claim what the server actually gates. Exports have been watermark-free
 // on every tier since the LTD was dropped — selling that back would be selling
@@ -87,15 +88,15 @@ function UpgradeModalContent() {
         ) : (
           <>
             {reason && (
-              <div className="text-[11.5px] text-accent-tint-fg bg-accent-tint border border-accent/25 rounded-md px-3 py-2">
+              <div className="text-[12.5px] leading-[1.45] text-text-primary bg-surface-3 border-l-[3px] border-text-primary px-3 py-2.5">
                 {reason}
               </div>
             )}
 
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col border-t border-border-default">
               {PERKS.map((p) => (
-                <li key={p} className="flex items-start gap-2.5 text-[13px] text-text-secondary">
-                  <CheckIcon className="w-3.5 h-3.5 text-accent mt-[3px] shrink-0" />
+                <li key={p} className="flex items-start gap-2.5 py-2 border-b border-border-default text-[13px] text-text-primary">
+                  <CheckIcon className="w-3.5 h-3.5 text-text-primary mt-[3px] shrink-0" />
                   {p}
                 </li>
               ))}
@@ -104,21 +105,21 @@ function UpgradeModalContent() {
             <button
               onClick={subscribe}
               disabled={busy || pending}
-              className="bg-accent hover:bg-accent-hover disabled:opacity-60 text-accent-fg text-[13px] font-semibold py-2.5 rounded-md transition-colors duration-150 ease-standard flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className={`${btnPrimary} h-11 text-[13px]`}
             >
               {busy
                 ? "Opening checkout…"
                 : pending
                   ? "Activating…"
-                  : "Subscribe — $10/month"}
+                  : "Go Pro — $10 / month"}
             </button>
 
-            <p className="text-[11.5px] text-text-ghost text-center">
-              Cancel anytime. Secure checkout by Paddle.
+            <p className="font-mono text-[10.5px] uppercase text-text-tertiary text-center">
+              Cancel anytime · Secure checkout by Paddle
             </p>
 
             {error && (
-              <div className="text-[11.5px] text-danger bg-danger-tint border border-danger/25 rounded-md px-3 py-2">
+              <div className="text-[12.5px] text-danger bg-danger-tint border-l-[3px] border-danger px-3 py-2.5">
                 {error}
               </div>
             )}

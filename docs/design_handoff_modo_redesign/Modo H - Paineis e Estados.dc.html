@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;1,400&family=Bebas+Neue&family=Caveat:wght@500&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#d6d1c6;font-family:'Archivo',system-ui,sans-serif}a{color:#FF4A1C}a:hover{color:#161513}*{box-sizing:border-box}</style>
+</helmet>
+<div style="display:flex;flex-direction:column;gap:28px;padding:56px;width:max-content">
+<div style="display:flex;align-items:flex-start;gap:16px;color:#161513">
+  <span style="background:#161513;color:#F2EFE8;font:500 13px 'IBM Plex Mono',monospace;padding:4px 8px">H</span>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span style="font-size:28px;font-weight:800;font-stretch:118%;letter-spacing:-.01em">Painéis e estados</span>
+    <span style="font-size:13.5px;color:#5E5A52;max-width:980px">Complemento da <a href="Modo Redesign H - Final.dc.html">versão final</a>. 01: os cinco painéis da coluna de ferramentas e a aba Layers. 02: estados dos componentes, da IA, avisos, carregamento e telas vazias. Cores de estado: verde = sucesso, âmbar = aviso, vinho = erro.</span>
+  </div>
+</div>
+<sc-for list="{{ themes }}" as="th" hint-placeholder-count="1">
+<div style="{{ th.vars }}">
+<div style="display:flex;flex-direction:column;gap:40px">
+<span style="font:500 12px 'IBM Plex Mono',monospace;color:#161513;text-transform:uppercase;letter-spacing:.08em">{{ th.label }}</span>
+
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:baseline;gap:12px;color:#161513"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#FF4A1C">01</span><span style="font-size:22px;font-weight:800;font-stretch:115%">Painéis</span></div>
+<div style="display:flex;gap:28px;align-items:flex-start">
+
+<div data-screen-label="Painel Uploads" style="width:356px;height:820px;flex-shrink:0;display:flex;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);overflow:hidden;white-space:nowrap">
+  <div style="width:68px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line)">
+    <sc-for list="{{ rails.up }}" as="t" hint-placeholder-count="6"><div style="height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-bottom:1px solid var(--line);box-shadow:{{ t.sh }}"><div style="width:34px;height:34px;background:{{ t.bg }};color:{{ t.ic }};display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{ t.d }}"></path></svg></div><span style="font-size:10.5px;font-weight:{{ t.fw }};color:{{ t.fg }}">{{ t.label }}</span></div></sc-for>
+  </div>
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <div style="padding:16px 16px 12px;display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:21px;font-weight:800;font-stretch:118%">Uploads</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">8 FILES</span></div>
+    <div style="margin:0 16px;height:120px;border:1.5px dashed var(--ink3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--bg)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg>
+      <span style="font-size:13.5px;font-weight:600">Drop files or <span style="text-decoration:underline;text-decoration-color:var(--acc);text-decoration-thickness:2px;text-underline-offset:3px">browse</span></span>
+      <span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">PNG · JPG · SVG · UP TO 20 MB</span>
+    </div>
+    <div style="margin:12px 16px 0;display:flex;align-items:center;gap:10px"><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">STORAGE</span><div style="flex:1;height:4px;background:var(--soft)"><div style="width:74%;height:100%;background:var(--ink)"></div></div><span style="font:500 10.5px 'IBM Plex Mono',monospace">184/250 MB</span></div>
+    <div style="display:flex;gap:14px;padding:14px 16px 10px;font-size:12.5px"><span style="font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px;text-decoration-color:var(--acc)">All</span><span style="color:var(--ink2)">Images</span><span style="color:var(--ink2)">Logos</span></div>
+    <div style="padding:0 16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+      <sc-for list="{{ uploads }}" as="u" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="aspect-ratio:{{ u.ar }};background:{{ u.bg }};box-shadow:{{ u.sh }};display:flex;align-items:center;justify-content:center;color:{{ u.fg }};font:500 10.5px 'IBM Plex Mono',monospace;white-space:normal;text-align:center;padding:8px">{{ u.msg }}</div>
+          <div style="display:flex;justify-content:space-between;gap:6px"><span style="font:400 10.5px 'IBM Plex Mono',monospace;overflow:hidden;text-overflow:ellipsis">{{ u.n }}</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:{{ u.mc }}">{{ u.m }}</span></div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+
+<div data-screen-label="Painel Text" style="width:356px;min-width:0;height:820px;flex-shrink:0;display:flex;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);overflow:hidden;white-space:nowrap">
+  <div style="width:68px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line)">
+    <sc-for list="{{ rails.txt }}" as="t" hint-placeholder-count="6"><div style="height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-bottom:1px solid var(--line);box-shadow:{{ t.sh }}"><div style="width:34px;height:34px;background:{{ t.bg }};color:{{ t.ic }};display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{ t.d }}"></path></svg></div><span style="font-size:10.5px;font-weight:{{ t.fw }};color:{{ t.fg }}">{{ t.label }}</span></div></sc-for>
+  </div>
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:16px 16px 12px"><span style="font-size:21px;font-weight:800;font-stretch:118%">Text</span></div>
+    <div style="padding:0 16px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 14px;border:1px solid var(--line);background:var(--bg)"><span style="font-size:21px;font-weight:900;font-stretch:112%;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;min-width:0">Add a heading</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">T</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;height:44px;padding:0 14px;border:1px solid var(--line);background:var(--bg)"><span style="font-size:16px;font-weight:600">Add a subheading</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">⇧T</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;height:38px;padding:0 14px;border:1px solid var(--line);background:var(--bg)"><span style="font-size:13px">Add body text</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">⌥T</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:20px 16px 10px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">A</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">FONT PAIRINGS</span></div>
+    <div style="padding:0 16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+      <div style="height:96px;background:#F1ECE2;color:#2B2B2B;display:flex;flex-direction:column;justify-content:center;padding:12px;gap:2px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.07)"><span style="font-family:'Playfair Display',serif;font-size:24px;line-height:1">Sonder</span><span style="font-family:'Libre Baskerville',serif;font-style:italic;font-size:10.5px">a quiet definition</span></div>
+      <div style="height:96px;background:#0F0F0F;color:#FFD600;display:flex;flex-direction:column;justify-content:center;padding:12px;gap:2px"><span style="font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:.9">BIG SALE</span><span style="font-family:'Archivo',sans-serif;font-size:10.5px;color:#fff">50% off this weekend</span></div>
+      <div style="height:96px;background:#2D3A2D;color:#E8DFD0;display:flex;flex-direction:column;justify-content:center;padding:12px;gap:0"><span style="font-family:'Caveat',cursive;font-size:30px;line-height:1">botanica</span><span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.2em">PLANT SHOP</span></div>
+      <div style="height:96px;background:#FBF7F0;color:#B45309;display:flex;flex-direction:column;justify-content:center;padding:12px;gap:2px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.07)"><span style="font-family:'Libre Baskerville',serif;font-size:19px;line-height:1.05">Sunday Bread</span><span style="font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:600">RECIPE · 45 MIN</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:20px 16px 8px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">B</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">FONTS IN THIS DESIGN</span></div>
+    <div style="display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 16px;border-top:1px solid var(--line)"><span style="font-family:'Playfair Display',serif;font-size:16px">Playfair Display</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">4 LAYERS</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><span style="font-family:'Libre Baskerville',serif;font-size:14px">Libre Baskerville</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">1 LAYER</span></div>
+    </div>
+  </div>
+</div>
+
+<div data-screen-label="Painel Shapes" style="width:356px;height:820px;flex-shrink:0;display:flex;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);overflow:hidden;white-space:nowrap">
+  <div style="width:68px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line)">
+    <sc-for list="{{ rails.shp }}" as="t" hint-placeholder-count="6"><div style="height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-bottom:1px solid var(--line);box-shadow:{{ t.sh }}"><div style="width:34px;height:34px;background:{{ t.bg }};color:{{ t.ic }};display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{ t.d }}"></path></svg></div><span style="font-size:10.5px;font-weight:{{ t.fw }};color:{{ t.fg }}">{{ t.label }}</span></div></sc-for>
+  </div>
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <div style="padding:16px 16px 12px;display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:21px;font-weight:800;font-stretch:118%">Shapes</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">CLICK OR DRAG</span></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 16px 10px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">A</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">BASIC</span></div>
+    <div style="padding:0 16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+      <div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:42px;height:42px;background:var(--ink)"></span></div>
+      <div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:44px;height:44px;border-radius:99px;background:var(--ink)"></span></div>
+      <div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:46px;height:40px;background:var(--ink);clip-path:polygon(50% 0,100% 100%,0 100%)"></span></div>
+      <div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:46px;height:46px;background:var(--ink);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></span></div>
+      <div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:44px;height:44px;background:var(--ink);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)"></span></div>
+      <div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:48px;height:30px;border-radius:99px;background:var(--ink)"></span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:18px 16px 10px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">B</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">LINES</span></div>
+    <div style="padding:0 16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+      <div style="height:52px;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:50px;height:2px;background:var(--ink)"></span></div>
+      <div style="height:52px;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:50px;border-top:2px dashed var(--ink)"></span></div>
+      <div style="height:52px;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink)"><svg width="52" height="14" viewBox="0 0 52 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 7h48M43 1l6 6-6 6"></path></svg></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:18px 16px 10px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">C</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">PHOTO FRAMES</span></div>
+    <div style="padding:0 16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+      <div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:40px;height:48px;border:2px solid var(--ink3);background:repeating-linear-gradient(45deg,var(--soft) 0 4px,transparent 4px 8px)"></span></div>
+      <div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:46px;height:46px;border-radius:99px;border:2px solid var(--ink3);background:repeating-linear-gradient(45deg,var(--soft) 0 4px,transparent 4px 8px)"></span></div>
+      <div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span style="width:40px;height:50px;border-radius:99px 99px 0 0;border:2px solid var(--ink3);background:repeating-linear-gradient(45deg,var(--soft) 0 4px,transparent 4px 8px)"></span></div>
+    </div>
+    <div style="margin:18px 16px 0;padding:10px 12px;border-left:3px solid var(--ink);background:var(--soft);font-size:12px;color:var(--ink2);white-space:normal;line-height:1.45">Tip: hold <span style="font:500 11px 'IBM Plex Mono',monospace;color:var(--ink)">⇧</span> while dragging to keep proportions.</div>
+  </div>
+</div>
+
+<div data-screen-label="Painel Assets" style="width:356px;height:820px;flex-shrink:0;display:flex;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);overflow:hidden;white-space:nowrap">
+  <div style="width:68px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line)">
+    <sc-for list="{{ rails.ast }}" as="t" hint-placeholder-count="6"><div style="height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-bottom:1px solid var(--line);box-shadow:{{ t.sh }}"><div style="width:34px;height:34px;background:{{ t.bg }};color:{{ t.ic }};display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{ t.d }}"></path></svg></div><span style="font-size:10.5px;font-weight:{{ t.fw }};color:{{ t.fg }}">{{ t.label }}</span></div></sc-for>
+  </div>
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <div style="padding:16px 16px 10px;display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:21px;font-weight:800;font-stretch:118%">Assets</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">1,240</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin:0 16px;border-bottom:1px solid var(--ink);padding:6px 0;font-size:13px;color:var(--ink3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>Search icons and stickers<span style="flex:1"></span><span style="font:400 10.5px 'IBM Plex Mono',monospace">/</span></div>
+    <div style="display:flex;gap:14px;padding:12px 16px;font-size:12.5px"><span style="font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px;text-decoration-color:var(--acc)">Icons</span><span style="color:var(--ink2)">Stickers</span><span style="color:var(--ink2)">Badges</span></div>
+    <div style="padding:0 16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px">
+      <sc-for list="{{ icons }}" as="i" hint-placeholder-count="12"><div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:{{ i.bg }};box-shadow:{{ i.sh }};color:var(--ink)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{ i.d }}"></path></svg></div></sc-for>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:18px 16px 10px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">B</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">ICON STYLE</span></div>
+    <div style="margin:0 16px;display:grid;grid-template-columns:repeat(3,1fr);height:30px;border:1px solid var(--line);font-size:12px">
+      <span style="display:flex;align-items:center;justify-content:center;background:var(--ink);color:var(--panel);font-weight:600">Line</span><span style="display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line);color:var(--ink2)">Solid</span><span style="display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line);color:var(--ink2)">Duo</span>
+    </div>
+    <div style="margin:10px 16px 0;display:flex;align-items:center;gap:10px"><span style="font-size:12px;color:var(--ink2)">Stroke</span><div style="flex:1;height:2px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:40%;background:var(--ink)"></div><div style="position:absolute;left:40%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;background:var(--panel);border:2px solid var(--ink)"></div></div><span style="font:500 11px 'IBM Plex Mono',monospace">1.6</span></div>
+  </div>
+</div>
+
+<div data-screen-label="Painel Overlays" style="width:356px;height:820px;flex-shrink:0;display:flex;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);overflow:hidden;white-space:nowrap">
+  <div style="width:68px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line)">
+    <sc-for list="{{ rails.ovl }}" as="t" hint-placeholder-count="6"><div style="height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-bottom:1px solid var(--line);box-shadow:{{ t.sh }}"><div style="width:34px;height:34px;background:{{ t.bg }};color:{{ t.ic }};display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{ t.d }}"></path></svg></div><span style="font-size:10.5px;font-weight:{{ t.fw }};color:{{ t.fg }}">{{ t.label }}</span></div></sc-for>
+  </div>
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <div style="padding:16px 16px 4px;display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:21px;font-weight:800;font-stretch:118%">Overlays</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">ON PAGE 1</span></div>
+    <span style="padding:0 16px 12px;font-size:12px;color:var(--ink2);white-space:normal">Texture and tone laid over the whole page.</span>
+    <div style="padding:0 16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+      <sc-for list="{{ overlays }}" as="o" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="aspect-ratio:1;position:relative;background:#F1ECE2;box-shadow:{{ o.sh }};overflow:hidden;display:flex;align-items:center;justify-content:center"><span style="font-family:'Playfair Display',serif;font-size:22px;color:#2B2B2B">sonder</span><div style="position:absolute;inset:0;background:{{ o.bg }};mix-blend-mode:{{ o.blend }}"></div></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;font-weight:{{ o.fw }}">{{ o.n }}</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">{{ o.on }}</span></div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin:16px 16px 0;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px"><span style="font-size:12px;color:var(--ink2)">Intensity</span><div style="flex:1;height:2px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:35%;background:var(--ink)"></div><div style="position:absolute;left:35%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;background:var(--panel);border:2px solid var(--ink)"></div></div><span style="font:500 11px 'IBM Plex Mono',monospace">35%</span></div>
+  </div>
+</div>
+
+<div data-screen-label="Painel Layers" style="width:288px;height:820px;flex-shrink:0;display:flex;flex-direction:column;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);overflow:hidden;white-space:nowrap">
+  <div style="display:flex;border-bottom:1px solid var(--line)">
+    <span style="flex:1;padding:13px 16px;font-size:13px;color:var(--ink3)">Inspect</span>
+    <span style="flex:1;padding:13px 16px;font-size:13px;font-weight:700;box-shadow:inset 0 -2px 0 var(--ink)">Layers <span style="font:400 10.5px 'IBM Plex Mono',monospace">7</span></span>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line)"><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">PAGE 01 · TOP TO BOTTOM</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:var(--ink2)">+</span></div>
+  <sc-for list="{{ layers }}" as="l" hint-placeholder-count="7">
+    <div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 12px 0 {{ l.pad }};border-bottom:1px solid var(--line);background:{{ l.bg }};box-shadow:{{ l.sh }};color:{{ l.fg }}">
+      <span style="font:400 11px 'IBM Plex Mono',monospace;color:var(--ink3);width:10px">{{ l.caret }}</span>
+      <span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:var(--soft);font:500 10px 'IBM Plex Mono',monospace">{{ l.ic }}</span>
+      <span style="flex:1;font-size:13px;font-weight:{{ l.fw }};overflow:hidden;text-overflow:ellipsis">{{ l.n }}</span>
+      <span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">{{ l.flags }}</span>
+    </div>
+  </sc-for>
+  <div style="margin:14px 16px 0;padding:10px 12px;background:var(--soft);font-size:12px;color:var(--ink2);white-space:normal;line-height:1.45">Drag to reorder. <span style="font:500 11px 'IBM Plex Mono',monospace;color:var(--ink)">⌘G</span> groups, <span style="font:500 11px 'IBM Plex Mono',monospace;color:var(--ink)">⌘L</span> locks.</div>
+</div>
+
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:baseline;gap:12px;color:#161513"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#FF4A1C">02</span><span style="font-size:22px;font-weight:800;font-stretch:115%">Estados</span></div>
+<div style="display:flex;gap:28px;align-items:flex-start">
+
+<div data-screen-label="Estados de componentes" style="width:620px;flex-shrink:0;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);display:flex;flex-direction:column;white-space:nowrap">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">A</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">COMPONENTS</span></div>
+  <div style="display:grid;grid-template-columns:110px repeat(5,minmax(0,1fr));align-items:center;font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3);padding:10px 20px;border-bottom:1px solid var(--line)"><span></span><span>DEFAULT</span><span>HOVER</span><span>PRESSED</span><span>FOCUS</span><span>DISABLED</span></div>
+  <div style="display:grid;grid-template-columns:110px repeat(5,minmax(0,1fr));align-items:center;gap:8px;padding:14px 20px;border-bottom:1px solid var(--line)">
+    <span style="font-size:12px;color:var(--ink2)">Primary</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;background:var(--acc);color:var(--accfg);font-size:12px;font-weight:800;font-stretch:112%">EXPORT</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;background:var(--acchov);color:var(--accfg);font-size:12px;font-weight:800;font-stretch:112%">EXPORT</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;background:var(--acchov);color:var(--accfg);font-size:12px;font-weight:800;font-stretch:112%;box-shadow:inset 0 2px 0 rgba(0,0,0,.25)">EXPORT</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;background:var(--acc);color:var(--accfg);font-size:12px;font-weight:800;font-stretch:112%;outline:2px solid var(--sel);outline-offset:2px">EXPORT</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;background:var(--soft);color:var(--ink3);font-size:12px;font-weight:800;font-stretch:112%">EXPORT</span>
+  </div>
+  <div style="display:grid;grid-template-columns:110px repeat(5,minmax(0,1fr));align-items:center;gap:8px;padding:14px 20px;border-bottom:1px solid var(--line)">
+    <span style="font-size:12px;color:var(--ink2)">Secondary</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);font-size:12.5px;font-weight:600">File</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;border:1px solid var(--ink);background:var(--soft);font-size:12.5px;font-weight:600">File</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;border:1px solid var(--ink);background:var(--ink);color:var(--panel);font-size:12.5px;font-weight:600">File</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);font-size:12.5px;font-weight:600;outline:2px solid var(--sel);outline-offset:2px">File</span>
+    <span style="height:32px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--line);color:var(--ink3);font-size:12.5px;font-weight:600">File</span>
+  </div>
+  <div style="display:grid;grid-template-columns:110px repeat(5,minmax(0,1fr));align-items:center;gap:8px;padding:14px 20px;border-bottom:1px solid var(--line)">
+    <span style="font-size:12px;color:var(--ink2)">Tool</span>
+    <span style="height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><span style="width:30px;height:30px;background:var(--tb-sky);color:var(--ti-sky);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg></span><span style="font-size:10.5px;color:var(--ink2)">Uploads</span></span>
+    <span style="height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--soft)"><span style="width:30px;height:30px;background:var(--tb-sky);color:var(--ti-sky);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg></span><span style="font-size:10.5px;color:var(--ink)">Uploads</span></span>
+    <span style="height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-shadow:inset 3px 0 0 var(--ink)"><span style="width:30px;height:30px;background:var(--tb-sky);color:var(--ti-sky);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg></span><span style="font-size:10.5px;font-weight:700">Uploads</span></span>
+    <span style="height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;outline:2px solid var(--sel);outline-offset:-2px"><span style="width:30px;height:30px;background:var(--tb-sky);color:var(--ti-sky);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg></span><span style="font-size:10.5px;color:var(--ink2)">Uploads</span></span>
+    <span style="height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:.4"><span style="width:30px;height:30px;background:var(--soft);color:var(--ink3);display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"></path></svg></span><span style="font-size:10.5px;color:var(--ink3)">Uploads</span></span>
+  </div>
+  <div style="display:grid;grid-template-columns:110px repeat(5,minmax(0,1fr));align-items:center;gap:8px;padding:14px 20px">
+    <span style="font-size:12px;color:var(--ink2)">Number field</span>
+    <span style="display:flex;align-items:center;height:28px;background:var(--soft)"><span style="width:24px;text-align:center;font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3);border-right:1px solid var(--line);line-height:28px">W</span><span style="padding:0 7px;font:500 11.5px 'IBM Plex Mono',monospace">528</span></span>
+    <span style="display:flex;align-items:center;height:28px;background:var(--soft);box-shadow:inset 0 0 0 1px var(--ink3)"><span style="width:24px;text-align:center;font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink);border-right:1px solid var(--line);line-height:28px;cursor:ew-resize">↔</span><span style="padding:0 7px;font:500 11.5px 'IBM Plex Mono',monospace">528</span></span>
+    <span style="display:flex;align-items:center;height:28px;background:var(--seldim);box-shadow:inset 0 0 0 1px var(--sel)"><span style="width:24px;text-align:center;font:400 10.5px 'IBM Plex Mono',monospace;color:var(--sel);border-right:1px solid var(--line);line-height:28px">↔</span><span style="padding:0 7px;font:500 11.5px 'IBM Plex Mono',monospace">541</span></span>
+    <span style="display:flex;align-items:center;height:28px;background:var(--panel);box-shadow:inset 0 0 0 1.5px var(--sel)"><span style="width:24px;text-align:center;font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3);border-right:1px solid var(--line);line-height:28px">W</span><span style="padding:0 7px;font:500 11.5px 'IBM Plex Mono',monospace">528<span style="display:inline-block;width:1px;height:13px;background:var(--ink);vertical-align:-2px;margin-left:1px"></span></span></span>
+    <span style="display:flex;flex-direction:column;gap:3px"><span style="display:flex;align-items:center;height:28px;background:var(--soft);box-shadow:inset 0 0 0 1.5px var(--err)"><span style="width:24px;text-align:center;font:400 10.5px 'IBM Plex Mono',monospace;color:var(--err);border-right:1px solid var(--line);line-height:28px">W</span><span style="padding:0 7px;font:500 11.5px 'IBM Plex Mono',monospace">−40</span></span><span style="font:400 10px 'IBM Plex Mono',monospace;color:var(--err)">MIN 1</span></span>
+  </div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:20px">
+  <div data-screen-label="Estados da IA" style="width:860px;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);white-space:nowrap">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">B</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">AI BRIEF BAR</span></div>
+    <sc-for list="{{ aiStates }}" as="s" hint-placeholder-count="5">
+      <div style="display:flex;flex-direction:column;gap:6px;padding:12px 20px;border-bottom:1px solid var(--line)">
+        <span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">{{ s.label }}</span>
+        <div style="height:40px;display:flex;align-items:stretch;border:1px solid var(--line);background:var(--panel)">
+          <div style="display:flex;align-items:center;padding:0 14px;background:{{ s.tagbg }};color:{{ s.tagfg }};font-weight:900;font-stretch:125%;font-size:12px;letter-spacing:.06em">{{ s.tag }}</div>
+          <div style="flex:1;display:flex;align-items:center;gap:10px;padding:0 14px;font-size:13.5px;color:{{ s.tc }};position:relative;overflow:hidden">{{ s.text }}<span style="position:absolute;left:0;bottom:0;height:2px;width:{{ s.prog }};background:var(--butter)"></span></div>
+          <div style="display:flex;align-items:center;padding:0 12px;font:400 10.5px 'IBM Plex Mono',monospace;color:{{ s.qc }};border-left:1px solid var(--line)">{{ s.quota }}</div>
+          <div style="display:flex;align-items:center;padding:0 14px;background:{{ s.btnbg }};color:{{ s.btnfg }};font-size:12px;font-weight:700">{{ s.btn }}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div data-screen-label="Toasts" style="width:860px;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);white-space:nowrap">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">C</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">TOASTS · BOTTOM-RIGHT, 5 S</span></div>
+    <div style="padding:16px 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+      <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="4">
+        <div style="display:flex;align-items:stretch;min-height:52px;background:var(--tb);color:var(--tbfg);box-shadow:0 10px 24px rgba(0,0,0,.2);border-radius:4px;overflow:hidden">
+          <span style="width:4px;background:{{ t.c }}"></span>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:8px 12px"><span style="font-size:13px;font-weight:600">{{ t.title }}</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;opacity:.7">{{ t.sub }}</span></div>
+          <span style="display:flex;align-items:center;padding:0 14px;font-size:12.5px;font-weight:700;border-left:1px solid rgba(128,128,128,.3)">{{ t.action }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div style="display:flex;gap:28px;align-items:flex-start">
+
+<div data-screen-label="Templates carregando" style="width:356px;height:800px;flex-shrink:0;display:flex;flex-direction:column;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);overflow:hidden;white-space:nowrap">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">D</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">LOADING · TEMPLATES</span></div>
+  <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+    <div style="width:120px;height:20px;background:var(--soft)"></div>
+    <div style="height:28px;border-bottom:1px solid var(--line)"></div>
+    <div style="display:flex;gap:10px"><span style="width:28px;height:12px;background:var(--soft)"></span><span style="width:40px;height:12px;background:var(--soft)"></span><span style="width:34px;height:12px;background:var(--soft)"></span><span style="width:46px;height:12px;background:var(--soft)"></span></div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;align-items:start">
+      <sc-for list="{{ skel }}" as="k" hint-placeholder-count="9"><div style="display:flex;flex-direction:column;gap:5px"><div style="aspect-ratio:{{ k }};background:var(--soft);background-image:linear-gradient(100deg,transparent 30%,var(--shine) 50%,transparent 70%)"></div><span style="width:70%;height:8px;background:var(--soft)"></span></div></sc-for>
+    </div>
+    <span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">SKELETON KEEPS REAL ASPECT RATIOS · SHIMMER 1.2 S</span>
+  </div>
+</div>
+
+<div data-screen-label="Dashboard vazio" style="width:900px;height:800px;flex-shrink:0;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);overflow:hidden;white-space:nowrap">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;align-items:center;gap:8px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">E</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">EMPTY · FIRST VISIT</span></div>
+  <div style="padding:40px 44px;display:flex;flex-direction:column;gap:26px">
+    <div style="display:flex;align-items:flex-start;gap:10px"><span style="font-size:72px;line-height:.82;font-weight:900;font-stretch:125%;letter-spacing:-.04em">Projects</span><span style="font:500 14px 'IBM Plex Mono',monospace;color:var(--acc)">00</span></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:stretch;border-top:1px solid var(--ink);padding-top:22px">
+      <div style="display:flex;flex-direction:column;gap:14px;white-space:normal">
+        <span style="font-size:26px;font-weight:800;font-stretch:112%;letter-spacing:-.01em;line-height:1.1">Nothing here yet. Pick a format, or describe what you need.</span>
+        <div style="display:flex;gap:10px;margin-top:6px">
+          <sc-for list="{{ starts }}" as="s" hint-placeholder-count="3"><div style="width:130px;height:120px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);padding:12px;display:flex;flex-direction:column;justify-content:space-between"><span style="width:{{ s.w }};height:{{ s.h }};box-shadow:inset 0 0 0 1.5px var(--ink)"></span><div style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:800">{{ s.n }}</span><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">{{ s.d }}</span></div></div></sc-for>
+        </div>
+      </div>
+      <div style="background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);padding:16px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;white-space:normal">
+        <span style="font-size:12px;font-weight:900;font-stretch:120%;letter-spacing:.06em"><span style="background:var(--butter);color:#161513;padding:2px 6px">BRIEF</span></span>
+        <span style="font-size:14px;color:var(--ink3);line-height:1.4;border-bottom:1.5px solid var(--ink);padding-bottom:10px">“An opening-day post for my bakery, warm and simple”</span>
+        <div style="display:flex;justify-content:space-between;align-items:center"><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">5 FREE THIS MONTH</span><span style="background:var(--ink);color:var(--panel);font-size:12.5px;font-weight:700;padding:7px 12px">Generate ⏎</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div data-screen-label="Limites" style="width:420px;flex-shrink:0;display:flex;flex-direction:column;background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line),0 16px 40px rgba(0,0,0,.14);white-space:nowrap">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px"><span style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--acc)">F</span><span style="font-size:11px;font-weight:800;letter-spacing:.08em">LIMITS · STORAGE</span></div>
+  <div style="padding:16px 20px;display:flex;flex-direction:column;gap:16px;white-space:normal">
+    <div style="display:flex;flex-direction:column;gap:6px"><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--ink3)">UNDER 80% · NORMAL</span><div style="display:flex;gap:2px"><sc-for list="{{ meters.ok }}" as="m" hint-placeholder-count="16"><span style="flex:1;height:12px;background:{{ m }}"></span></sc-for></div><span style="font:500 11px 'IBM Plex Mono',monospace">184 / 250 MB</span></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--warn)">80–99% · WARNING</span><div style="display:flex;gap:2px"><sc-for list="{{ meters.warn }}" as="m" hint-placeholder-count="16"><span style="flex:1;height:12px;background:{{ m }}"></span></sc-for></div><span style="font:500 11px 'IBM Plex Mono',monospace;color:var(--warn)">231 / 250 MB · 19 MB LEFT</span></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><span style="font:400 10.5px 'IBM Plex Mono',monospace;color:var(--err)">100% · BLOCKED</span><div style="display:flex;gap:2px"><sc-for list="{{ meters.full }}" as="m" hint-placeholder-count="16"><span style="flex:1;height:12px;background:{{ m }}"></span></sc-for></div></div>
+    <div style="display:flex;flex-direction:column;gap:10px;padding:14px;border-left:3px solid var(--err);background:var(--errdim)">
+      <span style="font-size:15px;font-weight:800;font-stretch:110%">Storage full</span>
+      <span style="font-size:12.5px;color:var(--ink2);line-height:1.45">New uploads are paused. Delete unused files or move to Pro for 1 GB.</span>
+      <div style="display:flex;gap:8px"><span style="background:var(--acc);color:var(--accfg);font-size:12px;font-weight:800;font-stretch:112%;padding:7px 12px">GO PRO · $10</span><span style="border:1px solid var(--line);font-size:12.5px;font-weight:600;padding:6px 12px">Manage files</span></div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+</div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;tema&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ambos&quot;,&quot;claro&quot;,&quot;escuro&quot;],&quot;default&quot;:&quot;ambos&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const hues = { apricot:55, sky:235, lilac:295, rose:10, mint:160, teal:195 };
+    const tl = {}, td = {};
+    Object.entries(hues).forEach(([k,H]) => { tl['--tb-'+k] = `oklch(0.89 0.055 ${H})`; tl['--ti-'+k] = '#161513'; td['--tb-'+k] = '#242422'; td['--ti-'+k] = `oklch(0.8 0.1 ${H})`; });
+    const light = { '--bg':'#F2EFE8','--panel':'#FAF8F3','--soft':'#EFEBE2','--line':'rgba(22,21,19,.13)','--ink':'#161513','--ink2':'#5E5A52','--ink3':'#6F6A61','--acc':'#FF4A1C','--acchov':'#E8390D','--accfg':'#161513','--sel':'#2F4BFF','--seldim':'rgba(47,75,255,.12)','--ok':'#3E7D4E','--warn':'#9A6200','--err':'#9E1F2E','--errdim':'rgba(158,31,46,.08)','--butter':'oklch(0.87 0.13 92)','--tb':'#161513','--tbfg':'#F2EFE8','--shine':'rgba(255,255,255,.7)', ...tl };
+    const dark = { '--bg':'#121211','--panel':'#1A1A18','--soft':'#242422','--line':'rgba(238,235,227,.11)','--ink':'#EEEBE3','--ink2':'#A9A498','--ink3':'#928D83','--acc':'#FF5A2E','--acchov':'#FF7650','--accfg':'#121211','--sel':'#7B8CFF','--seldim':'rgba(123,140,255,.16)','--ok':'#7FBF8A','--warn':'#E8B04A','--err':'#F08080','--errdim':'rgba(240,128,128,.1)','--butter':'oklch(0.82 0.13 92)','--tb':'#EEEBE3','--tbfg':'#121211','--shine':'rgba(255,255,255,.06)', ...td };
+    const tema = this.props.tema ?? "ambos";
+    const themes = [{ label:"Claro", vars: light }, { label:"Escuro", vars: dark }].filter(t => tema === "ambos" || t.label.toLowerCase() === tema);
+    const D = {
+      tpl:"M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
+      up:"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12",
+      txt:"M4 7V4h16v3M9 20h6M12 4v16",
+      shp:"M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z",
+      ast:"M5 3h14a2 2 0 0 1 2 2v9l-7 7H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM21 14h-5a2 2 0 0 0-2 2v5",
+      ovl:"M9 2a7 7 0 1 0 0 14a7 7 0 1 0 0-14zM15 8a7 7 0 1 0 0 14a7 7 0 1 0 0-14z"
+    };
+    const T = [["Templates","tpl","apricot"],["Uploads","up","sky"],["Text","txt","lilac"],["Shapes","shp","rose"],["Assets","ast","mint"],["Overlays","ovl","teal"]];
+    const rail = key => T.map(([label,k,c]) => { const on = k === key; return { label, d:D[k], bg:`var(--tb-${c})`, ic:`var(--ti-${c})`, sh: on ? "inset 3px 0 0 var(--ink)" : "none", fw: on ? 700 : 500, fg: on ? "var(--ink)" : "var(--ink2)" }; });
+    const rails = { up:rail("up"), txt:rail("txt"), shp:rail("shp"), ast:rail("ast"), ovl:rail("ovl") };
+    const U = [
+      { n:"logo-dark.svg", m:"24 KB", ar:"1", bg:"var(--soft)" },
+      { n:"shop-front.jpg", m:"2.1 MB", ar:"1", bg:"var(--soft)", sel:true },
+      { n:"portrait.jpg", m:"1.4 MB", ar:"4/5", bg:"var(--soft)" },
+      { n:"pattern.png", m:"860 KB", ar:"4/5", bg:"var(--soft)" },
+      { n:"banner.png", m:"38%", ar:"1", bg:"var(--soft)", msg:"UPLOADING…", up:true },
+      { n:"huge-photo.tif", m:"FAILED", ar:"1", bg:"var(--errdim)", msg:"OVER 20 MB · RETRY", err:true }
+    ];
+    const uploads = U.map(u => ({ ...u, msg: u.msg || "", fg: u.err ? "var(--err)" : "var(--ink3)", mc: u.err ? "var(--err)" : (u.up ? "var(--ink)" : "var(--ink3)"),
+      sh: u.sel ? "0 0 0 2px var(--sel)" : (u.err ? "inset 0 0 0 1px var(--err)" : (u.up ? "inset 0 -3px 0 var(--ink),inset 0 0 0 1px var(--line)" : "inset 0 0 0 1px var(--line)")),
+      bg: u.err ? u.bg : "var(--soft)" }));
+    const ip = ["M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z","M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z","M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4","M5 12h14M12 5l7 7-7 7","M20 6L9 17l-5-5","M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11zM12 7a3 3 0 1 0 0 6a3 3 0 1 0 0-6z","M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z","M13 2L3 14h9l-1 8 10-12h-9z","M11 20A7 7 0 0 1 4 13c0-6 7-10 16-10 0 9-4 16-10 16zM4 21c3-4 6-7 10-9","M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0a3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0a3 3 0 0 1 6 0z","M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 9a4 4 0 1 0 0 8a4 4 0 1 0 0-8z","M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20zM8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"];
+    const icons = ip.map((d,i) => ({ d, bg: i===1 ? "var(--soft)" : "var(--bg)", sh: i===1 ? "inset 0 0 0 1.5px var(--ink)" : "inset 0 0 0 1px var(--line)" }));
+    const O = [
+      ["None","transparent","normal"],["Paper grain","repeating-radial-gradient(circle at 30% 30%,rgba(0,0,0,.08) 0 1px,transparent 1px 3px)","multiply",true],
+      ["Warm wash","linear-gradient(160deg,rgba(255,140,60,.35),rgba(255,210,120,.1))","multiply"],["Halftone","radial-gradient(circle,rgba(0,0,0,.18) 1.2px,transparent 1.5px) 0 0/7px 7px","multiply"],
+      ["Vignette","radial-gradient(circle,transparent 45%,rgba(0,0,0,.45))","normal"],["Duotone blue","linear-gradient(rgba(47,75,255,.45),rgba(47,75,255,.45))","screen"]
+    ];
+    const overlays = O.map(([n,bg,blend,on]) => ({ n, bg, blend, on: on ? "ON" : "", fw: on ? 700 : 500, sh: on ? "0 0 0 2px var(--sel)" : "inset 0 0 0 1px var(--line)" }));
+    const layers = [
+      { n:"Header", ic:"▢", caret:"▾", pad:"12px", flags:"3" },
+      { n:"sonder", ic:"T", caret:"", pad:"30px", flags:"", sel:true },
+      { n:"/ˈsɒndər/", ic:"T", caret:"", pad:"30px", flags:"" },
+      { n:"noun", ic:"T", caret:"", pad:"30px", flags:"HIDDEN", dim:true },
+      { n:"Divider", ic:"—", caret:"", pad:"12px", flags:"" },
+      { n:"Definition", ic:"T", caret:"", pad:"12px", flags:"" },
+      { n:"Background", ic:"■", caret:"", pad:"12px", flags:"LOCKED" }
+    ].map(l => ({ ...l, bg: l.sel ? "var(--seldim)" : "transparent", sh: l.sel ? "inset 3px 0 0 var(--sel)" : "none", fw: l.sel ? 700 : 500, fg: l.dim ? "var(--ink3)" : "var(--ink)" }));
+    const aiStates = [
+      { label:"IDLE", tag:"BRIEF", tagbg:"var(--butter)", tagfg:"#161513", text:"Describe a post — “poster for a ceramics fair, warm and minimal”", tc:"var(--ink3)", quota:"4 LEFT", qc:"var(--ink3)", btn:"⌘K", btnbg:"transparent", btnfg:"var(--ink2)", prog:"0%" },
+      { label:"TYPING", tag:"BRIEF", tagbg:"var(--butter)", tagfg:"#161513", text:"Poster for a ceramics fair, warm and minimal|", tc:"var(--ink)", quota:"4 LEFT", qc:"var(--ink3)", btn:"GENERATE ⏎", btnbg:"var(--ink)", btnfg:"var(--panel)", prog:"0%" },
+      { label:"GENERATING · STEP 2 OF 3", tag:"BRIEF", tagbg:"var(--butter)", tagfg:"#161513", text:"Picked “Serenity” · writing the copy…", tc:"var(--ink)", quota:"USING 1", qc:"var(--ink)", btn:"CANCEL", btnbg:"transparent", btnfg:"var(--ink2)", prog:"62%" },
+      { label:"DONE", tag:"✓ DONE", tagbg:"var(--ok)", tagfg:"#fff", text:"Applied to page 1. Not quite right? Try again with more detail.", tc:"var(--ink)", quota:"3 LEFT", qc:"var(--ink3)", btn:"UNDO ⌘Z", btnbg:"transparent", btnfg:"var(--ink)", prog:"0%" },
+      { label:"LIMIT REACHED", tag:"0 LEFT", tagbg:"var(--soft)", tagfg:"var(--ink2)", text:"You’ve used all 5 briefs this month. They reset on Nov 1.", tc:"var(--ink2)", quota:"5 / 5", qc:"var(--err)", btn:"GO PRO · 100/MO", btnbg:"var(--acc)", btnfg:"var(--accfg)", prog:"0%" }
+    ];
+    const toasts = [
+      { c:"var(--ok)", title:"Exported sonder-post.png", sub:"1080 × 1080 · 412 KB", action:"Open" },
+      { c:"var(--warn)", title:"Storage almost full", sub:"231 OF 250 MB USED", action:"Manage" },
+      { c:"var(--err)", title:"Export failed", sub:"NETWORK TIMEOUT · NOTHING WAS LOST", action:"Retry" },
+      { c:"var(--ink3)", title:"Layer deleted", sub:"“noun”", action:"Undo" }
+    ];
+    const meter = (n, c) => Array.from({length:16},(_,i) => i < n ? c : "var(--line)");
+    return {
+      themes, rails, uploads, icons, overlays, layers, aiStates, toasts,
+      skel: ["1","9/16","1","2/3","1","1","1","9/16","2/3"],
+      starts: [{n:"Post",d:"1080 × 1080",w:"36px",h:"36px"},{n:"Story",d:"1080 × 1920",w:"24px",h:"42px"},{n:"Pinterest",d:"1000 × 1500",w:"30px",h:"42px"}],
+      meters: { ok: meter(12,"var(--ink)"), warn: meter(15,"var(--warn)"), full: meter(16,"var(--err)") }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -118,6 +118,9 @@ interface ColorPickerProps {
   onChange: (hex: string) => void;
   size?: "sm" | "md";
   align?: "left" | "right";
+  /** "swatch" shows the current colour; "add" is the inspector's dashed "+"
+   *  that sits after the document palette. */
+  variant?: "swatch" | "add";
 }
 
 export default function ColorPicker({
@@ -125,6 +128,7 @@ export default function ColorPicker({
   onChange,
   size = "md",
   align = "left",
+  variant = "swatch",
 }: ColorPickerProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -274,7 +278,7 @@ export default function ColorPicker({
     }
   };
 
-  const dim = size === "sm" ? "w-7 h-7" : "w-8 h-8";
+  const dim = size === "sm" ? "w-7 h-7" : "w-[30px] h-[30px]";
 
   return (
     <>
@@ -282,15 +286,21 @@ export default function ColorPicker({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label="Pick color"
+        aria-label={variant === "add" ? "Pick another colour" : "Pick color"}
         aria-expanded={open}
-        className={`${dim} rounded-md border border-border-strong cursor-pointer shrink-0 transition-all hover:scale-105 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
-        style={{ backgroundColor: value }}
-      />
+        className={
+          variant === "add"
+            ? `${dim} rounded-full border border-dashed border-text-tertiary text-text-secondary hover:text-text-primary hover:border-text-primary flex items-center justify-center text-[15px] leading-none shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection`
+            : `${dim} rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)] cursor-pointer shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection`
+        }
+        style={variant === "add" ? undefined : { backgroundColor: value }}
+      >
+        {variant === "add" ? "+" : null}
+      </button>
       {open && createPortal(
         <div
           ref={popoverRef}
-          className="fixed z-[200] w-[248px] bg-surface-1 border border-border-default rounded-xl shadow-pop p-3 animate-fade-in"
+          className="fixed z-[200] w-[248px] bg-surface-2 border border-border-default rounded-float shadow-pop p-3 animate-fade-in"
           style={{ left: pos.left, top: pos.top }}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -299,7 +309,7 @@ export default function ColorPicker({
             <div
               ref={svRef}
               onPointerDown={startDrag("sv")}
-              className="relative flex-1 h-[150px] rounded-lg cursor-crosshair touch-none select-none"
+              className="relative flex-1 h-[150px] cursor-crosshair touch-none select-none"
               style={{
                 backgroundColor: `hsl(${hsv.h}, 100%, 50%)`,
                 backgroundImage:
@@ -320,7 +330,7 @@ export default function ColorPicker({
             <div
               ref={hueRef}
               onPointerDown={startDrag("hue")}
-              className="relative w-3.5 h-[150px] rounded-full cursor-pointer touch-none select-none"
+              className="relative w-3.5 h-[150px] cursor-pointer touch-none select-none"
               style={{
                 backgroundImage:
                   "linear-gradient(to bottom, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)",
@@ -341,11 +351,11 @@ export default function ColorPicker({
           {/* Hex input + preview + eyedropper */}
           <div className="flex items-center gap-2 mt-3">
             <div
-              className="w-8 h-8 rounded-md border border-border-strong shrink-0"
+              className="w-8 h-8 rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)] shrink-0"
               style={{ backgroundColor: hexInput }}
             />
-            <div className="flex-1 flex items-center bg-surface-2 border border-border-subtle rounded-md focus-within:border-accent transition-colors">
-              <span className="pl-2 text-text-ghost text-xs font-mono select-none">#</span>
+            <div className="flex-1 flex items-center h-8 bg-surface-3 focus-within:shadow-[inset_0_0_0_1.5px_var(--selection)] transition-shadow">
+              <span className="pl-2 text-text-tertiary text-[11.5px] font-mono select-none">#</span>
               <input
                 type="text"
                 value={hexInput.replace(/^#/, "")}
@@ -359,7 +369,7 @@ export default function ColorPicker({
                 }}
                 spellCheck={false}
                 aria-label="Hex color value"
-                className="w-full bg-transparent text-xs text-text-primary pl-1 pr-2 py-1.5 rounded-md outline-none font-mono uppercase tracking-wide"
+                className="w-full bg-transparent text-[11.5px] font-medium text-text-primary pl-1 pr-2 outline-none font-mono uppercase"
               />
             </div>
             {supportsEyedropper && (
@@ -368,7 +378,7 @@ export default function ColorPicker({
                 onClick={pickWithEyedropper}
                 aria-label="Pick color from screen"
                 title="Pick from screen"
-                className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md bg-surface-2 border border-border-subtle text-text-tertiary hover:text-text-primary hover:bg-surface-3 transition-all"
+                className="w-8 h-8 shrink-0 flex items-center justify-center border border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="m2 22 1-1h3l9-9" />
@@ -381,7 +391,7 @@ export default function ColorPicker({
 
           {/* Swatches */}
           <div className="mt-3">
-            <span className="text-[11.5px] text-text-ghost uppercase tracking-wider block mb-1.5">
+            <span className="font-mono text-[10.5px] text-text-tertiary uppercase block mb-1.5">
               Swatches
             </span>
             <div className="grid grid-cols-9 gap-1">
@@ -394,10 +404,10 @@ export default function ColorPicker({
                     onClick={() => commitHex(c)}
                     aria-label={c}
                     aria-pressed={isActive}
-                    className={`aspect-square rounded-md transition-transform hover:scale-110 ${
+                    className={`aspect-square rounded-full ${
                       isActive
-                        ? "ring-2 ring-accent ring-offset-1 ring-offset-surface-1 scale-110"
-                        : "ring-1 ring-inset ring-border-subtle"
+                        ? "shadow-[0_0_0_2px_var(--surface-2),0_0_0_3.5px_var(--selection)]"
+                        : "shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)] hover:shadow-[0_0_0_1px_var(--text-primary)]"
                     }`}
                     style={{ backgroundColor: c }}
                   />

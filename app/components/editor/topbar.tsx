@@ -8,6 +8,7 @@ import { db } from "../../lib/db";
 import { toast } from "../../store/toast-store";
 import { useInstallPrompt } from "../../hooks/use-install-prompt";
 import AccountMenu from "./account-menu";
+import { useProjectNumber, formatProjectNumber } from "../../lib/project-number";
 import IconButton from "../ui/icon-button";
 import { cx } from "../ui/cx";
 import {
@@ -25,14 +26,12 @@ import {
   ChevronDownIcon,
   UploadIcon,
   KeyboardIcon,
-  FolderIcon,
   TemplatesIcon,
-  LockIcon,
   InstallIcon,
 } from "./icons";
 
-/** How long after a save the "Saved" chip stays up. */
-const SAVED_CHIP_MS = 4000;
+/** Shown next to "Try Pro". Keep in step with the Paddle price. */
+const PRO_PRICE = "$10";
 
 export default function Topbar({
   onOpenProjects,
@@ -51,7 +50,9 @@ export default function Topbar({
   const future = useEditorStore((s) => s.future);
   const projectName = useEditorStore((s) => s.projectName);
   const setProjectName = useEditorStore((s) => s.setProjectName);
-  const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
+  const syncState = useEditorStore((s) => s.syncState);
+  const projectId = useEditorStore((s) => s.projectId);
+  const projectNumber = useProjectNumber(projectId);
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
   const isPro = useEntitlementStore((s) => s.pro);
@@ -63,7 +64,6 @@ export default function Topbar({
   const [isEditingName, setIsEditingName] = useState(false);
   const [customW, setCustomW] = useState<string>(String(format.width));
   const [customH, setCustomH] = useState<string>(String(format.height));
-  const [, tick] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatMenuRef = useRef<HTMLDivElement>(null);
   const fileMenuRef = useRef<HTMLDivElement>(null);
@@ -72,18 +72,6 @@ export default function Topbar({
     setCustomW(String(format.width));
     setCustomH(String(format.height));
   }, [format.width, format.height]);
-
-  // The chip is a moment of reassurance, not a permanent badge. Derived from
-  // `lastSavedAt` rather than held in state — the effect only schedules the
-  // re-render that retires it.
-  const savedRecently =
-    lastSavedAt !== null && Date.now() - lastSavedAt < SAVED_CHIP_MS;
-
-  useEffect(() => {
-    if (!lastSavedAt) return;
-    const t = setTimeout(() => tick((n) => n + 1), SAVED_CHIP_MS);
-    return () => clearTimeout(t);
-  }, [lastSavedAt]);
 
   // Close any open dropdown on outside click or Escape.
   useEffect(() => {
@@ -159,21 +147,38 @@ export default function Topbar({
   }, []);
 
   const menuItem =
-    "w-full flex items-center gap-2.5 px-3 py-2 text-[11.5px] text-text-secondary hover:text-text-primary hover:bg-surface-4 transition-colors duration-150 ease-standard";
+    "w-full flex items-center gap-2.5 px-3 py-2 text-[12.5px] text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors duration-150 ease-standard";
+
+  const status =
+    syncState === "syncing"
+      ? { label: "saving…", tone: "text-text-tertiary", dot: "bg-text-tertiary" }
+      : syncState === "offline"
+        ? { label: "offline", tone: "text-warning", dot: "bg-warning" }
+        : { label: "saved", tone: "text-success", dot: "bg-success" };
+
+  // Full-height cells split by 1px rules — no pill groups.
+  const cell = "flex items-center border-border-default";
 
   return (
-    <header className="h-[52px] bg-surface-1 border-b border-border-subtle flex items-center justify-between px-3 shrink-0 relative z-50">
-      {/* ---- Left: identity ---- */}
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        <button
-          onClick={onOpenProjects}
-          title="My projects"
-          aria-label="My projects"
-          className="w-[26px] h-[26px] rounded-md bg-accent text-accent-fg text-[12px] font-semibold flex items-center justify-center shrink-0 hover:bg-accent-hover transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          M
-        </button>
+    <header className="h-12 bg-surface-1 border-b border-border-default flex items-stretch shrink-0 relative z-50 whitespace-nowrap">
+      {/* ---- Identity ---- */}
+      <button
+        onClick={onOpenProjects}
+        title="My projects"
+        aria-label="My projects"
+        className={cx(
+          cell,
+          "w-16 justify-center border-r shrink-0 text-[15px] font-black font-wide tracking-[-0.02em] text-text-primary hover:bg-surface-3 transition-colors",
+          "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
+        )}
+      >
+        mo<span className="text-accent">.</span>
+      </button>
 
+      <div className={cx(cell, "gap-3 px-4 border-r min-w-0")}>
+        <span className="font-mono text-[11px] font-medium text-text-tertiary shrink-0 hidden sm:inline">
+          Nº {formatProjectNumber(projectNumber)}
+        </span>
         {isEditingName ? (
           <input
             type="text"
@@ -182,275 +187,275 @@ export default function Topbar({
             onBlur={() => setIsEditingName(false)}
             onKeyDown={(e) => e.key === "Enter" && setIsEditingName(false)}
             autoFocus
-            className="bg-surface-3 text-[13px] font-semibold text-text-primary px-2 py-0.5 rounded-md outline-none border border-border-default focus:border-accent w-36"
+            aria-label="Project name"
+            className="bg-surface-3 text-[14px] font-semibold text-text-primary px-2 h-7 outline-none shadow-[inset_0_0_0_1.5px_var(--selection)] w-44"
           />
         ) : (
           <button
             onClick={() => setIsEditingName(true)}
             aria-label={`Rename project (current: ${projectName})`}
-            className="text-[13px] font-semibold text-text-primary truncate max-w-[180px] hover:text-accent transition-colors duration-150 ease-standard"
+            className="text-[14px] font-semibold text-text-primary truncate max-w-[200px] hover:underline underline-offset-4 decoration-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
           >
             {projectName}
           </button>
         )}
-
-        <span className="text-[11px] text-text-tertiary truncate hidden sm:block">
-          {format.label}
+        <span
+          className={cx("hidden sm:flex items-center gap-[5px] font-mono text-[11px] shrink-0", status.tone)}
+          aria-live="polite"
+        >
+          <span className={cx("w-1.5 h-1.5 rounded-full", status.dot)} />
+          {status.label}
         </span>
+      </div>
 
-        {savedRecently && (
-          <span className="text-[10px] font-medium font-mono text-success bg-success/10 rounded-full px-2 py-[3px] shrink-0 animate-fade-in">
-            Saved
-          </span>
+      {/* Size picker */}
+      <div className={cx(cell, "relative border-r hidden md:flex")} ref={formatMenuRef}>
+        <button
+          onClick={() => setShowFormatMenu((v) => !v)}
+          aria-label={`Canvas size: ${format.width} by ${format.height}. Change`}
+          aria-haspopup="menu"
+          aria-expanded={showFormatMenu}
+          className="h-full flex items-center gap-2 px-3.5 font-mono text-[12px] font-medium text-text-primary tabular-nums hover:bg-surface-3 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
+        >
+          <span className="w-[11px] h-[11px] border-[1.5px] border-current" aria-hidden />
+          {format.width} × {format.height}
+          <ChevronDownIcon className="w-2.5 h-2.5" />
+        </button>
+        {showFormatMenu && (
+          <div className="absolute top-full mt-1 left-0 bg-surface-2 border border-border-default rounded-float py-1 min-w-[240px] shadow-pop animate-scale-in">
+            {CANVAS_FORMATS.map((fmt) => (
+              <button
+                key={fmt.label}
+                onClick={() => {
+                  setFormat(fmt);
+                  setShowFormatMenu(false);
+                }}
+                className={cx(
+                  "w-full text-left px-3 py-2 text-[12.5px] flex justify-between items-center gap-4 hover:bg-surface-3 transition-colors duration-150 ease-standard",
+                  fmt.label === format.label
+                    ? "text-text-primary font-bold shadow-[inset_3px_0_0_var(--text-primary)]"
+                    : "text-text-secondary"
+                )}
+              >
+                <span>{fmt.label}</span>
+                <span className="text-text-tertiary font-mono text-[11px] tabular-nums">
+                  {fmt.width} × {fmt.height}
+                </span>
+              </button>
+            ))}
+            <div className="border-t border-border-default mt-1 pt-2 px-3 pb-2 space-y-2">
+              <span className="font-mono text-[10.5px] uppercase text-text-tertiary block">
+                Custom size
+              </span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={50}
+                  max={8000}
+                  value={customW}
+                  onChange={(e) => setCustomW(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyCustomFormat()}
+                  className="w-full min-w-0 h-7 bg-surface-3 text-[11.5px] font-mono tabular-nums text-text-primary px-2 outline-none focus:shadow-[inset_0_0_0_1.5px_var(--selection)]"
+                  placeholder="W"
+                  aria-label="Custom width"
+                />
+                <span className="text-text-tertiary text-[11.5px]">×</span>
+                <input
+                  type="number"
+                  min={50}
+                  max={8000}
+                  value={customH}
+                  onChange={(e) => setCustomH(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyCustomFormat()}
+                  className="w-full min-w-0 h-7 bg-surface-3 text-[11.5px] font-mono tabular-nums text-text-primary px-2 outline-none focus:shadow-[inset_0_0_0_1.5px_var(--selection)]"
+                  placeholder="H"
+                  aria-label="Custom height"
+                />
+                <button
+                  onClick={applyCustomFormat}
+                  className="h-7 text-[11px] uppercase font-bold bg-surface-inverse text-text-inverse px-2.5 shrink-0"
+                >
+                  Set
+                </button>
+              </div>
+              <span className="text-[10.5px] text-text-tertiary block font-mono tabular-nums">
+                50 – 8000 PX
+              </span>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* ---- Centre: canvas controls ---- */}
-      <div className="hidden md:flex items-center gap-[3px] bg-surface-4 rounded-[9px] p-[3px] shrink-0">
-        {/* Format selector — the raised card in the group */}
-        <div className="relative" ref={formatMenuRef}>
-          <button
-            onClick={() => setShowFormatMenu((v) => !v)}
-            aria-label={`Canvas size: ${format.width} by ${format.height}. Change`}
-            aria-haspopup="menu"
-            aria-expanded={showFormatMenu}
-            className="flex items-center gap-1.5 bg-surface-2 text-text-primary text-[11.5px] font-medium px-2.5 h-[26px] rounded-[7px] shadow-raise hover:bg-surface-3 transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <span className="font-mono tabular-nums">
-              {format.width} × {format.height}
-            </span>
-            <ChevronDownIcon className="w-3 h-3 text-text-tertiary" />
-          </button>
-          {showFormatMenu && (
-            <div className="absolute top-full mt-2 left-0 bg-surface-2 border border-border-default rounded-lg py-1 min-w-[220px] shadow-pop animate-scale-in">
-              {CANVAS_FORMATS.map((fmt) => (
-                <button
-                  key={fmt.label}
-                  onClick={() => {
-                    setFormat(fmt);
-                    setShowFormatMenu(false);
-                  }}
-                  className={cx(
-                    "w-full text-left px-3 py-2 text-[11.5px] flex justify-between items-center gap-4 hover:bg-surface-4 transition-colors duration-150 ease-standard",
-                    fmt.label === format.label
-                      ? "text-accent font-medium"
-                      : "text-text-secondary"
-                  )}
-                >
-                  <span>{fmt.label}</span>
-                  <span className="text-text-ghost font-mono tabular-nums">
-                    {fmt.width} × {fmt.height}
-                  </span>
-                </button>
-              ))}
-              <div className="border-t border-border-subtle mt-1 pt-2 px-3 pb-2 space-y-2">
-                <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-text-ghost block">
-                  Custom size
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="number"
-                    min={50}
-                    max={8000}
-                    value={customW}
-                    onChange={(e) => setCustomW(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && applyCustomFormat()}
-                    className="w-full min-w-0 bg-surface-3 border border-border-subtle text-[11.5px] font-mono tabular-nums text-text-primary px-2 py-1 rounded-md outline-none focus:border-accent transition-colors"
-                    placeholder="W"
-                    aria-label="Custom width"
-                  />
-                  <span className="text-text-ghost text-[11.5px]">×</span>
-                  <input
-                    type="number"
-                    min={50}
-                    max={8000}
-                    value={customH}
-                    onChange={(e) => setCustomH(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && applyCustomFormat()}
-                    className="w-full min-w-0 bg-surface-3 border border-border-subtle text-[11.5px] font-mono tabular-nums text-text-primary px-2 py-1 rounded-md outline-none focus:border-accent transition-colors"
-                    placeholder="H"
-                    aria-label="Custom height"
-                  />
-                  <button
-                    onClick={applyCustomFormat}
-                    className="text-[10px] uppercase font-semibold bg-accent hover:bg-accent-hover text-accent-fg px-2.5 py-1 rounded-md transition-colors duration-150 ease-standard shrink-0"
-                  >
-                    Set
-                  </button>
-                </div>
-                <span className="text-[11px] text-text-ghost block font-mono tabular-nums">
-                  50 – 8000px
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="w-px h-4 bg-border-default mx-[3px]" />
-
+      {/* Tools */}
+      <div className={cx(cell, "gap-[2px] px-2 border-r hidden md:flex")}>
         <ToolToggle
           label="Select"
           active={activeTool === "cursor"}
           onClick={() => setActiveTool("cursor")}
         >
-          <CursorIcon className="w-4 h-4" />
+          <CursorIcon className="w-[15px] h-[15px]" />
         </ToolToggle>
         <ToolToggle
           label="Hand (pan)"
           active={activeTool === "hand"}
           onClick={() => setActiveTool("hand")}
         >
-          <HandIcon className="w-4 h-4" />
+          <HandIcon className="w-[15px] h-[15px]" />
         </ToolToggle>
-
-        <div className="w-px h-4 bg-border-default mx-[3px]" />
-
+        <div className="w-px h-[18px] bg-border-default mx-1" />
         <ToolToggle label="Undo" onClick={undo} disabled={past.length === 0}>
-          <UndoIcon className="w-4 h-4" />
+          <UndoIcon className="w-[15px] h-[15px]" />
         </ToolToggle>
         <ToolToggle label="Redo" onClick={redo} disabled={future.length === 0}>
-          <RedoIcon className="w-4 h-4" />
+          <RedoIcon className="w-[15px] h-[15px]" />
         </ToolToggle>
       </div>
 
-      {/* ---- Right: actions ---- */}
-      <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={`.${FILE_EXTENSION},application/json`}
-          onChange={handleImportFile}
-          className="hidden"
-        />
+      <div className="flex-1" />
 
-        {/* File menu — also the home for the install and shortcuts actions,
-            which the redesigned bar has no room to surface directly. */}
-        <div className="relative" ref={fileMenuRef}>
-          <button
-            onClick={() => setShowFileMenu((v) => !v)}
-            aria-label="File and project options"
-            aria-haspopup="menu"
-            aria-expanded={showFileMenu}
-            className="flex items-center gap-1.5 bg-surface-2 border border-border-default text-text-secondary hover:text-text-primary hover:bg-surface-4 text-[11.5px] font-medium px-2.5 py-1.5 rounded-md transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <FolderIcon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">File</span>
-          </button>
-          {showFileMenu && (
-            <div className="absolute top-full mt-2 right-0 bg-surface-2 border border-border-default rounded-lg py-1 min-w-[220px] shadow-pop animate-scale-in z-50">
-              <button
-                onClick={() => {
-                  handleSave();
-                  setShowFileMenu(false);
-                }}
-                className={menuItem}
-              >
-                <SaveIcon className="w-3.5 h-3.5 text-text-tertiary" />
-                Save to browser
-              </button>
-              <button
-                onClick={() => {
-                  onOpenProjects();
-                  setShowFileMenu(false);
-                }}
-                className={menuItem}
-              >
-                <TemplatesIcon className="w-3.5 h-3.5 text-text-tertiary" />
-                My projects…
-              </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={`.${FILE_EXTENSION},application/json`}
+        onChange={handleImportFile}
+        className="hidden"
+      />
 
-              <div className="border-t border-border-subtle my-1" />
-              <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-text-ghost px-3 py-1 block">
-                Project file
+      {/* File menu — also the home for the install and shortcuts actions. */}
+      <div className={cx(cell, "relative border-l")} ref={fileMenuRef}>
+        <button
+          onClick={() => setShowFileMenu((v) => !v)}
+          aria-label="File and project options"
+          aria-haspopup="menu"
+          aria-expanded={showFileMenu}
+          className="h-full flex items-center px-4 text-[13px] font-medium text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
+        >
+          File
+        </button>
+        {showFileMenu && (
+          <div className="absolute top-full mt-1 right-0 bg-surface-2 border border-border-default rounded-float py-1 min-w-[240px] shadow-pop animate-scale-in z-50">
+            <button
+              onClick={() => {
+                handleSave();
+                setShowFileMenu(false);
+              }}
+              className={menuItem}
+            >
+              <SaveIcon className="w-3.5 h-3.5 text-text-tertiary" />
+              Save to browser
+            </button>
+            <button
+              onClick={() => {
+                onOpenProjects();
+                setShowFileMenu(false);
+              }}
+              className={menuItem}
+            >
+              <TemplatesIcon className="w-3.5 h-3.5 text-text-tertiary" />
+              My projects…
+            </button>
+
+            <div className="border-t border-border-default my-1" />
+            <span className="font-mono text-[10.5px] uppercase text-text-tertiary px-3 py-1 block">
+              Project file
+            </span>
+            <button
+              onClick={() => {
+                onOpenExport();
+                setShowFileMenu(false);
+              }}
+              className={cx(menuItem, "justify-between")}
+            >
+              <span className="flex items-center gap-2.5">
+                <DownloadIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                Download project
               </span>
-              <button
-                onClick={() => {
-                  onOpenExport();
-                  setShowFileMenu(false);
-                }}
-                className={cx(menuItem, "justify-between")}
-              >
-                <span className="flex items-center gap-2.5">
-                  <DownloadIcon className="w-3.5 h-3.5 text-text-tertiary" />
-                  Download project
-                </span>
-                <span className="text-[10px] text-text-ghost uppercase font-mono">
-                  .{FILE_EXTENSION}
-                </span>
-              </button>
-              <button
-                onClick={() => {
-                  fileInputRef.current?.click();
-                  setShowFileMenu(false);
-                }}
-                className={cx(menuItem, "justify-between")}
-              >
-                <span className="flex items-center gap-2.5">
-                  <UploadIcon className="w-3.5 h-3.5 text-text-tertiary" />
-                  Import project
-                </span>
-                <span className="text-[10px] text-text-ghost uppercase font-mono">
-                  .{FILE_EXTENSION}
-                </span>
-              </button>
+              <span className="text-[10.5px] text-text-tertiary uppercase font-mono">
+                .{FILE_EXTENSION}
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                fileInputRef.current?.click();
+                setShowFileMenu(false);
+              }}
+              className={cx(menuItem, "justify-between")}
+            >
+              <span className="flex items-center gap-2.5">
+                <UploadIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                Import project
+              </span>
+              <span className="text-[10.5px] text-text-tertiary uppercase font-mono">
+                .{FILE_EXTENSION}
+              </span>
+            </button>
 
-              <div className="border-t border-border-subtle my-1" />
+            <div className="border-t border-border-default my-1" />
+            <button
+              onClick={() => {
+                onOpenShortcuts();
+                setShowFileMenu(false);
+              }}
+              className={cx(menuItem, "justify-between")}
+            >
+              <span className="flex items-center gap-2.5">
+                <KeyboardIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                Keyboard shortcuts
+              </span>
+              <kbd className="text-[10.5px] text-text-tertiary font-mono">?</kbd>
+            </button>
+            {canInstall && (
               <button
                 onClick={() => {
-                  onOpenShortcuts();
+                  promptInstall();
                   setShowFileMenu(false);
                 }}
-                className={cx(menuItem, "justify-between")}
+                className={menuItem}
               >
-                <span className="flex items-center gap-2.5">
-                  <KeyboardIcon className="w-3.5 h-3.5 text-text-tertiary" />
-                  Keyboard shortcuts
-                </span>
-                <kbd className="text-[10px] text-text-ghost font-mono">?</kbd>
+                <InstallIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                Install as an app
               </button>
-              {canInstall && (
-                <button
-                  onClick={() => {
-                    promptInstall();
-                    setShowFileMenu(false);
-                  }}
-                  className={menuItem}
-                >
-                  <InstallIcon className="w-3.5 h-3.5 text-text-tertiary" />
-                  Install as an app
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {!isPro && (
-          <button
-            onClick={() => openLicense()}
-            className="hidden sm:flex items-center gap-1.5 bg-accent-tint text-accent-tint-fg hover:bg-accent/20 text-[11.5px] font-medium px-2.5 py-1.5 rounded-md transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <LockIcon className="w-3.5 h-3.5" />
-            Upgrade
-          </button>
+            )}
+          </div>
         )}
+      </div>
 
-        {/* The one primary action on the screen. */}
+      {!isPro && (
+        <button
+          onClick={() => openLicense()}
+          className={cx(
+            cell,
+            "hidden sm:flex gap-2 px-4 border-l text-[13px] font-semibold text-text-primary hover:bg-surface-3 transition-colors",
+            "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
+          )}
+        >
+          Try Pro
+          <span className="font-mono text-[10.5px] font-medium border border-text-primary px-1 py-px">
+            {PRO_PRICE}
+          </span>
+        </button>
+      )}
+
+      {/* The one primary action on the screen. */}
+      <div className={cx(cell, "px-2.5 border-l")}>
         <button
           onClick={onOpenExport}
           aria-label="Export"
-          className="flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-accent-fg text-[11.5px] font-semibold px-3 py-1.5 rounded-md shadow-[0_1px_2px_rgb(91_91_214/.4)] transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="h-8 flex items-center gap-2.5 px-4 bg-accent hover:bg-accent-hover active:shadow-[inset_0_2px_0_rgb(0_0_0/0.25)] text-accent-fg text-[13px] font-extrabold font-expanded uppercase tracking-[0.02em] transition-colors duration-150 ease-standard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
         >
-          <DownloadIcon className="w-3.5 h-3.5" />
           Export
+          <DownloadIcon className="w-3.5 h-3.5" />
         </button>
+      </div>
 
+      <div className={cx(cell, "w-12 justify-center border-l shrink-0")}>
         <AccountMenu />
       </div>
     </header>
   );
 }
 
-/** A 28×26 control inside the centre group. */
+/** A 32×30 cell in the tools group; the active tool is an ink fill. */
 function ToolToggle({
   label,
   active = false,

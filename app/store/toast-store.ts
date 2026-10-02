@@ -1,12 +1,19 @@
 import { create } from "zustand";
 import { useEditorStore } from "./editor-store";
 
-export type ToastType = "success" | "error" | "info" | "action";
+/** Drives the 4px bar on the toast's left edge: success / warning / danger
+ *  (error) / tertiary (info, action). */
+export type ToastType = "success" | "error" | "warning" | "info" | "action";
+
+/** Every toast auto-dismisses after this unless told otherwise. */
+export const TOAST_MS = 5000;
 
 export interface Toast {
   id: number;
   type: ToastType;
   message: string;
+  /** Optional mono second line, e.g. "1080 × 1080 · 412 KB". */
+  sub?: string;
   actionLabel?: string;
   onAction?: () => void;
   duration: number;
@@ -31,31 +38,38 @@ export const useToastStore = create<ToastState>((set) => ({
 }));
 
 export const toast = {
-  success: (message: string, duration = 3000) =>
+  success: (message: string, duration = TOAST_MS) =>
     useToastStore.getState().add({ type: "success", message, duration }),
-  error: (message: string, duration = 4500) =>
+  error: (message: string, duration = TOAST_MS) =>
     useToastStore.getState().add({ type: "error", message, duration }),
-  info: (message: string, duration = 3000) =>
+  warning: (message: string, duration = TOAST_MS) =>
+    useToastStore.getState().add({ type: "warning", message, duration }),
+  info: (message: string, duration = TOAST_MS) =>
     useToastStore.getState().add({ type: "info", message, duration }),
   action: (
     message: string,
     actionLabel: string,
     onAction: () => void,
-    duration = 6000
+    duration = TOAST_MS
   ) =>
     useToastStore
       .getState()
       .add({ type: "action", message, actionLabel, onAction, duration }),
+  /** Full form: any type, with an optional sub line and action. */
+  show: (t: Omit<Toast, "id" | "duration"> & { duration?: number }) =>
+    useToastStore.getState().add({ duration: TOAST_MS, ...t }),
 };
 
 /**
  * Shows a "deleted" toast with an Undo action wired to the editor history.
  * Used by every element-deletion entry point so the feedback stays consistent.
  */
-export function toastDeleted(count: number) {
-  toast.action(
-    count === 1 ? "Element deleted" : `${count} elements deleted`,
-    "Undo",
-    () => useEditorStore.getState().undo()
-  );
+export function toastDeleted(count: number, label?: string) {
+  toast.show({
+    type: "action",
+    message: count === 1 ? "Layer deleted" : `${count} layers deleted`,
+    sub: count === 1 && label ? label : undefined,
+    actionLabel: "Undo",
+    onAction: () => useEditorStore.getState().undo(),
+  });
 }

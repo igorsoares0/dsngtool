@@ -7,12 +7,9 @@ import { useEditorStore } from "../../store/editor-store";
 import { stackGeometry, STACK_TOP_MARGIN } from "../../lib/canvas-layout";
 import { resolveFontFamily } from "../../lib/fonts";
 import type { InlineEditRequest, SelectionRect } from "./canvas-stage";
-import SelectionToolbar from "./selection-toolbar";
+import SelectionToolbar, { SelectionBadge } from "./selection-toolbar";
 import ContextMenu, { type ContextMenuRequest } from "./context-menu";
-import AiBar from "./ai-bar";
 import PageControls from "./page-controls";
-import IconButton from "../ui/icon-button";
-import { ZoomInIcon, ZoomOutIcon } from "./icons";
 
 const CanvasStage = dynamic(() => import("./canvas-stage"), { ssr: false });
 
@@ -79,7 +76,7 @@ function InlineTextEditor({
       onBlur={commit}
       onKeyDown={handleKeyDown}
       onInput={(e) => autoSize(e.currentTarget)}
-      className="absolute z-30 outline-none border-2 border-accent rounded-sm bg-transparent resize-none overflow-hidden"
+      className="absolute z-30 outline-none border-[1.5px] border-selection bg-transparent resize-none overflow-hidden"
       style={{
         left,
         top,
@@ -106,10 +103,8 @@ function InlineTextEditor({
 
 export default function CanvasArea({
   stageRef,
-  aiFocusSignal,
 }: {
   stageRef: React.RefObject<Konva.Stage | null>;
-  aiFocusSignal: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 0, height: 0 });
@@ -124,6 +119,7 @@ export default function CanvasArea({
   const elementCount = useEditorStore((s) => s.elements.length);
   const pages = useEditorStore((s) => s.pages);
   const activePageId = useEditorStore((s) => s.activePageId);
+  const fitRequest = useEditorStore((s) => s.fitRequest);
 
   const [editReq, setEditReq] = useState<InlineEditRequest | null>(null);
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
@@ -262,12 +258,13 @@ export default function CanvasArea({
   }, []);
 
   /** Scale the document to fit the viewport and recentre it. Shared by the
-   *  auto-fit effect and the zoom pill's "Fit" button. */
+   *  auto-fit effect and the page strip's FIT (via `requestFit`). */
   /** Fit a single artboard, not the whole stack — fitting ten pages at once
    *  would zoom out to something unusable. Pan resets so page one is on top. */
   const fitToScreen = useCallback(() => {
     if (dims.width === 0 || dims.height === 0) return;
-    const padding = 80;
+    // Room for the page label and crop marks around the artboard.
+    const padding = 150;
     const fitScale = Math.min(
       (dims.width - padding) / format.width,
       (dims.height - padding) / format.height,
@@ -285,6 +282,13 @@ export default function CanvasArea({
     fitToScreen();
     lastFitFormatRef.current = formatKey;
   }, [dims, format, fitToScreen]);
+
+  // The page strip's FIT lives outside this component; it bumps a counter.
+  useEffect(() => {
+    if (fitRequest > 0) fitToScreen();
+    // Only a new request should refit — not a change of fitToScreen identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitRequest]);
 
   // Bring the active artboard into view when it isn't. Adding or duplicating a
   // page makes it active while it may sit below the fold, so without this the
@@ -330,7 +334,7 @@ export default function CanvasArea({
   return (
     <div
       ref={containerRef}
-      className="flex-1 bg-surface-0 overflow-hidden relative canvas-dots"
+      className="flex-1 min-h-0 bg-surface-0 overflow-hidden relative"
       style={{ cursor: cursorStyle }}
     >
       {dims.width > 0 && (
@@ -345,13 +349,14 @@ export default function CanvasArea({
         />
       )}
 
-      {/* Per-artboard labels and add/duplicate/delete controls */}
+      {/* Per-artboard labels and crop marks */}
       <PageControls containerWidth={dims.width} containerHeight={dims.height} />
 
       {/* Contextual toolbar anchored to the selection */}
       {selectionRect && !editReq && !menuReq && (
         <SelectionToolbar rect={selectionRect} containerWidth={dims.width} />
       )}
+      {selectionRect && !editReq && <SelectionBadge rect={selectionRect} scale={scale} />}
 
       {/* Right-click context menu */}
       {menuReq && (
@@ -375,8 +380,8 @@ export default function CanvasArea({
           }}
         >
           {/* One ghost line and nothing else — the canvas is the subject. */}
-          <p className="text-[13px] text-text-ghost text-center max-w-[240px] leading-relaxed animate-fade-in">
-            Nothing here yet. Pick a template from the left, or describe a post below.
+          <p className="text-[13px] text-text-tertiary text-center max-w-[240px] leading-relaxed animate-fade-in">
+            Nothing here yet. Pick a template from the left, or brief the AI below.
           </p>
         </div>
       )}
@@ -392,41 +397,6 @@ export default function CanvasArea({
         />
       )}
 
-      {/* Zoom pill — moved out of the topbar so it sits with what it controls. */}
-      <div className="absolute bottom-[calc(45vh+1rem)] lg:bottom-4 left-4 z-20 flex items-center gap-0.5 h-9 px-1 bg-surface-2 border border-border-default rounded-[10px] shadow-pop">
-        <IconButton
-          label="Zoom out"
-          size="sm"
-          tooltip={false}
-          onClick={() => setZoom(zoom - 10)}
-        >
-          <ZoomOutIcon className="w-3.5 h-3.5" />
-        </IconButton>
-        <span
-          className="text-[11px] font-mono tabular-nums text-text-primary min-w-[36px] text-center"
-          aria-label={`Zoom ${zoom} percent`}
-          aria-live="polite"
-        >
-          {zoom}%
-        </span>
-        <IconButton
-          label="Zoom in"
-          size="sm"
-          tooltip={false}
-          onClick={() => setZoom(zoom + 10)}
-        >
-          <ZoomInIcon className="w-3.5 h-3.5" />
-        </IconButton>
-        <div className="w-px h-4 bg-border-subtle mx-1" />
-        <button
-          onClick={fitToScreen}
-          className="text-[11.5px] text-text-secondary hover:text-text-primary px-2 py-1 rounded-sm transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          Fit
-        </button>
-      </div>
-
-      <AiBar focusSignal={aiFocusSignal} />
     </div>
   );
 }

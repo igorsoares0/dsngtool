@@ -10,15 +10,16 @@ opposite rules. The interface recedes; the output commits.
 
 ### Principle
 
-The canvas is the only thing that should have colour. Everything around it is
-quiet and low-contrast, so the user's design is the brightest object on screen.
-When in doubt, make the UI *less* visible.
+The canvas is the only thing that should carry the user's colour. The chrome
+is **print shop + console**: warm paper, ink hairlines, square corners, crop
+marks, a dense inspector with mono readouts — plus a little atelier warmth
+(a colour per tool, the AI brief, the page strip). It is a working surface,
+not a marketing page: density over generosity, structure by rules rather than
+by boxes and shadows.
 
-Second principle: density over generosity. This is a tool people use for hours,
-not a marketing page. Small type, tight spacing, no decorative whitespace.
-
-The direction is **Daylight / Íris**: a warm-paper light theme paired with a
-neutral dark one, and a single iris accent that carries meaning.
+The direction is **"H / Final"** (handoff in `docs/design_handoff_modo_redesign/`,
+which supersedes Daylight/Íris). Colour in the chrome is reserved and each hue
+has exactly one job — see Colour below.
 
 ### How theming works — read this before touching `globals.css`
 
@@ -26,9 +27,9 @@ Tailwind v4's `@theme inline` **resolves a token's value at build time and
 inlines it into the utility**. So this is a trap:
 
 ```css
-/* WRONG — bg-accent compiles to `background-color: #5b5bd6`, a literal.
+/* WRONG — bg-accent compiles to `background-color: #ff4a1c`, a literal.
    The .dark block can never reach it, and dark mode silently does nothing. */
-@theme inline { --color-accent: #5b5bd6; }
+@theme inline { --color-accent: #ff4a1c; }
 .dark { --color-accent: #8b8bf5; }
 ```
 
@@ -36,7 +37,7 @@ The working pattern, and the one `app/globals.css` uses, is one level of
 indirection:
 
 ```css
-:root { --accent: #5b5bd6; }
+:root { --accent: #ff4a1c; }
 .dark { --accent: #8b8bf5; }
 @theme inline { --color-accent: var(--accent); }   /* → background-color: var(--accent) */
 ```
@@ -62,71 +63,69 @@ inline script in `app/layout.tsx` and thereafter by `app/store/theme-store.ts`
 All tokens live in `app/globals.css`. Use the token, never a raw hex, in
 components.
 
-**Surfaces** — elevation is a step in lightness, never a shadow.
+**Surfaces** — warm paper; elevation is a step in lightness.
 
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |
-| `surface-0` | `#eceae5` | `#0e0e10` | app background, canvas viewport |
-| `surface-1` | `#f7f6f3` | `#161619` | topbar, rail, docked panels |
-| `surface-2` | `#ffffff` | `#1c1c20` | panel content, popovers, modals, floating toolbars |
-| `surface-3` | `#f4f2ee` | `#141417` | inputs and controls inside a panel |
-| `surface-4` | `#eeece7` | `#26262b` | hover / pressed |
+| `surface-0` | `#f2efe8` | `#121211` | app background, canvas viewport |
+| `surface-1` | `#faf8f3` | `#1a1a18` | topbar, rail, docked panels, status bar |
+| `surface-2` | `#fffdf8` | `#1f1f1d` | popovers, modals |
+| `surface-3` | `#efebe2` | `#242422` | inputs and controls inside a panel, hover |
+| `surface-4` | `#e7e2d7` | `#2c2c29` | pressed |
+| `surface-inverse` | `#161513` | `#eeebe3` | selection toolbar, toasts, active tool / segment fill |
 
-Note that in light, `surface-3` is *darker* than `surface-2` — an input sinks
-into the white card. In dark it also sinks, which is the opposite of instinct.
+`text-inverse` is the text on `surface-inverse`.
 
-**Borders** — black alphas in light, white alphas in dark.
-`border-subtle` separates structure, `border-default` outlines floating
-surfaces and inputs, `border-strong` is input hover. Focus and selection do
-**not** use `border-strong` — they use the accent.
+**Rules.** `border-subtle` / `border-default` are hairlines (ink alphas).
+`border-strong` is **solid ink** — the rule under search fields, page titles,
+card captions and table headers.
 
-**Text** — four steps, and most UI text is *not* primary.
+**Text** — `text-primary` (ink), `text-secondary`, `text-tertiary` (≥4.5:1 on
+surface-0/1; metadata, units, mono captions), `text-ghost` (placeholders and
+disabled only).
 
-| Token | Light | Dark | Use |
-| --- | --- | --- | --- |
-| `text-primary` | `#1b1a18` | `#ededf0` | values, active labels, headings |
-| `text-secondary` | `#6b6862` | `#9a9aa3` | labels, inactive controls |
-| `text-tertiary` | `#8b877f` | `#7d7d86` | metadata, units |
-| `text-ghost` | `#a5a09a` | `#5c5c65` | section captions, hints, empty states |
+**Each hue has one job:**
 
-Neither pure black nor pure white — `#1b1a18` and `#ededf0` are deliberate.
+| Token | Job — and nothing else |
+| --- | --- |
+| `accent` (riso red `#ff4a1c`) | primary CTAs (Export, + New design, Go Pro, auth submit) and the 2px underline under an active **text tab**; the "." in the wordmark; the mono section codes (A/B/C) |
+| `selection` / `selection-tint` (cobalt) | selection frame and handles, the dimension badge, selected layer row, selected template / page / swatch ring, **every focus ring** |
+| `ai` (butter) | AI only: BRIEF tag, brief card tag, quota pips, the generating progress line |
+| `tool-*` / `tool-*-fg` | the 34×34 tool tiles in the rail (and the inspector's "selected" tile). Light: pastel tile + ink icon; dark: neutral tile + coloured icon |
+| `danger` / `danger-tint` / `danger-on-inverse` | destructive actions, errors; the trash icon on the ink toolbar |
+| `success`, `warning` | saved / synced / done; storage 80–99% |
 
-**Accent — iris.** `accent` (`#5b5bd6` light / `#8b8bf5` dark) is the only
-accent that carries meaning: selection, active tool, primary action, focus. Use
-it sparingly; it loses its job the moment two unrelated things are iris.
-`accent-hover` for hover on accent surfaces, `accent-tint` + `accent-tint-fg`
-for a tinted chip or secondary button, `accent-fg` for text *on* the accent.
+**Active state is never a colour.** An active tool is an inset 3px ink bar on
+its left edge (`shadow-[inset_3px_0_0_var(--text-primary)]`) plus weight 700;
+an active segment or icon toggle is an ink fill (`surface-inverse`); an active
+tab in a tab bar is a 2px ink underline (`shadow-[inset_0_-2px_0_…]`).
 
-**Never `text-surface-0` on an accent surface** — that reads as near-white in
-light mode. It is always `text-accent-fg`.
-
-**Categorical, non-state:** `danger` / `danger-tint` (destructive, errors),
-`success` (saved, confirmations), `warning`. Success is not the accent —
-"saved" is information, not action. There is no raw `red-400` / `amber-400`
-anywhere; use the tokens.
+**Never `text-white` on `bg-danger`** — dark-mode danger is a light pink. Use
+`text-surface-1`.
 
 ### Typography
 
-- **Body / UI / display:** Instrument Sans (`--font-body`, `--font-display`).
-- **Mono:** Geist Mono (`--font-mono`) — every numeric readout, always with
-  `tabular-nums` so values don't jitter while dragging.
-- These are the *chrome* fonts, loaded in `app/layout.tsx`. They are separate
-  from the 14 **document** fonts in `app/lib/fonts.ts`, which keep their own
-  `--font-*-design` variables. Don't cross the streams: changing the UI fonts
-  must not touch `resolveFontFamily()` or `FONT_VARIABLES`.
+- **Chrome:** Archivo, variable with the `wdth` axis (`--font-body`,
+  `--font-display`). `.font-expanded` (stretch 118%) for panel titles and
+  primary buttons, `.font-wide` (125%) for the wordmark, page titles and the
+  BRIEF tag.
+- **Mono:** IBM Plex Mono (`--font-mono`) for every readout, dimension,
+  shortcut, section code and UPPERCASE meta — with `tabular-nums` on numbers.
+  **Never below 10.5px.**
+- These are loaded in `app/layout.tsx` and are separate from the **document**
+  fonts in `app/lib/fonts.ts` (which keep their own `--font-*` variables —
+  `--font-archivo-black` is a document font, not the chrome's Archivo).
 
-Scale (medium density):
-
-| Name | Size | Weight | Use |
+| Use | Font | Size / weight | Extras |
 | --- | --- | --- | --- |
-| micro | 10px | 500 | section legends, UPPERCASE, `tracking-[0.1em]` |
-| ui | 11.5px | 400/500 | the editor default: labels, buttons, list rows |
-| ui-lg | 12.5px | 600 | panel titles, project name |
-| body | 13px | 400 | dashboard and auth |
-| title | 16px / 20px | 600 | dashboard and modal headings |
-
-Weight carries hierarchy: 500 = active/selected, 400 = everything else. No bold
-in the chrome.
+| Wordmark "mo." / "modo." | Archivo | 15–22px / 900 | wide, tracking −0.02em, "." in accent |
+| Page title (Projects, Account) | Archivo | 72–88px / 900 | wide, tracking −0.04em, leading .82, mono accent count |
+| Auth headline | Archivo | 44px / 900 | stretch 122%, tracking −0.03em |
+| Panel title | Archivo | 21px / 800 | expanded |
+| Primary button | Archivo | 13–14px / 800 | expanded, UPPERCASE, tracking .02em |
+| Body / controls | Archivo | 12.5–14px / 400–600 | |
+| Section label | Archivo | 11px / 800 | tracking .08em, UPPERCASE, after a mono accent code — use `<SectionLabel>` |
+| Readouts, meta | IBM Plex Mono | 10.5–12px / 400–500 | UPPERCASE for meta |
 
 ### Layout and dimensions
 
@@ -134,65 +133,77 @@ These are fixed; don't invent new widths.
 
 | Region | Size |
 | --- | --- |
-| Tool rail (`left-sidebar`) | `56px` |
-| Contextual left panel | `252px` |
-| Right properties panel | `266px` |
-| Topbar | `52px` |
-| Dropdown / popover | `min-w-[220px]` |
-| Modal | `400–460px` |
+| Topbar (editor and dashboard) | `48px`, full-height cells split by 1px rules — no pill groups |
+| Tool rail (`left-sidebar`) | `68px`, six `66px` rows, `34×34` tiles |
+| Contextual left panel | `288px` |
+| Right panel (Inspect / Layers) | `288px` |
+| AI brief bar (under the canvas) | `40px` |
+| Page strip | `80px`, `52px` thumbnails |
+| Status bar | `26px`, mono 10.5px, `lg` and up |
+| Number field | `28px` tall, `26px` scrub-label cell |
 
-Spacing is a 4px scale; panels use `p-[14px]`, list rows `px-2 py-1.5`. Hit
-targets: 38px in the rail, 26–28px in the topbar, 22–26px inside a panel.
+The page stack's vertical gap (`PAGE_GAP`) is **screen pixels**, constant
+across zoom, so the page label and crop marks always fit between pages.
 
-**Radius** is remapped globally, so plain Tailwind utilities already carry it:
-`rounded-sm` 6px (segments in a group), `rounded-md` 8px (inputs, buttons,
-rows), `rounded-lg` 11px (popovers, cards, floating toolbars, modals),
-`rounded-xl` 14px (large surfaces), `rounded-full` for swatches, avatars, the
-AI bar, and chips. Nothing is square; nothing is a pill unless it is genuinely
-round.
+**Radius:** `rounded-sm/md/lg/xl` all resolve to 0 — the chrome is square on
+purpose. Exceptions: `rounded-float` (4px) on floating surfaces (selection
+toolbar, toasts, menus, popovers) and `rounded-full` on the avatar, colour
+swatches and the status dot. No arbitrary `rounded-[Npx]`.
 
-**Depth:** floating surfaces get `border-border-default` + `shadow-pop`
-(or `shadow-modal` for dialogs). Panels docked to an edge get a border and
-**no** shadow. `shadow-raise` is for cards and the raised item in a segmented
-control.
+**Depth:** structure is drawn with hairlines. Floating surfaces get
+`shadow-pop` (dialogs `shadow-modal`); docked panels get a border and no
+shadow. `shadow-raise` is `none`.
 
-**Responsive:** below `xl` (1280px) the contextual panel becomes an overlay over
-the canvas; below `lg` (1024px) the properties panel becomes a bottom sheet, and
-the zoom pill and AI bar shift up to clear it. The rail and topbar never
-collapse.
+**Responsive:** below `xl` the contextual panel is an overlay over the canvas;
+below `lg` the right panel is a 45vh bottom sheet — the centre column pads its
+bottom by the same 45vh so the brief bar and page strip sit above it — and the
+status bar is hidden.
 
 ### Components
 
-Three shared primitives live in `app/components/ui/`, and new UI should reach
-for them before hand-rolling:
+Shared primitives in `app/components/ui/`:
 
-- **`Modal`** — the one dialog shell (scrim, Escape, focus restore, header,
-  optional footer). Its `width` prop takes a `max-w-*`, not a `w-*`.
-- **`IconButton`** — the rest/hover/active/focus/disabled matrix plus the
-  tooltip. Every icon-only control needs one.
-- **`Segmented`** — recessed track, active item raised out of it.
+- **`Modal`** — the one dialog shell. Its `width` prop takes a `max-w-*`.
+- **`IconButton`** — rest/hover/active/focus/disabled matrix plus tooltip.
+  `active` is an ink fill, never the accent.
+- **`Segmented`** — hairline-ruled square cells, active cell ink-filled.
+- **`SectionLabel`** — "A  GEOMETRY".
+- **`buttons.ts`** — `btnPrimary` / `btnSecondary`, the two button recipes.
+
+| Component | Hover | Pressed | Focus | Disabled |
+| --- | --- | --- | --- | --- |
+| Primary | `accent-hover` | + `inset 0 2px 0 rgb(0 0 0/.25)` | 2px `selection` outline, offset 2px | `surface-3`, tertiary text |
+| Secondary | ink border + `surface-3` | ink fill | same | dashed border |
+| Number field | label shows ↔ | `selection-tint` + `selection` ring | 1.5px `selection` ring | — |
 
 Beyond those:
 
-- **Icons** — inline SVG in `icons.tsx`, `24×24` viewBox, `fill="none"`,
-  `stroke="currentColor"`, `strokeWidth="1.5"`, round caps and joins. Never add
-  an icon library; add to the file and match the stroke.
-- **Primary button** — `bg-accent` + `text-accent-fg`. One per view. In the
-  editor that is Export.
-- **Inputs** — `surface-3`, `border-border-default`; focus moves the border to
-  `1.5px accent`. No glow. Focus rings elsewhere are
-  `focus-visible:ring-2 ring-accent`.
-- **Empty states** — one `text-ghost` line and at most one action. No
-  illustrations.
-- **Toasts** — bottom-centre, `surface-2`, auto-dismiss, one line. Confirmations
-  and recoverable errors only; never something the user must act on. `<Toaster />`
-  has to be mounted per route tree — the editor and the dashboard each mount one.
+- **Icons** — inline SVG in `icons.tsx`, 24×24 viewBox, stroke `currentColor`
+  1.5–1.6. Never add an icon library.
+- **Inputs** — `surface-3` (panels) or `surface-0` (auth), no border; focus is
+  an inset 1.5px `selection` ring, error an inset 1.5px `danger` ring plus a
+  mono hint under the field ("MIN 1", "AT LEAST 8 CHARACTERS"). Search fields
+  are an ink underline with a `/` hint.
+- **Text tabs** (template formats, dashboard filters) — active is bold with a
+  2px accent underline, offset 4–6px, with mono counts.
+- **Swatches** — 30px circles from the document's own palette
+  (`lib/doc-palette.ts`), "FROM THIS DESIGN", then a dashed "+" picker.
+- **Empty states** — one line, mono UPPERCASE when it is meta, at most one
+  action. No illustrations. Loading uses `.skeleton` at real aspect ratios.
+- **Toasts** — bottom-right, `surface-inverse`, `rounded-float`, 4px colour
+  bar (success / warning / danger / tertiary), title + optional mono `sub`,
+  one action, 5s. `<Toaster />` is mounted per route tree (editor, dashboard).
+- **Storage meter** — discrete bars (`SegmentBars`): ink under 80%,
+  `warning` + "N MB LEFT" at 80–99%, `danger` + a "Storage full" block at 100%.
+- **AI bar states** — idle · typing (GENERATE ⏎) · generating (indeterminate
+  `ai` line, CANCEL / Esc) · done (✓ DONE, UNDO) · limit (0 LEFT, GO PRO).
 
 ### The canvas is not CSS
 
 Konva draws to a canvas and cannot read Tailwind classes or CSS variables. The
 selection frame, transform handles, marquee, snap guides and artboard shadow
-come from `app/lib/theme-colors.ts`, keyed by the resolved theme and driven by
+come from `app/lib/theme-colors.ts` (selection = cobalt, square 8px white
+anchors), keyed by the resolved theme and driven by
 zustand so a theme flip re-renders them. Those values are duplicated from
 `globals.css` on purpose — keep the two in step.
 
@@ -202,10 +213,12 @@ stays white in dark mode.
 ### Motion
 
 One easing for everything: `--ease-standard`, `cubic-bezier(0.16, 1, 0.3, 1)` —
-fast out, soft settle. Named animations in `globals.css`: `fade-in` (0.4s,
-panels), `scale-in` (0.5s, popovers, modals, the selection toolbar),
-`canvas-appear` (0.7s, first paint of a document), `toast-in` (0.28s). All of
-them are disabled under `prefers-reduced-motion`.
+fast out, soft settle. Named animations in `globals.css`: `panel-in` (150ms
+fade, panel / inspector switch), `fade-in`, `scale-in` (popovers, modals, the
+selection toolbar), `canvas-appear`, `toast-in`, `ai-progress` (indeterminate
+— the generate request is one round trip, so there is no real % to show) and
+the `.skeleton` shimmer (1.2s). All are disabled under
+`prefers-reduced-motion`.
 
 Hover and state changes use `transition-colors duration-150 ease-standard` —
 not `transition-all`, which animates layout properties for no reason. Never

@@ -14,7 +14,7 @@ export async function GET() {
 
   const projects = await prisma.project.findMany({
     where: { userId: session.user.id },
-    select: { id: true, name: true, data: true, updatedAt: true, deletedAt: true },
+    select: { id: true, name: true, data: true, createdAt: true, updatedAt: true, deletedAt: true },
   });
 
   return NextResponse.json({ projects });

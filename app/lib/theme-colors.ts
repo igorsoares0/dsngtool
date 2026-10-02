@@ -15,14 +15,14 @@ import { useThemeStore, type ResolvedTheme } from "../store/theme-store";
  * style recalc inside a component that redraws on every drag frame.
  */
 interface CanvasColors {
-  /** Selection frame + transform anchor stroke. Mirrors `--accent`. */
+  /** Selection frame + transform anchor stroke. Mirrors `--selection`. */
   selection: string;
-  /** Transform anchor fill. Mirrors `--surface-2`. */
+  /** Transform anchor fill — white square handles in both themes. */
   anchorFill: string;
   marqueeFill: string;
   marqueeStroke: string;
-  /** Snap guides. Deliberately not the accent — it has to read against both
-   *  the iris selection frame and the warm paper. */
+  /** Snap guides. Deliberately not the selection blue — it has to read
+   *  against both the cobalt selection frame and the warm paper. */
   snapGuide: string;
   /** Artboard drop shadow. Mirrors `--shadow-canvas`. */
   artboardShadow: string;
@@ -32,24 +32,26 @@ interface CanvasColors {
 
 export const CANVAS_COLORS: Record<ResolvedTheme, CanvasColors> = {
   light: {
-    selection: "#5b5bd6",
+    selection: "#2f4bff",
     anchorFill: "#ffffff",
-    marqueeFill: "rgba(91, 91, 214, 0.12)",
-    marqueeStroke: "#5b5bd6",
+    marqueeFill: "rgba(47, 75, 255, 0.12)",
+    marqueeStroke: "#2f4bff",
     snapGuide: "#FF00B8",
-    artboardShadow: "rgba(0,0,0,0.22)",
-    artboardShadowBlur: 50,
+    // --sh-canvas: 0 18px 44px -8px rgb(60 40 10 / .22). Konva has no spread,
+    // so the blur is trimmed to approximate the negative spread.
+    artboardShadow: "rgba(60,40,10,0.22)",
+    artboardShadowBlur: 36,
     artboardShadowOffsetY: 18,
   },
   dark: {
-    selection: "#8b8bf5",
-    anchorFill: "#1c1c20",
-    marqueeFill: "rgba(139, 139, 245, 0.12)",
-    marqueeStroke: "#8b8bf5",
+    selection: "#7b8cff",
+    anchorFill: "#ffffff",
+    marqueeFill: "rgba(123, 140, 255, 0.16)",
+    marqueeStroke: "#7b8cff",
     snapGuide: "#FF00B8",
-    artboardShadow: "rgba(0,0,0,0.7)",
-    artboardShadowBlur: 60,
-    artboardShadowOffsetY: 24,
+    artboardShadow: "rgba(0,0,0,0.65)",
+    artboardShadowBlur: 50,
+    artboardShadowOffsetY: 30,
   },
 };
 

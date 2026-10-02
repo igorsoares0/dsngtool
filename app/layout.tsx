@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Instrument_Sans, Geist_Mono } from "next/font/google";
+import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import SwRegister from "./components/sw-register";
 import ThemeSync from "./components/theme-sync";
@@ -10,16 +10,19 @@ import { FONT_VARIABLES } from "./lib/fonts";
 // in lib/fonts.ts — those keep their own `--font-*` variables (some suffixed
 // `-design` to avoid colliding with the chrome's) and must not be touched, or
 // stored `fontFamily` values stop resolving.
-// No `weight` so next/font emits the variable font.
-const instrumentSans = Instrument_Sans({
-  variable: "--font-instrument-sans",
+// No `weight` so next/font emits the variable font; the `wdth` axis is what
+// .font-expanded / .font-wide (font-stretch 118% / 125%) lean on.
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin", "latin-ext"],
+  axes: ["wdth"],
 });
 
-// Every numeric readout in the UI.
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Every numeric readout, dimension, shortcut and section code in the UI.
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -34,8 +37,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eceae5" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e0e10" },
+    { media: "(prefers-color-scheme: light)", color: "#f2efe8" },
+    { media: "(prefers-color-scheme: dark)", color: "#121211" },
   ],
 };
 
@@ -60,7 +63,7 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${instrumentSans.variable} ${geistMono.variable} ${FONT_VARIABLES} h-full`}
+      className={`${archivo.variable} ${plexMono.variable} ${FONT_VARIABLES} h-full`}
     >
       <head>
         {/*

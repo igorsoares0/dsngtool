@@ -28,8 +28,12 @@ export function useAutosave() {
         };
         await db.projects.put(record);
         s.markSaved();
-        // Mirror to the server (fire-and-forget; buffers as dirty if offline).
-        void pushProject(record);
+        // Mirror to the server (not awaited; buffers as dirty if offline). The
+        // outcome only feeds the status bar's SYNCED / OFFLINE readout.
+        s.setSyncState("syncing");
+        void pushProject(record).then((ok) =>
+          useEditorStore.getState().setSyncState(ok ? "synced" : "offline")
+        );
       } catch {
         // IndexedDB may be unavailable in some contexts — silent fail
       } finally {
