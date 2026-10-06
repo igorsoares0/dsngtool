@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Modo
 
-## Getting Started
+Modo is a browser-based visual design editor for social media content: Instagram
+posts and stories, Pinterest graphics and promo banners. Think of it as a lighter,
+faster Canva. There's nothing to install and almost nothing to learn, and the
+toolset is small but covers what people actually use.
 
-First, run the development server:
+Live at [app.getmodo.pro](https://app.getmodo.pro).
+
+## Features
+
+- **Canvas editor** (Konva) with three element types:
+  - **Text**: font, size, alignment, shadow, spacing, auto-fit
+  - **Image**: filters (blur, brightness, contrast, grayscale, sepia…), flips, corner radius
+  - **Shape**: rectangle, ellipse, triangle, line, with solid or gradient fill and stroke
+- **Formats**: Instagram Post (1080×1080), Instagram Story (1080×1920), Pinterest (1000×1500)
+- **Editing**: undo/redo, multi-select, snapping guides, zoom/pan, context menu
+- **Templates**: 50+ ready-made designs (`app/data/templates.ts`)
+- **AI generation**: designs from a prompt via the Anthropic SDK (`app/api/ai/generate`)
+- **Projects** with multiple designs each, plus preview thumbnails
+- **Accounts**: email/password or Google sign-in (better-auth), with mandatory email verification
+- **Sync**: projects and uploads are stored server-side (Postgres + Cloudflare R2) and available across devices
+- **Subscription**: Paddle Billing, which raises storage quotas and AI credits
+- **Dashboard**: account, projects, storage and subscription tabs
+
+## Stack
+
+| Layer | Choice |
+| --- | --- |
+| Framework | Next.js 16 (App Router), React 19 |
+| Canvas | Konva / react-konva |
+| State | Zustand |
+| Styling | Tailwind CSS v4 |
+| Database | PostgreSQL (Neon) via Prisma 7 |
+| Auth | better-auth |
+| File storage | Cloudflare R2 |
+| AI | Anthropic SDK |
+| Billing | Paddle Billing |
+| Email | Resend |
+| Hosting | Coolify on Hetzner |
+
+## Getting started
 
 ```bash
+cp .env.example .env   # fill in the values
+npm install            # also runs prisma generate
+npm run db:migrate     # apply migrations to your dev database
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Start the dev server |
+| `npm run build` | `prisma generate` + production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | Run ESLint |
+| `npm run db:migrate` | Create/apply migrations (dev) |
+| `npm run db:deploy` | Apply migrations (prod) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Docs
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [`docs/overview.md`](docs/overview.md): technical overview (document model, editor engine, API routes)
+- [`DEPLOY.md`](DEPLOY.md): deployment
+- [`docs/PAYMENTS_SETUP.md`](docs/PAYMENTS_SETUP.md): Paddle setup

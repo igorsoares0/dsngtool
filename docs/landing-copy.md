@@ -1,7 +1,14 @@
 # Modo — Landing Page Copy
 
-> Copy version: 2.0 — August 2026
+> Copy version: 3.0 — October 2026
 > Product source of truth: `reqs.md` · Design system: `docs/landing-page-spec.md`
+>
+> **What changed from v2.0:** the landing moved to the "H / Final" design. The hero,
+> the how-it-works steps and the pricing headline now follow the handoff mock
+> (`docs/design_handoff_modo_redesign/Modo H - Telas Externas.dc.html`), the AI quota is
+> called "AI briefs" to match the app UI, and the font count is 28. The social proof
+> bar, Value Prop, AI Callout and Who It's For sections are not in the v3.0 page
+> (`landing-page-spec.md` §3.0); their copy is kept below in case they come back.
 >
 > **What changed from v1.0:** the product pivoted from an offline-first, browser-only
 > tool with a $47 lifetime deal to an **account-based cloud product with AI generation
@@ -12,20 +19,26 @@
 
 ## HERO SECTION
 
+**Kicker:**
+Nº 001 — A DESIGN TOOL FOR SOCIAL POSTS
+
 **Headline:**
-Describe the post. Get the design.
+Posts that look made, not generated.
 
 **Subheadline:**
-Modo is a browser-based design editor with AI built into the canvas. Write one line about what you need — Modo picks the template, writes the copy, sets the palette and the type. Then you edit anything you want, by hand, in seconds.
+Start from a template or a one-line brief. Adjust type, color and layout like a designer would. Export for Instagram and Pinterest.
 
-**CTA (primary):**
-Start free
+**Brief bar:**
+Tag `BRIEF` · placeholder *"An opening-day post for my bakery, warm and simple"* · button `Try it →`
 
-**CTA (secondary):**
-See how it works →
+**CTA (nav):**
+Start free · Log in
 
-**Supporting line (below CTA):**
-Free plan, no credit card. Nothing to install. Works in your browser.
+**Supporting line (below the brief bar):**
+FREE · NO CARD · 5 AI BRIEFS A MONTH
+
+**Collage caption:**
+FIG. 1 — MADE IN MODO
 
 ---
 
@@ -96,7 +109,7 @@ Everything you need. Nothing you don't.
 
 #### Feature 4 — Text & Typography
 **Title:** Type like a designer.
-**Body:** 16 curated fonts plus full controls: size, color, alignment, letter spacing, line height, bold, italic, underline, uppercase and text shadow. Your words, your style.
+**Body:** 28 curated fonts plus full controls: size, color, alignment, letter spacing, line height, bold, italic, underline, uppercase and text shadow. Your words, your style.
 
 ---
 
@@ -132,12 +145,11 @@ Everything you need. Nothing you don't.
 
 ## SECTION 3 — HOW IT WORKS
 
-### Headline:
-From one sentence to ready-to-post in 3 steps.
+*(No headline — three ruled columns directly under the hero.)*
 
-1. **Describe it or pick it** — Write a brief and let Modo generate the design, or start from a template or a blank canvas.
-2. **Make it yours** — Edit text, swap images, add shapes, adjust colors. Everything is drag-and-drop.
-3. **Export and post** — Download as PNG or JPEG at full resolution. No watermark. That's it.
+01. **Pick a format** — Instagram post, story or Pinterest pin. Start from one of 52 templates or a blank page.
+02. **Brief or edit** — Describe the post and AI drafts it, or adjust every layer yourself: type, color, overlays.
+03. **Export** — PNG or JPG at the exact size each platform expects. Your projects stay saved for later.
 
 ---
 
@@ -156,10 +168,21 @@ Made for people who create, not just designers.
 ## SECTION 5 — PRICING
 
 ### Headline:
-Start free. Upgrade when you outgrow it.
+Two plans. No seats.
 
-**Subheadline:**
-One plan, one price. Cancel any time.
+**Spec sheet (what the page shows):**
+
+| | Free — $0 | Pro — $10 / MO |
+|---|---|---|
+| Storage | 250 MB | 1 GB |
+| AI briefs | 5 / MO | 100 / MO |
+| Templates | 46 OF 52 | ALL 52 |
+| CTA | Start free | Go Pro |
+
+**Line under the sheet:**
+CANCEL ANY TIME · BILLED THROUGH PADDLE
+
+The full plan lists below are for reference (upgrade modal, comparison pages).
 
 ---
 
@@ -168,7 +191,7 @@ One plan, one price. Cancel any time.
 **Price:** $0 / forever
 **Description:** A real editor, not a trial.
 - Unlimited projects
-- 5 AI generations per month
+- 5 AI briefs per month
 - 46 templates
 - All canvas formats, fonts, shapes, assets and overlays
 - PNG, JPEG and project-file export — **no watermark**
@@ -185,7 +208,7 @@ One plan, one price. Cancel any time.
 **Badge:** Most popular
 **Description:** For people who post every day.
 - Everything in Free
-- **100 AI generations per month** (20× the free limit)
+- **100 AI briefs per month** (20× the free limit)
 - **1 GB of image storage** (4× the free limit)
 - All 6 premium templates unlocked
 - Priority support
@@ -203,7 +226,7 @@ No contract, no seat minimums. Cancel any time and you keep access until the end
 A: Yes. Modo saves your projects and uploads to your account so they're on every device you sign in from. Signing up takes an email, a password and one click on the confirmation link we send you.
 
 **Q: Is the free plan a trial?**
-A: No. It's free forever — unlimited projects, watermark-free exports, and 5 AI generations every month. You only upgrade if you need more AI or more storage.
+A: No. It's free forever — unlimited projects, watermark-free exports, and 5 AI briefs every month. You only upgrade if you need more AI or more storage.
 
 **Q: What exactly does the AI do?**
 A: You write a short brief. Modo picks the template that best fits it, then generates the text for every slot, the color palette, the font pairing, the sizing and the background treatment. Everything it produces is a normal editable layer — you can change any part of it.
@@ -246,11 +269,11 @@ Create an account, describe what you need, and have something ready to publish i
 
 ## META / SEO COPY
 
-**Page title:** Modo — AI Design Editor for Social Media, in Your Browser
-**Meta description:** Describe your post and Modo designs it — templates, copy, palette and type. Instagram, Stories and Pinterest graphics in minutes. Free plan, no watermark.
+**Page title:** Modo — Social post design editor, in your browser
+**Meta description:** Start from a template or a one-line brief, then adjust type, color and layout like a designer would. Instagram and Pinterest posts, free plan, no watermark.
 
-**OG Title:** Describe the post. Get the design.
-**OG Description:** Modo is the fast, AI-powered design editor for social media. Templates, assets, layers and watermark-free export — all in your browser.
+**OG Title:** Posts that look made, not generated.
+**OG Description:** Modo is a fast design editor for social posts — 52 templates, AI briefs and watermark-free export, in your browser.
 
 ---
 
@@ -273,4 +296,4 @@ Kept here so nobody reintroduces them from the v1.0 copy, old decks or old ads.
 
 ---
 
-*Copy version: 2.0 — August 2026*
+*Copy version: 3.0 — October 2026*

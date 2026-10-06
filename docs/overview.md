@@ -48,7 +48,7 @@ app/
   store/                → editor-store, entitlement-store, toast-store
   lib/                  → client libs (db, fonts, sync, text-fit)
   lib/server/           → server-only (auth, db, r2, storage, session, email)
-  data/                 → templates.ts (53 templates), assets.ts
+  data/                 → templates.ts (52 templates), assets.ts
 ```
 
 ---
@@ -81,13 +81,13 @@ with selection transformer, snapping guides, multi-select, and a hand/space pan
 tool. Keyboard shortcuts, clipboard (including paste-image-from-OS), and a
 right-click context menu are wired through hooks in `app/hooks/`.
 
-**Fonts** (`app/lib/fonts.ts`). 14 design families are bundled at build time via
+**Fonts** (`app/lib/fonts.ts`). 28 design families are bundled at build time via
 `next/font/google`, so they are served same-origin and cached by the service
 worker — the editor keeps its typography offline. `next/font` mangles family
 names, so documents store the *human* name ("Playfair Display") and
 `resolveFontFamily()` translates to the generated name at render time. Stored
-data never has to migrate. The *chrome* fonts are separate — Instrument Sans and
-Geist Mono, loaded in `app/layout.tsx` under their own CSS variables — so
+data never has to migrate. The *chrome* fonts are separate — Archivo and
+IBM Plex Mono, loaded in `app/layout.tsx` under their own CSS variables — so
 restyling the UI can never disturb a saved document's typography.
 
 **Theming.** Light (warm paper) and dark are a first-class pair. The preference
@@ -124,9 +124,10 @@ IndexedDB is the working store; the server is the cross-device source of truth.
 
 ## Accounts, storage, billing
 
-**Auth** — better-auth with the Prisma adapter. Email verification is sent but
-not enforced (`requireEmailVerification: false`): the editor works offline and
-gating first run behind an inbox round-trip would break it. Google is opt-in —
+**Auth** — better-auth with the Prisma adapter. Email verification is
+mandatory (`requireEmailVerification: true`): nobody reaches the app before
+confirming their address, so an unverified email can't farm the free AI quota
+or be matched to a Paddle customer. Google is opt-in —
 without `GOOGLE_CLIENT_ID`/`SECRET` the provider simply isn't registered.
 Password reset and verification emails go out through Resend.
 
@@ -158,7 +159,7 @@ claim is never trusted. A scheduled cancellation keeps access until
 `POST /api/ai/generate` turns a text brief into a finished design in two model
 calls, both using JSON-schema-constrained output:
 
-1. **Select** — the model picks a template by name from an enum of the 53
+1. **Select** — the model picks a template by name from an enum of the 52
    template names, given a compact index of their structure. An invalid name is
    impossible by construction.
 2. **Fill** — the model receives a *manifest* of that template

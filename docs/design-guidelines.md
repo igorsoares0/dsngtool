@@ -263,8 +263,8 @@ with a subtly lighter corner reads as premium; a rainbow reads as a template.
 Stay flat when the design is typographic.
 
 **Type pairing is structural.** If a template pairs a display serif with a sans
-body, a variation keeps that relationship. Only the 14 bundled families are
-available (`app/lib/font-catalog.ts`) — they're the offline guarantee.
+body, a variation keeps that relationship. Only the 28 bundled families are
+available (`app/lib/font-catalog.ts`).
 
 **Geometry is never regenerated.** Layouts are authored by hand in the template
 file. Generation replaces content, colour, type, and scale within a fixed
