@@ -263,7 +263,7 @@ export default function CanvasArea({
    *  would zoom out to something unusable. Pan resets so page one is on top. */
   const fitToScreen = useCallback(() => {
     if (dims.width === 0 || dims.height === 0) return;
-    // Room for the page label and crop marks around the artboard.
+    // Room for the page label around the artboard.
     const padding = 150;
     const fitScale = Math.min(
       (dims.width - padding) / format.width,
@@ -349,7 +349,7 @@ export default function CanvasArea({
         />
       )}
 
-      {/* Per-artboard labels and crop marks */}
+      {/* Per-artboard labels */}
       <PageControls containerWidth={dims.width} containerHeight={dims.height} />
 
       {/* Contextual toolbar anchored to the selection */}

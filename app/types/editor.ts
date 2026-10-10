@@ -104,8 +104,7 @@ export interface Page {
 }
 
 /** Vertical gap between stacked artboards, in *screen* pixels — constant
- *  across zoom, so there is always room for the page label and the crop marks
- *  (which reach 26px out from each corner) between two pages. */
+ *  across zoom, so there is always room for the page label between two pages. */
 export const PAGE_GAP = 96;
 
 /**
