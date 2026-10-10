@@ -22,7 +22,7 @@ toolset that covers what people actually use.
 | Server DB | PostgreSQL (Neon) via Prisma 7 + `@prisma/adapter-pg` |
 | Auth | better-auth (email/password, optional Google) |
 | File storage | Cloudflare R2 (S3 SDK) |
-| AI | Anthropic SDK (`claude-opus-4-8`) |
+| AI | Anthropic SDK (`claude-haiku-5-5` picks the template, `claude-sonnet-5-5` fills it) |
 | Billing | Paddle Billing |
 | Email | Resend |
 | Hosting | Coolify on Hetzner (`app.getmodo.pro`) |

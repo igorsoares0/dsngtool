@@ -11,7 +11,11 @@ import { FREE_MONTHLY, PRO_MONTHLY, currentMonth } from "../../../lib/ai-limits"
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MODEL = "claude-opus-4-8";
+// Split by job. Picking a template is classification against a fixed enum, so
+// the cheapest tier is plenty; filling it is the art direction the user sees,
+// so it gets the stronger model.
+const SELECT_MODEL = "claude-haiku-5-5";
+const FILL_MODEL = "claude-sonnet-5-5";
 
 // Constructed lazily: the SDK throws when ANTHROPIC_API_KEY is missing, and at
 // module scope that would break the build on any machine without the key set.
@@ -198,9 +202,11 @@ export async function POST(req: Request) {
     //    template name impossible.
     let templateName = body.templateName;
     if (!templateName || !TEMPLATE_NAMES.includes(templateName)) {
+      // Haiku 5.5 thinks by default and thinking counts toward max_tokens, so
+      // the cap leaves room for it — not just the one-line JSON answer.
       const pick = await anthropic().messages.create({
-        model: MODEL,
-        max_tokens: 200,
+        model: SELECT_MODEL,
+        max_tokens: 1024,
         output_config: { format: { type: "json_schema", schema: SELECT_SCHEMA }, effort: "low" },
         system: SELECT_SYSTEM,
         messages: [
@@ -210,6 +216,9 @@ export async function POST(req: Request) {
           },
         ],
       });
+      if (pick.stop_reason === "refusal") {
+        return Response.json({ error: "refused" }, { status: 422 });
+      }
       templateName = (JSON.parse(textFrom(pick)) as { template: string }).template;
     }
 
@@ -220,9 +229,11 @@ export async function POST(req: Request) {
 
     // 2. Fill the slots.
     const manifest = buildManifest(template);
+    // max_tokens covers adaptive thinking as well as the JSON; too tight a cap
+    // cuts the JSON off mid-object and the parse below fails.
     const fill = await anthropic().messages.create({
-      model: MODEL,
-      max_tokens: 2000,
+      model: FILL_MODEL,
+      max_tokens: 8000,
       thinking: { type: "adaptive" },
       output_config: { format: { type: "json_schema", schema: FILL_SCHEMA }, effort: "medium" },
       system: FILL_SYSTEM,
