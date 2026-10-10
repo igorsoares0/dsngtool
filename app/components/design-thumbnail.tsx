@@ -273,10 +273,11 @@ function ElementNode({ el, uid }: { el: EditorElement; uid: string }) {
  */
 function useNearViewport<T extends HTMLElement>() {
   const ref = useRef<T>(null);
-  // Lazily initialised rather than defaulted to false: where there is no
-  // IntersectionObserver (any non-browser render) there is also nothing to
-  // observe, so the design has to be drawn on the first pass or never.
-  const [near, setNear] = useState(() => typeof IntersectionObserver === "undefined");
+  // Always starts false, so the server render and the client's first render
+  // agree: deciding from `typeof IntersectionObserver` here drew the SVG on the
+  // server and the placeholder in the browser, a hydration mismatch. Every
+  // browser the editor runs in has the API, so the observer is all it needs.
+  const [near, setNear] = useState(false);
 
   useEffect(() => {
     const node = ref.current;
