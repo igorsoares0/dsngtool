@@ -45,7 +45,9 @@ import {
 } from "next/font/google";
 
 const playfairDisplay = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair-display" });
-const cormorantGaramond = Cormorant_Garamond({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], variable: "--font-cormorant-garamond" });
+// Ships its real italic cut: the Legal templates set whole words in Cormorant
+// italic, and the synthesised slant is a poor stand-in for this face.
+const cormorantGaramond = Cormorant_Garamond({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], style: ["normal", "italic"], variable: "--font-cormorant-garamond" });
 const dmSerifDisplay = DM_Serif_Display({ subsets: ["latin"], weight: ["400"], variable: "--font-dm-serif-display" });
 const lora = Lora({ subsets: ["latin"], variable: "--font-lora" });
 const libreBaskerville = Libre_Baskerville({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-libre-baskerville" });

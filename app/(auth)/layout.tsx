@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AuthCollage from "../components/auth/collage";
+import { TEMPLATES } from "../data/templates";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   // `body { overflow: hidden }` is global for the editor's sake — this shell
@@ -13,7 +14,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             modo<span className="text-accent">.</span>
           </Link>
           <AuthCollage />
-          <span className="font-mono text-[11px] text-text-tertiary">FIG. 2 — TWO OF 53 STARTING POINTS</span>
+          <span className="font-mono text-[11px] text-text-tertiary">FIG. 2 — TWO OF {TEMPLATES.length} STARTING POINTS</span>
         </div>
 
         {/* Right: the form column. */}
