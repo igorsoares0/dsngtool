@@ -1,16 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSessionCookie } from "better-auth/cookies";
-import { POST_AUTH_PATH } from "./app/lib/routes";
 
-// Next 16 renamed `middleware` -> `proxy`. This gates the editor behind auth.
-//
-// Optimistic check only: it verifies a session cookie is present, not that it's
-// valid against the DB (that would mean a round-trip on every navigation). The
-// real validation still happens server-side in route handlers via
-// app/lib/server/session.ts. An attacker forging a cookie gets bounced there.
-
-// Public routes reachable while signed out.
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password"];
+// Next 16 renamed `middleware` -> `proxy`. There are no accounts any more (the
+// license gate is client-side, see app/components/license/license-gate.tsx), so
+// all this does is attach the per-request Content-Security-Policy.
 
 /**
  * Per-request Content-Security-Policy.
@@ -31,7 +23,7 @@ const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password"
  *    a nonce in style-src would make browsers ignore 'unsafe-inline' and break
  *    the canvas. Inline style is a far weaker vector than inline script.
  *  - img-src allows https: because designs legitimately reference remote images
- *    (R2 assets today, arbitrary user URLs in an image element).
+ *    (older designs point at hosted images; device images are blob: URLs).
  */
 function buildCsp(nonce: string, isDev: boolean): string {
   return [
@@ -42,8 +34,9 @@ function buildCsp(nonce: string, isDev: boolean): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     // Paddle's checkout posts back to its own API; the iframe it opens is framed
-    // by us, hence frame-src.
-    `connect-src 'self' https://*.paddle.com${isDev ? " ws: http://localhost:*" : ""}`,
+    // by us, hence frame-src. AI generation calls Anthropic straight from the
+    // browser with the user's own key (app/lib/ai/generate.ts).
+    `connect-src 'self' https://*.paddle.com https://api.anthropic.com${isDev ? " ws: http://localhost:*" : ""}`,
     "frame-src https://*.paddle.com",
     "worker-src 'self'",
     "object-src 'none'",
@@ -56,26 +49,8 @@ function buildCsp(nonce: string, isDev: boolean): string {
 }
 
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
   const nonce = crypto.randomUUID();
   const csp = buildCsp(nonce, process.env.NODE_ENV === "development");
-
-  const hasSession = Boolean(getSessionCookie(request));
-  const isPublic = PUBLIC_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(p + "/")
-  );
-
-  // Signed out + private route -> send to login, remembering where they wanted.
-  if (!hasSession && !isPublic) {
-    const url = new URL("/login", request.url);
-    if (pathname !== "/") url.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  // Signed in + auth page -> bounce to the dashboard.
-  if (hasSession && isPublic) {
-    return NextResponse.redirect(new URL(POST_AUTH_PATH, request.url));
-  }
 
   // Forwarded on the request so Next can extract the nonce while rendering, and
   // set on the response so the browser actually enforces the policy.
@@ -89,11 +64,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Page navigations only. All of /api is excluded: an API client wants 401
-  // JSON, not a redirect to an HTML login page, and some routes (the Paddle
-  // webhook, better-auth itself) are anonymous by design. Every other route
-  // checks the session server-side — /api/ai/generate 401s without one, since
-  // its quota hangs off the user id. Also excludes Next internals and any file
-  // with an extension (static/PWA assets).
+  // Page navigations only: API routes return JSON and need no CSP, and static
+  // files (Next internals, PWA assets, anything with an extension) are skipped.
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico|manifest|icons|sw.js|.*\\.).*)"],
 };

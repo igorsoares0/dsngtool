@@ -29,21 +29,17 @@ function getPaddle(): Promise<Paddle | undefined> {
 }
 
 export interface CheckoutResult {
-  /** transaction id (txn_...) used to fetch the generated license. */
+  /** Transaction id (txn_...), used to fetch the key the webhook creates. */
   transactionId: string;
 }
 
 /**
- * Opens the Paddle checkout for the monthly subscription. `userId` is passed as
- * customData so the subscription webhook can attribute the resulting sub to this
- * user. Resolves with the transaction id on completion; the Subscription row
- * itself is created asynchronously by the webhook, so the caller should refresh
- * entitlement (poll /api/me) shortly after.
+ * Opens the Paddle checkout for the lifetime license. Resolves with the
+ * transaction id on completion; rejects with "closed" if the buyer backs out.
+ * The license itself is created by the webhook, so follow up with
+ * `pollLicenseForTransaction`.
  */
-export function openSubscriptionCheckout(opts: {
-  userId: string;
-  email?: string;
-}): Promise<CheckoutResult> {
+export function openLtdCheckout(): Promise<CheckoutResult> {
   return new Promise(async (resolve, reject) => {
     let settled = false;
 
@@ -67,11 +63,33 @@ export function openSubscriptionCheckout(opts: {
     }
 
     paddle.Checkout.open({
-      items: [
-        { priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY ?? "", quantity: 1 },
-      ],
-      customData: { userId: opts.userId },
-      ...(opts.email ? { customer: { email: opts.email } } : {}),
+      items: [{ priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_LTD ?? "", quantity: 1 }],
     });
   });
+}
+
+/**
+ * Wait for the webhook to create the license for a finished checkout and
+ * return its key. Gives up after ~40s; the key also arrives by email.
+ */
+export async function pollLicenseForTransaction(
+  transactionId: string,
+  { attempts = 20, intervalMs = 2000 } = {}
+): Promise<string | null> {
+  if (!transactionId) return null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(`/api/license/by-transaction?txn=${encodeURIComponent(transactionId)}`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { ready?: boolean; key?: string };
+        if (data.ready && data.key) return data.key;
+      }
+    } catch {
+      // network blip — keep polling
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return null;
 }

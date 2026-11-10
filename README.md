@@ -5,6 +5,10 @@ posts and stories, Pinterest graphics and promo banners. Think of it as a lighte
 faster Canva. There's nothing to install and almost nothing to learn, and the
 toolset is small but covers what people actually use.
 
+It is a local-first PWA sold as a **lifetime license**: no accounts, every design
+and image stays on the user's device, and AI generation runs on the user's own
+Anthropic API key.
+
 Live at [app.getmodo.pro](https://app.getmodo.pro).
 
 ## Features
@@ -16,12 +20,11 @@ Live at [app.getmodo.pro](https://app.getmodo.pro).
 - **Formats**: Instagram Post (1080×1080), Instagram Story (1080×1920), Pinterest (1000×1500)
 - **Editing**: undo/redo, multi-select, snapping guides, zoom/pan, context menu
 - **Templates**: 50+ ready-made designs (`app/data/templates.ts`)
-- **AI generation**: designs from a prompt via the Anthropic SDK (`app/api/ai/generate`)
-- **Projects** with multiple designs each, plus preview thumbnails
-- **Accounts**: email/password or Google sign-in (better-auth), with mandatory email verification
-- **Sync**: projects and uploads are stored server-side (Postgres + Cloudflare R2) and available across devices
-- **Subscription**: Paddle Billing, which raises storage quotas and AI credits
-- **Dashboard**: account, projects, storage and subscription tabs
+- **AI generation**: designs from a brief, called from the browser with the user's own key (`app/lib/ai/generate.ts`)
+- **Projects** with multiple pages each, plus preview thumbnails
+- **Local storage**: projects and uploaded images live in IndexedDB; `.modo` files and whole-device backups embed the images
+- **License**: Ed25519-signed keys verified on the device; sold through Paddle (one-time) and AppSumo
+- **Dashboard**: projects and settings (AI key, backup/restore, license, theme)
 
 ## Stack
 
@@ -31,11 +34,10 @@ Live at [app.getmodo.pro](https://app.getmodo.pro).
 | Canvas | Konva / react-konva |
 | State | Zustand |
 | Styling | Tailwind CSS v4 |
-| Database | PostgreSQL (Neon) via Prisma 7 |
-| Auth | better-auth |
-| File storage | Cloudflare R2 |
-| AI | Anthropic SDK |
-| Billing | Paddle Billing |
+| Local data | IndexedDB via Dexie |
+| License server | PostgreSQL (Neon) via Prisma 7 — one `License` table |
+| Licensing | Ed25519 (`@noble/ed25519`), Paddle one-time + AppSumo Licensing API |
+| AI | Anthropic SDK in the browser (BYOK) |
 | Email | Resend |
 | Hosting | Coolify on Hetzner |
 
@@ -63,4 +65,4 @@ Open [http://localhost:3000](http://localhost:3000).
 
 - [`docs/overview.md`](docs/overview.md): technical overview (document model, editor engine, API routes)
 - [`DEPLOY.md`](DEPLOY.md): deployment
-- [`docs/PAYMENTS_SETUP.md`](docs/PAYMENTS_SETUP.md): Paddle setup
+- [`docs/PAYMENTS_SETUP.md`](docs/PAYMENTS_SETUP.md): payments and licensing (Paddle, AppSumo, signing keys)

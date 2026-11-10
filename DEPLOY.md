@@ -10,13 +10,13 @@ dominio.com       → landing (Cloudflare Pages — projeto separado, ver nota n
 app.dominio.com   → DNS A → VPS Hetzner
                               └─ Coolify (PaaS self-hosted)
                                   └─ container Next.js (porta 3000)
-                                      ├─ /api/webhooks/paddle   ← Paddle chama aqui
-                                      ├─ /api/auth/[...all]     ← better-auth
-                                      ├─ /api/projects          ← sync entre dispositivos
-                                      ├─ /api/uploads           ← upload pro R2
-                                      └─ /api/ai/generate       ← Anthropic
-Banco: Neon Postgres (não migra — continua onde está)
-Arquivos: Cloudflare R2 (bucket modo-assets)
+                                      ├─ /api/webhooks/paddle   ← venda direta → licença + e-mail
+                                      ├─ /api/webhooks/appsumo  ← ciclo das licenças AppSumo
+                                      ├─ /api/appsumo/redeem    ← redirect OAuth do AppSumo
+                                      ├─ /api/license/status    ← checagem diária de reembolso
+                                      └─ /api/license/by-transaction ← chave pós-checkout
+Banco: Neon Postgres — só a tabela License
+Designs, imagens e chave de IA: no aparelho do usuário (IndexedDB)
 ```
 
 Custos: **Coolify = €0** (self-hosted). Você paga só o servidor Hetzner
@@ -123,18 +123,19 @@ Em **Environment Variables**, adicione (valores de **produção** do Paddle):
 | `DIRECT_URL` | ✅ **build** | Neon **direct** — usado pelo migrate |
 | `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | ✅ **build** | token de produção |
 | `NEXT_PUBLIC_PADDLE_ENV` | ✅ **build** | `production` |
-| `NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY` | ✅ **build** | price id da assinatura mensal |
-| `PADDLE_API_KEY` | ❌ runtime | secret de produção |
+| `NEXT_PUBLIC_PADDLE_PRICE_ID_LTD` | ✅ **build** | price **único** (one-time) da licença vitalícia. O webhook também lê — o Next embute `NEXT_PUBLIC_*` até no código do servidor |
+| `NEXT_PUBLIC_LTD_PRICE_LABEL` | ✅ **build** | opcional, ex. `$59` — aparece no botão de compra |
+| `PADDLE_API_KEY` | ❌ runtime | secret de produção (busca o e-mail do comprador) |
 | `PADDLE_WEBHOOK_SECRET` | ❌ runtime | do destination de produção (passo 8) |
-| `BETTER_AUTH_URL` | ❌ runtime | `https://app.dominio.com` — links de e-mail e callback OAuth |
-| `BETTER_AUTH_SECRET` | ❌ runtime | `openssl rand -base64 32` |
-| `GOOGLE_CLIENT_ID` / `_SECRET` | ❌ runtime | opcional — em branco esconde o login com Google |
-| `R2_ENDPOINT` / `R2_BUCKET` | ❌ runtime | bucket `modo-assets` |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | ❌ runtime | token R2 com Object Read & Write |
-| `R2_PUBLIC_URL` | ❌ runtime | domínio público do bucket; sem ele os assets são servidos via `/api/assets/<key>` |
-| `ANTHROPIC_API_KEY` | ❌ runtime | ausente → `/api/ai/generate` responde 503 |
+| `LICENSE_PRIVATE_KEY` | ❌ runtime | chave Ed25519 que assina as licenças (`scripts/license-keygen.mjs`). **Guarde no gerenciador de senhas** — perdeu, não emite mais chaves que o app aceite |
+| `APP_URL` | ❌ runtime | `https://app.dominio.com` — links do e-mail e redirect do AppSumo |
+| `APPSUMO_API_KEY` | ❌ runtime | Partner Portal — assina os webhooks do AppSumo |
+| `APPSUMO_CLIENT_ID` / `_SECRET` | ❌ runtime | Partner Portal — OAuth do redeem |
 | `RESEND_API_KEY` | ❌ runtime | |
-| `LICENSE_EMAIL_FROM` | ❌ runtime | remetente (reset de senha / verificação), domínio verificado no Resend |
+| `LICENSE_EMAIL_FROM` | ❌ runtime | remetente do e-mail da licença, domínio verificado no Resend |
+
+Não existem mais: `BETTER_AUTH_*`, `GOOGLE_*`, `R2_*`, `ANTHROPIC_API_KEY`,
+`NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY` — pode apagar do Coolify.
 
 > **Sandbox → produção:** token, env, price id, API key e webhook secret **todos
 > mudam** ao sair do sandbox. Não reaproveite os de teste.
@@ -160,10 +161,10 @@ Roda antes de cada release, usando `DIRECT_URL`. Idempotente.
 npx prisma migrate deploy
 ```
 
-> ⚠️ A migration `..._ai_usage_per_user` **apaga as linhas de `AiUsage`**
-> (a cota passou a ser por usuário, e as antigas eram por device id, sem como
-> mapear pra uma conta). Todo mundo recomeça o mês em zero — o que é o certo,
-> já que os contadores antigos não eram confiáveis.
+> ⚠️ A migration `..._local_first_licensing` **apaga todas as tabelas da era
+> SaaS** (usuários, sessões, projetos, assinaturas, assets, cota de IA) e cria
+> só a `License`. Na época só existiam contas de teste. Os objetos no R2 não
+> são tocados — apague o bucket `modo-assets` à mão quando quiser.
 
 ---
 
@@ -178,40 +179,44 @@ Se o build estourar memória (OOM no log) mesmo com swap, suba pra CX32.
 
 ---
 
-## 8. Webhook do Paddle
+## 8. Webhooks — Paddle e AppSumo
 
-No **Paddle Dashboard (produção)** → **Developer Tools → Notifications** →
+**Paddle** — Dashboard (produção) → **Developer Tools → Notifications** →
 **+ New destination**:
 
 - **URL:** `https://app.dominio.com/api/webhooks/paddle`
-- **Events:** os `subscription.*` (created, activated, updated, paused, resumed,
-  canceled) — é o que o código processa; cada um carrega o estado completo da
-  assinatura, então um upsert basta.
-- Salve e **copie o secret** (`pdl_ntfset_...`) → vai em `PADDLE_WEBHOOK_SECRET`
-  (passo 5). Re-deploy depois de colar.
+- **Events:** `transaction.completed` (cria a licença e manda o e-mail),
+  `adjustment.created` e `adjustment.updated` (reembolso total aprovado ou
+  chargeback revogam a licença).
+- Salve e **copie o secret** (`pdl_ntfset_...`) → `PADDLE_WEBHOOK_SECRET`.
+  Re-deploy depois de colar.
 
-Teste com **"Send test event"** e confira no log do Coolify se caiu em `[paddle]`
-sem erro de assinatura.
+**AppSumo** — Partner Portal, na página do produto:
+
+- **Webhook URL:** `https://app.dominio.com/api/webhooks/appsumo`
+- **OAuth Redirect URL:** `https://app.dominio.com/api/appsumo/redeem`
+  (tem que bater byte a byte com `APP_URL` + `/api/appsumo/redeem`).
+- O portal valida as duas URLs na hora de salvar (POST de teste e GET vazio) —
+  a app precisa estar no ar. Depois disso ele libera `client_id`/`client_secret`
+  e a API key → envs do passo 5.
 
 ---
 
 ## 9. Checklist pós-deploy
 
-- [ ] `https://app.dominio.com` carrega (deslogado, cai no `/login`); service
-      worker registra (DevTools → Application → Service Workers) e o cache
-      ativo é o `dsgntool-v2`.
-- [ ] Signup + reset de senha funcionam — o e-mail do Resend chega (cheque
-      SPF/DKIM do `LICENSE_EMAIL_FROM`).
-- [ ] Upload de imagem sobe pro R2 e o medidor de storage mexe.
-- [ ] `POST /api/ai/generate` **sem sessão** responde **401** (com sessão,
-      gera e desconta a cota do mês).
+- [ ] `https://app.dominio.com` mostra a tela **Activate Modo**; service worker
+      registra (DevTools → Application) e o cache ativo é o `modo-v3`.
+- [ ] Uma chave manual (`node --env-file=.env scripts/issue-license.mjs --note teste`)
+      ativa pelo link e cai no dashboard.
 - [ ] Checkout do Paddle abre (vazio = esqueceu de marcar as `NEXT_PUBLIC` como
-      Build Variable).
-- [ ] Assinatura de teste → webhook cria `Subscription` no Neon → `GET /api/me`
-      passa a responder `pro: true`.
+      Build Variable) → compra de teste → a app se ativa sozinha e o e-mail chega
+      (cheque SPF/DKIM do `LICENSE_EMAIL_FROM`).
+- [ ] Reembolso no Paddle → `GET /api/license/status?id=<id>` responde `revoked`.
+- [ ] AppSumo: as duas URLs salvas no portal; um redeem de teste volta pra
+      `/activate` já ativado.
 - [ ] **Auto-deploy:** com GitHub App, todo push na `main` re-deploya.
-- [ ] **Backup do Neon** ativado (o banco é o único estado com valor; o resto é
-      client-side/IndexedDB).
+- [ ] **Backup do Neon** ativado — a tabela `License` é o único estado do
+      servidor (o AppSumo exige que guardemos as license keys deles).
 
 ---
 
@@ -225,5 +230,5 @@ um VPS.
 | Componente | Onde | Custo |
 |---|---|---|
 | Landing (`dominio.com`) | Cloudflare Pages | €0 |
-| Editor + API (`app.dominio.com`) | Hetzner CX22 + Coolify | ~€5/mês |
+| Editor + licenças (`app.dominio.com`) | Hetzner CX22 + Coolify | ~€5/mês |
 | Banco | Neon | €0 (free tier) |

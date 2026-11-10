@@ -2,12 +2,11 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useEditorStore } from "../../store/editor-store";
-import { useEntitlementStore } from "../../store/entitlement-store";
 import { CANVAS_FORMATS } from "../../types/editor";
 import { db } from "../../lib/db";
 import { toast } from "../../store/toast-store";
 import { useInstallPrompt } from "../../hooks/use-install-prompt";
-import AccountMenu from "./account-menu";
+import AppMenu from "./app-menu";
 import { useProjectNumber, formatProjectNumber } from "../../lib/project-number";
 import IconButton from "../ui/icon-button";
 import { cx } from "../ui/cx";
@@ -30,9 +29,6 @@ import {
   InstallIcon,
 } from "./icons";
 
-/** Shown next to "Try Pro". Keep in step with the Paddle price. */
-const PRO_PRICE = "$10";
-
 export default function Topbar({
   onOpenProjects,
   onOpenShortcuts,
@@ -50,13 +46,10 @@ export default function Topbar({
   const future = useEditorStore((s) => s.future);
   const projectName = useEditorStore((s) => s.projectName);
   const setProjectName = useEditorStore((s) => s.setProjectName);
-  const syncState = useEditorStore((s) => s.syncState);
   const projectId = useEditorStore((s) => s.projectId);
   const projectNumber = useProjectNumber(projectId);
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
-  const isPro = useEntitlementStore((s) => s.pro);
-  const openLicense = useEntitlementStore((s) => s.openModal);
   const { canInstall, promptInstall } = useInstallPrompt();
 
   const [showFormatMenu, setShowFormatMenu] = useState(false);
@@ -149,12 +142,8 @@ export default function Topbar({
   const menuItem =
     "w-full flex items-center gap-2.5 px-3 py-2 text-[12.5px] text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors duration-150 ease-standard";
 
-  const status =
-    syncState === "syncing"
-      ? { label: "saving…", tone: "text-text-tertiary", dot: "bg-text-tertiary" }
-      : syncState === "offline"
-        ? { label: "offline", tone: "text-warning", dot: "bg-warning" }
-        : { label: "saved", tone: "text-success", dot: "bg-success" };
+  // Autosave writes to this device every few seconds; there is no sync to report.
+  const status = { label: "saved", tone: "text-success", dot: "bg-success" };
 
   // Full-height cells split by 1px rules — no pill groups.
   const cell = "flex items-center border-border-default";
@@ -342,7 +331,7 @@ export default function Topbar({
               className={menuItem}
             >
               <SaveIcon className="w-3.5 h-3.5 text-text-tertiary" />
-              Save to browser
+              Save on this device
             </button>
             <button
               onClick={() => {
@@ -420,22 +409,6 @@ export default function Topbar({
         )}
       </div>
 
-      {!isPro && (
-        <button
-          onClick={() => openLicense()}
-          className={cx(
-            cell,
-            "hidden sm:flex gap-2 px-4 border-l text-[13px] font-semibold text-text-primary hover:bg-surface-3 transition-colors",
-            "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
-          )}
-        >
-          Try Pro
-          <span className="font-mono text-[10.5px] font-medium border border-text-primary px-1 py-px">
-            {PRO_PRICE}
-          </span>
-        </button>
-      )}
-
       {/* The one primary action on the screen. */}
       <div className={cx(cell, "px-2.5 border-l")}>
         <button
@@ -449,7 +422,7 @@ export default function Topbar({
       </div>
 
       <div className={cx(cell, "w-12 justify-center border-l shrink-0")}>
-        <AccountMenu />
+        <AppMenu />
       </div>
     </header>
   );

@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * Per-identity request throttle for the write routes.
+ * Per-client request throttle for the anonymous license routes.
  *
  * Deliberately in-memory: the app runs as a single persistent Node process on
  * Coolify, so a shared store would buy nothing but a Postgres round-trip on
@@ -71,15 +71,24 @@ export function tooManyRequests(result: RateLimitResult): Response {
 }
 
 /**
- * Ceilings per user. Sized so ordinary use never notices: autosave pushes one
- * project every few seconds at worst, and a bulk import of a photo library is
- * still well under the upload ceiling.
+ * Best-effort client address for anonymous routes. Coolify's proxy (Traefik)
+ * appends the real peer to X-Forwarded-For; the left-most entry is the
+ * original client. Spoofable, but these limits only blunt scraping.
+ */
+export function clientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+
+/**
+ * Ceilings per client IP. The license routes are anonymous, so these only stop
+ * a script from walking license ids or transaction ids; real clients call them
+ * a handful of times a day.
  */
 export const LIMITS = {
-  /** Project sync push/delete. */
-  projectWrite: { limit: 120, window: 60 },
-  /** Image upload + delete. */
-  upload: { limit: 60, window: 60 },
-  /** AI generation. The monthly quota is the real bound; this stops a burst. */
-  aiGenerate: { limit: 10, window: 60 },
+  /** GET /api/license/status — the app checks at most once a day. */
+  licenseStatus: { limit: 30, window: 60 },
+  /** GET /api/license/by-transaction — polled for ~30s after a checkout. */
+  licenseByTransaction: { limit: 40, window: 60 },
 } as const;

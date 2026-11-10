@@ -9,7 +9,7 @@ import { MoreIcon, SearchIcon } from "../editor/icons";
 import { btnPrimary } from "../ui/buttons";
 import { cx } from "../ui/cx";
 import { BriefCard, FormatCard } from "./start-row";
-import type { Me, ProjectRow } from "./types";
+import type { ProjectRow } from "./types";
 
 type View = "grid" | "list";
 type Sort = "recent" | "name" | "created";
@@ -86,13 +86,13 @@ function subscribeView(l: () => void) {
 }
 
 export default function ProjectsView({
-  me,
+  hasKey,
   projects,
   numbers,
   loading,
   onDelete,
 }: {
-  me: Me | null;
+  hasKey: boolean | null;
   projects: ProjectRow[];
   numbers: Record<string, number>;
   loading: boolean;
@@ -203,7 +203,7 @@ export default function ProjectsView({
               <FormatCard slug="pinterest" compact />
             </div>
           </div>
-          <BriefCard ref={briefRef} ai={me?.ai ?? null} empty />
+          <BriefCard ref={briefRef} hasKey={hasKey} empty />
         </div>
       ) : (
         <>
@@ -213,7 +213,7 @@ export default function ProjectsView({
             <FormatCard slug="story" />
             <FormatCard slug="pinterest" />
             <div className="col-span-3 lg:col-span-1">
-              <BriefCard ref={briefRef} ai={me?.ai ?? null} />
+              <BriefCard ref={briefRef} hasKey={hasKey} />
             </div>
           </div>
 

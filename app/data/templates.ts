@@ -15,7 +15,8 @@ export interface Template {
   previewColor: string;
   previewAccent: string;
   elements: TemplateElement[];
-  /** Premium templates require a Pro license to apply (free shows a lock). */
+  /** Historical: marked the Pro-only templates of the subscription era. Every
+   *  licensed user gets every template now, so nothing reads it. */
   premium?: boolean;
 }
 

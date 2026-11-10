@@ -1,11 +1,13 @@
 // Service worker for Modo PWA.
-// The editor is offline-first (state persists to IndexedDB), so this worker
-// only needs to keep the app shell available without a network connection.
+// Everything the user makes lives in IndexedDB and the license is verified on
+// the device, so this worker only needs to keep the app shell available
+// without a network connection.
 // Bump on any change to what this worker caches: `activate` deletes every cache
 // whose name isn't the current one, which is the only way to evict entries an
-// older worker wrote under different rules. v1 cached /api responses.
-const CACHE = "dsgntool-v2";
-const APP_SHELL = ["/", "/manifest.webmanifest"];
+// older worker wrote under different rules. v1 cached /api responses; v2 was
+// the account era, whose cached pages could redirect to /login.
+const CACHE = "modo-v3";
+const APP_SHELL = ["/", "/dashboard", "/activate", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -34,10 +36,9 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Never the API. Those responses belong to one session (identity, projects,
-  // quota) and a cached copy outlives the sign-in that produced it — the next
-  // person on this browser would be served the last person's account. They also
-  // must never be stale: sync reconciles against what the server says now.
+  // Never the API. License status and delivery must reflect the server now; a
+  // cached "active" would hide a refund, a cached "not ready" would stall a
+  // checkout.
   if (url.pathname.startsWith("/api/")) return;
 
   event.respondWith(

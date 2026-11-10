@@ -8,11 +8,26 @@ export interface Project {
   format: CanvasFormat;
   createdAt: Date;
   updatedAt: Date;
-  /** Local-only: set when a server push is pending (offline/failed). Not indexed. */
-  dirty?: boolean;
 }
 
-// Generic key/value store for app-level settings (e.g. the cached license).
+/**
+ * An image the user added. Elements reference it as `asset:<id>` (see
+ * app/lib/local-assets.ts), so the bytes are stored once however many designs
+ * use them, and stay out of the project rows that autosave rewrites.
+ */
+export interface LocalAsset {
+  id: string;
+  blob: Blob;
+  name: string;
+  type: string;
+  size: number;
+  /** Natural pixel dimensions. */
+  w: number;
+  h: number;
+  createdAt: Date;
+}
+
+// Generic key/value store for app-level settings (license, AI key).
 export interface Setting {
   key: string;
   value: unknown;
@@ -30,6 +45,7 @@ interface LegacyProjectRow {
 class DesignDB extends Dexie {
   projects!: EntityTable<Project, "id">;
   settings!: EntityTable<Setting, "key">;
+  assets!: EntityTable<LocalAsset, "id">;
 
   constructor() {
     super("dsgntool");
@@ -68,6 +84,12 @@ class DesignDB extends Dexie {
             delete p.backgroundGradient;
           });
       });
+    // v4: uploaded images live on the device (they used to go to R2).
+    this.version(4).stores({
+      projects: "id, updatedAt",
+      settings: "key",
+      assets: "id, createdAt",
+    });
   }
 }
 

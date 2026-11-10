@@ -2,8 +2,9 @@
 
 Modo is a browser-based visual design editor for social media content — Instagram
 posts and stories, Pinterest graphics, promo banners. It runs entirely in the
-browser (installable as a PWA, works offline), with an account layer that syncs
-projects and uploads across devices and a subscription that raises the quotas.
+browser (installable as a PWA, works offline). There are no accounts: designs
+and images live on the user's device, AI runs on the user's own Anthropic key,
+and a one-time license key unlocks the app.
 
 Positioning: a lighter, faster Canva. No install, no learning curve, a small
 toolset that covers what people actually use.
@@ -19,11 +20,10 @@ toolset that covers what people actually use.
 | State | Zustand |
 | Styling | Tailwind CSS v4 (`:root`/`.dark` tokens aliased through `@theme inline` in `app/globals.css`) |
 | Local storage | IndexedDB via Dexie |
-| Server DB | PostgreSQL (Neon) via Prisma 7 + `@prisma/adapter-pg` |
-| Auth | better-auth (email/password, optional Google) |
-| File storage | Cloudflare R2 (S3 SDK) |
-| AI | Anthropic SDK (`claude-haiku-5-5` picks the template, `claude-sonnet-5-5` fills it) |
-| Billing | Paddle Billing |
+| License server | PostgreSQL (Neon) via Prisma 7 + `@prisma/adapter-pg` — one `License` table |
+| Licensing | Ed25519 keys (`@noble/ed25519`) verified on the device |
+| AI | Anthropic SDK in the browser, user's own key (`claude-haiku-5-5` picks the template, `claude-sonnet-5-5` fills it) |
+| Payments | Paddle (one-time) + AppSumo Licensing API |
 | Email | Resend |
 | Hosting | Coolify on Hetzner (`app.getmodo.pro`) |
 
@@ -33,21 +33,23 @@ toolset that covers what people actually use.
 
 ```
 app/
-  page.tsx              → the editor (single route)
-  dashboard/            → account, projects, storage, subscription
-  (auth)/               → login, signup, forgot-password, reset-password
+  page.tsx              → the editor, behind the license gate
+  dashboard/            → projects + settings, behind the license gate
+  activate/             → one-click activation links (/activate#key=…)
   api/
-    ai/generate         → AI design generation
-    assets/[...key]     → serves R2 objects when no public R2 domain is set
-    auth/[...all]       → better-auth handler
-    me                  → session + pro flag + storage status
-    projects[/id]       → project CRUD for cross-device sync
-    uploads             → image upload to R2 (quota-checked)
-    webhooks/paddle     → subscription lifecycle
+    webhooks/paddle     → one-time purchase → License + email; refunds revoke
+    webhooks/appsumo    → AppSumo license lifecycle
+    appsumo/redeem      → AppSumo OAuth redirect → /activate#key=…
+    license/status      → "was this license refunded?" (daily, best-effort)
+    license/by-transaction → key for a just-finished checkout
   components/editor/    → topbar, sidebar, panels, canvas, modals
-  store/                → editor-store, entitlement-store, toast-store
-  lib/                  → client libs (db, fonts, sync, text-fit)
-  lib/server/           → server-only (auth, db, r2, storage, session, email)
+  components/license/   → activation screen, gate
+  components/settings/  → AI key, backup/restore, license, theme
+  store/                → editor-store, license-store, settings-store, toast-store
+  lib/                  → client libs (db, local-assets, backup, fonts, text-fit)
+  lib/ai/               → manifest + browser-side generation
+  lib/license/          → key format, signing, verification (isomorphic)
+  lib/server/           → server-only (db, license, appsumo, paddle, email, rate-limit)
   data/                 → templates.ts (52 templates), assets.ts
 ```
 
@@ -104,67 +106,60 @@ resolution; projects also export/import as a JSON file (`app/lib/project-io.ts`)
 
 ---
 
-## Persistence and sync
+## Persistence
 
-IndexedDB is the working store; the server is the cross-device source of truth.
+IndexedDB (Dexie, `app/lib/db.ts`) is the only store.
 
-1. Autosave (`use-autosave.ts`) writes the current project to Dexie.
-2. `app/lib/project-sync.ts` reconciles Dexie against `/api/projects` using
-   **last-write-wins on the client's `updatedAt`**. That is why `Project.updatedAt`
-   in Prisma is *not* `@updatedAt` — it is set from the client payload.
-3. Deletes are tombstones (`deletedAt`) so they propagate instead of being
-   resurrected by the next pull. Offline deletes queue in a local settings row.
-4. `proxy.ts` gates every page behind a session cookie, so in practice there is
-   no signed-out editor: an anonymous visitor lands on `/login`. (The sync layer
-   itself doesn't require one — IndexedDB works standalone — so opening the
-   editor to signed-out users is a matter of relaxing the proxy matcher, not of
-   rewriting persistence.)
+1. Autosave (`use-autosave.ts`) writes the current project every few seconds and
+   asks for persistent storage (`navigator.storage.persist()`) so the browser
+   doesn't evict the user's only copy.
+2. Uploaded images go to the `assets` table; an image element's `src` is
+   `asset:<id>` and resolves to an object URL at render time
+   (`app/lib/local-assets.ts`). Object URLs are same-origin, so PNG export never
+   hits a tainted canvas.
+3. `.modo` files (schema v3) embed the images a design uses as data URLs, and
+   import puts them back under the same ids. Settings → *Back up everything*
+   writes every project and image into one `.modobackup` file; restoring it
+   merges, keeping whichever copy of a project is newer.
 
 ---
 
-## Accounts, storage, billing
+## Licensing
 
-**Auth** — better-auth with the Prisma adapter. Email verification is
-mandatory (`requireEmailVerification: true`): nobody reaches the app before
-confirming their address, so an unverified email can't farm the free AI quota
-or be matched to a Paddle customer. Google is opt-in —
-without `GOOGLE_CLIENT_ID`/`SECRET` the provider simply isn't registered.
-Password reset and verification emails go out through Resend.
+A key is `MODO-` + Crockford base32 of a 12-byte payload (version, source,
+10-byte license id) and its 64-byte Ed25519 signature
+(`app/lib/license/format.ts`). The app verifies it locally against
+`LICENSE_PUBLIC_KEYS` — no network needed, ever. The license id is the server's
+`License` row id, so the server can answer `GET /api/license/status`, which the
+app calls at most daily when online: `revoked` (refund, chargeback, AppSumo
+deactivate) locks the device; any failure fails open.
 
-**Uploads** — `POST /api/uploads` validates MIME type against an allow-list
-(png/jpeg/webp/gif — no SVG), enforces a 15 MB per-file cap, checks the plan
-quota *before* writing, then puts the object in R2 and records an `Asset` row
-with its byte size. Usage is `sum(bytes)` per user. Objects are served from a
-public R2 domain when `R2_PUBLIC_URL` is configured, otherwise proxied through
-`/api/assets/<key>`.
+Without a valid license the editor and dashboard render only the activation
+screen (`LicenseGate`). The gate is client-side — bypassable by a determined
+user, accepted for a one-time-price app that must work with no server.
 
-**Plans** (`app/lib/server/storage.ts`, `app/api/ai/generate/route.ts`):
-
-| | Free | Pro |
-| --- | --- | --- |
-| Storage | 250 MB | 1 GB |
-| AI generations / month | 5 | 100 |
-
-**Billing** — Paddle Billing. Checkout opens client-side
-(`app/lib/paddle-checkout.ts`); `POST /api/webhooks/paddle` verifies the
-signature and upserts a `Subscription` row on every `subscription.*` event.
-Entitlement is derived server-side from subscription `status` — the client's
-claim is never trusted. A scheduled cancellation keeps access until
-`cancelScheduledAt`.
+Delivery: Paddle's `transaction.completed` creates the row and emails a
+one-click link; the checkout screen also polls `by-transaction` and activates
+itself. AppSumo sends lifecycle webhooks and redirects buyers through
+`/api/appsumo/redeem`. Full setup: `docs/PAYMENTS_SETUP.md`.
 
 ---
 
 ## AI generation
 
-`POST /api/ai/generate` turns a text brief into a finished design in two model
-calls, both using JSON-schema-constrained output:
+`generateDesign()` (`app/lib/ai/generate.ts`) turns a text brief into a finished
+design in two model calls, both using JSON-schema-constrained output, sent
+straight from the browser to `api.anthropic.com` with the user's own key
+(stored in IndexedDB, set in Settings; `dangerouslyAllowBrowser` is safe here
+because the key belongs to the person at the keyboard):
 
-1. **Select** — the model picks a template by name from an enum of the 52
+1. **Select** — the model picks a template by name from an enum of the
    template names, given a compact index of their structure. An invalid name is
    impossible by construction.
 2. **Fill** — the model receives a *manifest* of that template
    (`app/lib/ai/manifest.ts`) and returns content, palette, fonts, per-slot font
-   scales, a background spec, and a project name.
+   scales, a background spec, and a project name. A server-side refusal
+   fallback to `claude-sonnet-5` is enabled on this call.
 
 The key design decision: **the model never sees or writes geometry.** The
 manifest exposes text slots (role, current text, `maxChars`), the color list and
@@ -176,31 +171,22 @@ generation degrades to the original template rather than to a broken layout.
 After the merge, `app/lib/text-fit.ts` measures the real Konva text nodes and
 shrinks anything that overflows its box.
 
-The route **requires a session** (401 otherwise) — it spends money upstream, so
-it is never anonymous. Quota is metered per user per month (`AiUsage`, keyed
-`userId + "YYYY-MM"`), never by anything the client sends: a browser can mint a
-fresh device id per request, so a device-keyed quota is not a quota. The credit
-is **reserved before** the upstream call — as a conditional `UPDATE ... WHERE
-count < limit`, so parallel requests can't all pass the same read — and handed
-back if the upstream call fails. The tier that sets the limit comes from the
-server-side subscription.
+There is no quota: usage is billed to the user's Anthropic account.
 
 ---
 
 ## Offline / PWA
 
-`app/manifest.ts` + `public/sw.js` make the editor installable and usable
-offline: the app shell, bundled fonts, and static assets are cached
-stale-while-revalidate; projects live in IndexedDB and flush to the server when
-the connection returns. There is an iOS install hint since Safari has no install
+`app/manifest.ts` + `public/sw.js` make the app installable and usable offline:
+the app shell (`/`, `/dashboard`, `/activate`), bundled fonts and static assets
+are cached stale-while-revalidate. Designs, images and the license all live on
+the device, so once loaded the app needs no network except for AI calls and the
+daily license check. There is an iOS install hint since Safari has no install
 prompt.
 
-`/api/` is **excluded from the worker** — those responses belong to one session
-(identity, projects, quota), and a cached copy outlives the sign-in that
-produced it, which on a shared browser means serving the previous account's
-data. `CACHE` is versioned (`dsgntool-v2`) and `activate` deletes every other
-cache, so bumping the name is how you evict entries an older worker wrote under
-different rules.
+`/api/` is **excluded from the worker** — a cached license status would hide a
+refund, a cached "not ready" would stall a checkout. `CACHE` is versioned
+(`modo-v3`) and `activate` deletes every other cache.
 
 ---
 
@@ -208,12 +194,11 @@ different rules.
 
 ```
 DATABASE_URL, DIRECT_URL            Neon (pooled runtime / direct migrations)
-BETTER_AUTH_SECRET, BETTER_AUTH_URL
-GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET     (optional — enables Google sign-in)
-R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL
-ANTHROPIC_API_KEY                   (absent → /api/ai/generate returns 503)
+LICENSE_PRIVATE_KEY, APP_URL
 PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET
-NEXT_PUBLIC_PADDLE_CLIENT_TOKEN, NEXT_PUBLIC_PADDLE_ENV, NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY
+NEXT_PUBLIC_PADDLE_CLIENT_TOKEN, NEXT_PUBLIC_PADDLE_ENV, NEXT_PUBLIC_PADDLE_PRICE_ID_LTD
+NEXT_PUBLIC_LTD_PRICE_LABEL         (optional)
+APPSUMO_API_KEY, APPSUMO_CLIENT_ID, APPSUMO_CLIENT_SECRET
 RESEND_API_KEY, LICENSE_EMAIL_FROM
 ```
 

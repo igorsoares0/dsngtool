@@ -1,121 +1,97 @@
-# Payments Setup (Paddle Billing — monthly subscription)
+# Payments & Licensing Setup (lifetime license, signed keys)
 
-Modo sells one thing: a **monthly Pro subscription** that raises the quotas.
+Modo is sold as a one-time lifetime license. There are two ways to buy it:
 
-| | Free | Pro |
+- **Direct** — Paddle checkout, one-time price.
+- **AppSumo** (and similar marketplaces) — AppSumo owns its license keys and
+  tells us about them through its Licensing API (webhooks + OAuth redeem).
+
+Either way the buyer ends up with a **Modo key**: an Ed25519 signature over a
+tiny payload, verified **on the device** (`app/lib/license/format.ts`). The app
+never needs the server to accept a key, so it works offline forever. The server
+only remembers which licenses exist and whether one was refunded.
+
+## 1. Signing key
+
+```bash
+node scripts/license-keygen.mjs
+```
+
+- The **public** key goes into `LICENSE_PUBLIC_KEYS` in `app/lib/license/format.ts`
+  (already set — only change it to rotate).
+- The **private** key goes into `LICENSE_PRIVATE_KEY` (local `.env`, Coolify)
+  and your password manager. Lose it and you cannot issue keys the shipped app
+  accepts; leak it and anyone can mint keys.
+- **Rotating:** add the new public key to the list *first*, ship, then switch
+  `LICENSE_PRIVATE_KEY`. Old keys keep working as long as their public key
+  stays in the list.
+
+## 2. Environment variables
+
+| Variable | Where | Purpose |
 | --- | --- | --- |
-| Storage (R2 uploads) | 250 MB | 1 GB |
-| AI generations / month | 5 | 100 |
-| Templates | 47 of 53 | all 53 (`premium: true` in `app/data/templates.ts`) |
+| `LICENSE_PRIVATE_KEY` | server | signs keys |
+| `APP_URL` | server | activation links in emails, AppSumo redirect |
+| `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`, `NEXT_PUBLIC_PADDLE_ENV` | build | Paddle.js |
+| `NEXT_PUBLIC_PADDLE_PRICE_ID_LTD` | build | the one-time price; the webhook only fulfils transactions containing it |
+| `NEXT_PUBLIC_LTD_PRICE_LABEL` | build | optional, shown on the buy button |
+| `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET` | server | customer email lookup, webhook signature |
+| `APPSUMO_API_KEY` | server | AppSumo webhook signature (HMAC-SHA256 of `timestamp + body`) |
+| `APPSUMO_CLIENT_ID`, `APPSUMO_CLIENT_SECRET` | server | OAuth code exchange on redeem |
+| `RESEND_API_KEY`, `LICENSE_EMAIL_FROM` | server | the license email |
 
-Everything else is the same on both tiers: the full editor and export at native
-resolution. There is **no watermark** on any tier — it went away with the LTD,
-so don't reintroduce it in copy.
+## 3. Database
 
-Entitlement is derived **server-side** from the `Subscription.status` mirrored
-from Paddle. The client's claim about its own tier is never trusted: quota is
-enforced in `app/lib/server/storage.ts` (uploads) and
-`app/api/ai/generate/route.ts` (AI).
-
-## 1. Environment variables
-
-Copy `.env.example` to `.env` and fill in real values. The payment-related ones:
-
-| Var | Where to get it |
-| --- | --- |
-| `DATABASE_URL` | Neon **pooled** connection string (runtime) |
-| `DIRECT_URL` | Neon **direct** connection string (migrations) |
-| `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | Paddle → Developer tools → Authentication (client token) |
-| `NEXT_PUBLIC_PADDLE_ENV` | `sandbox` while testing, `production` at launch |
-| `NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY` | Price id of the recurring monthly price |
-| `PADDLE_API_KEY` | Paddle → Developer tools → Authentication (API key) |
-| `PADDLE_WEBHOOK_SECRET` | Paddle → Notifications → your destination (`pdl_ntfset_…`) |
-
-The `NEXT_PUBLIC_*` ones are inlined at **build** time, not read at runtime — see
-`DEPLOY.md` §5 if the checkout opens empty in production.
-
-## 2. Database
+One table, `License` (`prisma/schema.prisma`). The signed key is **not**
+stored — Ed25519 is deterministic, so it is re-derived from `(id, source)`.
 
 ```bash
-npm run db:migrate      # prisma migrate dev (uses DIRECT_URL)
-# or for an existing DB / CI:
-npm run db:deploy
+npm run db:migrate   # dev
+npm run db:deploy    # prod / CI
 ```
 
-`prisma generate` runs automatically on `postinstall` and `build`.
+## 4. Flows
 
-## 3. Paddle dashboard
+**Direct purchase**
+1. Activation screen → `openLtdCheckout()` (`app/lib/paddle-checkout.ts`).
+2. Paddle → `POST /api/webhooks/paddle` `transaction.completed` → `issueLicense`
+   (idempotent on the transaction id) → license email with a one-click
+   `/activate#key=…` link.
+3. Meanwhile the checkout screen polls `GET /api/license/by-transaction?txn=`
+   and activates the device as soon as the key exists.
 
-1. Start in **sandbox**.
-2. Create a **product** + a **recurring monthly price**; copy its price id →
-   `NEXT_PUBLIC_PADDLE_PRICE_ID_MONTHLY`.
-3. Create a **notification destination** (webhook) pointing at
-   `https://<your-host>/api/webhooks/paddle`, subscribed to all eight
-   **`subscription.*`** events: created, activated, **trialing**, updated,
-   **past_due**, paused, resumed, canceled. Copy the secret →
-   `PADDLE_WEBHOOK_SECRET`.
+**AppSumo**
+1. AppSumo → `POST /api/webhooks/appsumo` (`purchase`, `activate`, `upgrade`,
+   `downgrade`, `deactivate`). Upgrades re-point the existing row to the new
+   AppSumo key, so the Modo key the buyer already has stays valid.
+2. Buyer clicks **Activate** on AppSumo → `GET /api/appsumo/redeem?code=` →
+   code exchange → license lookup → redirect to `/activate#key=…`.
 
-   `trialing` and `past_due` are not optional: both are entitling statuses
-   (`ENTITLED_STATUSES` in `app/lib/server/storage.ts`), so missing either one
-   leaves the mirrored row on a stale status and silently gives or revokes the
-   paid ceiling. `subscription.imported` is only needed when migrating existing
-   subscriptions in from another provider.
+**Refunds**
+- Paddle full refund / chargeback (`adjustment.*`, approved) and AppSumo
+  `deactivate` set `status = revoked`.
+- The app calls `GET /api/license/status?id=` at most once a day when online.
+  `revoked` locks the device; offline or a failed check keeps it unlocked.
 
-   No other event group is required — the webhook ignores everything that isn't
-   `subscription.*`, so subscribing to `transaction.*`, `customer.*` or
-   `adjustment.*` only adds deliveries with no effect.
-4. Copy the **client token** and **API key** into the env vars above.
-
-### Testing the webhook locally
-
-Paddle must reach a public URL. Tunnel your dev server:
+**Manual keys** (support, reviewers, giveaways)
 
 ```bash
-npm run dev
-cloudflared tunnel --url http://localhost:3000   # or: ngrok http 3000
+node --env-file=.env scripts/issue-license.mjs --note "reviewer: jane" [--email a@b.c]
 ```
 
-Point the Paddle webhook at the tunnel URL and run a **sandbox checkout**.
+## 5. Testing the Paddle webhook locally
 
-## 4. How it fits together (code map)
+Sign the raw body yourself with `PADDLE_WEBHOOK_SECRET`:
+`paddle-signature: ts=<unix>;h1=<hex HMAC-SHA256 of "<ts>:<body>">`. The route
+only checks the signature and reads `data.id`, `data.customer_id` and
+`data.items[].price.id` (and `transaction_id`, `action`, `type`, `status` on
+adjustments), so a minimal payload is enough.
 
-- **Checkout** — `app/lib/paddle-checkout.ts`. Opens Paddle.js client-side with
-  `customData: { userId }`, which is what lets the webhook attribute the
-  resulting subscription to a Modo account.
-- **Webhook** — `app/api/webhooks/paddle/route.ts`. Verifies the signature over
-  the **raw** body (`paddle.webhooks.unmarshal`), then upserts a `Subscription`
-  row on every `subscription.*` event. Every such event carries the full
-  subscription state, so one upsert keeps the mirror correct no matter which
-  event fired or in what order they arrive.
-- **Attribution** — `resolveUserId()` tries, in order: `customData.userId` → the
-  existing row for that subscription id (later events may drop customData) →
-  the Paddle customer's email matched against `user.email`. If none resolve, it
-  logs and acks (a retry can't add attribution that isn't there).
-- **Entitlement** — `isPro()` in `app/lib/server/storage.ts`, read by
-  `GET /api/me` and by the quota checks. A customer who schedules a cancellation
-  keeps access until `cancelScheduledAt`.
-- **UI** — `app/components/editor/upgrade-modal.tsx` and the storage meter;
-  `/dashboard` shows subscription state.
+## Security notes
 
-The `Subscription` row is created **asynchronously** by the webhook, so after a
-successful checkout the client polls `GET /api/me` to pick up the new tier.
-
-## 5. Quick local check without Paddle
-
-Insert an active subscription straight into Neon for your user:
-
-```sql
-insert into "Subscription" (id, "userId", status, "priceId", "createdAt", "updatedAt")
-values ('sub_test', '<your-user-id>', 'active', 'pri_test', now(), now());
-```
-
-Reload — the storage meter should show the 1 GB quota and AI should allow 100
-generations for the month.
-
-## Security note
-
-Gating is server-side and there is nothing meaningful to bypass on the client:
-uploads are rejected over quota before anything is written to R2, and
-`POST /api/ai/generate` requires a session and meters against `AiUsage` keyed by
-`userId`. A refund or cancellation lands as a `subscription.*` event and
-downgrades the user on the next request.
+- The gate is client-side; DevTools can bypass it. Accepted for a one-time,
+  offline-capable app — the signature stops casual key sharing *of invented
+  keys*, the daily status check catches refunds, nothing stops a determined
+  cracker.
+- `by-transaction` hands the key to anyone who knows the transaction id. Ids
+  only appear in the buyer's checkout and receipt.

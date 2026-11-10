@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useEditorStore } from "../store/editor-store";
 import { db } from "../lib/db";
-import { pushProject } from "../lib/project-sync";
+import { requestPersistentStorage } from "../lib/local-assets";
 
 const AUTOSAVE_INTERVAL = 3000;
 
@@ -28,12 +28,8 @@ export function useAutosave() {
         };
         await db.projects.put(record);
         s.markSaved();
-        // Mirror to the server (not awaited; buffers as dirty if offline). The
-        // outcome only feeds the status bar's SYNCED / OFFLINE readout.
-        s.setSyncState("syncing");
-        void pushProject(record).then((ok) =>
-          useEditorStore.getState().setSyncState(ok ? "synced" : "offline")
-        );
+        // This device holds the only copy, so ask the browser not to evict it.
+        requestPersistentStorage();
       } catch {
         // IndexedDB may be unavailable in some contexts — silent fail
       } finally {

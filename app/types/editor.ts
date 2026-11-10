@@ -108,10 +108,8 @@ export interface Page {
 export const PAGE_GAP = 96;
 
 /**
- * Ceiling on pages per project. Not arbitrary: the whole project is pushed as
- * one JSON blob and the server refuses anything over MAX_PROJECT_BYTES (512KB,
- * app/lib/server/storage.ts) with a 413 — which project-sync treats as terminal
- * and stops retrying, stranding the work on one device. Typical pages are a few
- * KB, so this keeps a full project an order of magnitude clear of that wall.
+ * Ceiling on pages per project. Autosave rewrites the whole project row every
+ * few seconds and the page strip renders a thumbnail per page, so an unbounded
+ * stack would make both crawl. Thirty is far beyond any carousel.
  */
 export const MAX_PAGES = 30;

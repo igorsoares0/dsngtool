@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../../store/editor-store";
-import { useEntitlementStore } from "../../store/entitlement-store";
+import { useSettingsStore } from "../../store/settings-store";
 import { TEMPLATES } from "../../data/templates";
 import { FONT_FAMILY_NAMES } from "../../lib/font-catalog";
 import { applyGeneration } from "../../lib/ai/manifest";
 import type { GenerationResult } from "../../lib/ai/manifest";
 import { fitTextToBox } from "../../lib/text-fit";
+import { GenerateError, MAX_PROMPT_CHARS, generateDesign, type GenerateErrorCode } from "../../lib/ai/generate";
 import { toast } from "../../store/toast-store";
 import { BRIEF_HANDOFF_KEY } from "../../lib/brief-handoff";
 import { ArrowRightIcon } from "./icons";
@@ -17,33 +18,30 @@ import type { TextElement } from "../../types/editor";
 const FONT_FAMILIES = FONT_FAMILY_NAMES;
 
 
-const ERRORS: Record<string, string> = {
-  not_configured: "AI generation isn't configured on this server.",
-  rate_limited: "The AI service is busy. Try again in a moment.",
+const ERRORS: Record<GenerateErrorCode, string> = {
+  no_key: "Add your Anthropic API key to generate designs.",
+  invalid_key: "Anthropic rejected your API key. Update it in Settings.",
+  permission: "Your API key isn't allowed to use these models. Check it in the Anthropic Console.",
+  rate_limited: "Your Anthropic account is rate limited. Try again in a moment.",
+  overloaded: "Anthropic is busy right now. Try again in a moment.",
+  bad_request: "Anthropic refused the request. Check your account's credit balance.",
   refused: "The model declined this brief. Try rephrasing it.",
-  upstream: "The AI service failed. Your credit wasn't used.",
-  prompt_too_long: "That brief is too long — keep it under 600 characters.",
-  unauthorized: "Your session expired. Sign in again to use AI.",
+  prompt_too_long: `That brief is too long — keep it under ${MAX_PROMPT_CHARS} characters.`,
+  network: "Couldn't reach Anthropic. Check your connection.",
+  internal: "Generation failed. Try again.",
 };
 
 type Status = "idle" | "generating" | "done";
 
 const DONE_MS = 6000;
 
-function resetLabel(iso: string | undefined): string {
-  if (!iso) return "next month";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "next month";
-  return d.toLocaleDateString("en", { month: "short", day: "numeric", timeZone: "UTC" });
-}
-
 /**
- * The AI entry point, docked under the canvas: BRIEF tag · prompt · quota ·
+ * The AI entry point, docked under the canvas: BRIEF tag · prompt ·
  * action. ⌘K focuses it from anywhere, Enter generates, Esc cancels.
  *
- * States: idle → typing (has text) → generating → done (Undo) — or limit, when
- * the month's quota is spent. Cancel aborts the request client-side only; the
- * server may still finish and count the generation.
+ * States: idle → typing (has text) → generating → done (Undo) — or no key,
+ * until the user adds their Anthropic API key. Requests go straight from the
+ * browser to Anthropic on the user's own account (app/lib/ai/generate.ts).
  */
 export default function AiBar() {
   const [prompt, setPrompt] = useState("");
@@ -56,12 +54,16 @@ export default function AiBar() {
 
   const loadTemplate = useEditorStore((s) => s.loadTemplate);
   const setProjectName = useEditorStore((s) => s.setProjectName);
-  const openUpgrade = useEntitlementStore((s) => s.openModal);
-  const ai = useEntitlementStore((s) => s.ai);
-  const setAiRemaining = useEntitlementStore((s) => s.setAiRemaining);
+  const aiKey = useSettingsStore((s) => s.aiKey);
+  const aiKeyLoaded = useSettingsStore((s) => s.aiKeyLoaded);
+  const loadAiKey = useSettingsStore((s) => s.loadAiKey);
+  const openSettings = useSettingsStore((s) => s.openSettings);
 
-  const left = ai ? Math.max(0, ai.limit - ai.used) : null;
-  const atLimit = left === 0 && status !== "generating";
+  useEffect(() => {
+    void loadAiKey();
+  }, [loadAiKey]);
+
+  const noKey = aiKeyLoaded && !aiKey && status === "idle";
   const typing = status === "idle" && prompt.trim().length > 0;
 
   const clearDone = useCallback(() => {
@@ -74,8 +76,11 @@ export default function AiBar() {
     async (briefOverride?: string) => {
       const brief = (briefOverride ?? prompt).trim();
       if (!brief || status === "generating") return;
-      if (left === 0) {
-        openUpgrade(`You've used all ${ai?.limit ?? ""} AI briefs this month. Upgrade for more.`);
+      await loadAiKey();
+      const apiKey = useSettingsStore.getState().aiKey;
+      if (!apiKey) {
+        setPrompt(brief);
+        openSettings("ai");
         return;
       }
 
@@ -86,23 +91,7 @@ export default function AiBar() {
       let succeeded = false;
 
       try {
-        const res = await fetch("/api/ai/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: brief }),
-          signal: controller.signal,
-        });
-
-        const data = await res.json();
-
-        if (res.status === 402) {
-          if (typeof data.limit === "number") setAiRemaining(0, data.limit);
-          return;
-        }
-        if (!res.ok) {
-          toast.error(ERRORS[data.error] ?? "Generation failed. Try again.");
-          return;
-        }
+        const data = await generateDesign({ apiKey, prompt: brief, signal: controller.signal });
 
         const template = TEMPLATES.find((t) => t.name === data.template);
         if (!template) {
@@ -136,10 +125,6 @@ export default function AiBar() {
         setPrompt("");
         succeeded = true;
 
-        if (typeof data.remaining === "number" && typeof data.limit === "number") {
-          setAiRemaining(data.remaining, data.limit);
-        }
-
         // A partial response still yields a design — say what fell back rather
         // than reporting a clean generation.
         if (merged.degraded.length > 0) {
@@ -150,8 +135,14 @@ export default function AiBar() {
           });
         }
       } catch (err) {
-        if ((err as Error)?.name === "AbortError") return;
-        toast.error("Couldn't reach the server. Check your connection.");
+        if (err instanceof GenerateError) {
+          if (err.code === "invalid_key" || err.code === "no_key") openSettings("ai");
+          toast.error(ERRORS[err.code]);
+          return;
+        }
+        // Cancelled by the user (the SDK's APIUserAbortError) — nothing to say.
+        if (controller.signal.aborted) return;
+        toast.error(ERRORS.internal);
       } finally {
         abortRef.current = null;
         if (succeeded) {
@@ -162,7 +153,7 @@ export default function AiBar() {
         }
       }
     },
-    [prompt, status, left, ai?.limit, openUpgrade, clearDone, loadTemplate, setProjectName, setAiRemaining]
+    [prompt, status, loadAiKey, openSettings, clearDone, loadTemplate, setProjectName]
   );
 
   const cancel = useCallback(() => {
@@ -224,21 +215,9 @@ export default function AiBar() {
   if (status === "done") {
     tag = "✓ DONE";
     tagClass = "bg-success text-white";
-  } else if (atLimit) {
-    tag = "0 LEFT";
-    tagClass = "bg-surface-3 text-text-secondary";
   }
 
-  const quota =
-    status === "generating"
-      ? "USING 1"
-      : atLimit && ai
-        ? `${ai.limit} / ${ai.limit}`
-        : left !== null
-          ? `${left} LEFT`
-          : null;
-
-  const showInput = status !== "generating" && status !== "done" && !atLimit;
+  const showInput = status !== "generating" && status !== "done";
 
   return (
     <div className="h-10 shrink-0 flex items-stretch bg-surface-1 border-t border-border-default">
@@ -266,24 +245,20 @@ export default function AiBar() {
                 e.currentTarget.blur();
               }
             }}
-            maxLength={600}
+            maxLength={MAX_PROMPT_CHARS}
             aria-label="Describe a post for the AI to generate"
-            placeholder="Describe a post — “poster for a ceramics fair, warm and minimal”"
+            placeholder={
+              noKey
+                ? "Add your Anthropic API key to generate posts from a brief →"
+                : "Describe a post — “poster for a ceramics fair, warm and minimal”"
+            }
             className="w-full bg-transparent text-[14px] text-text-primary placeholder:text-text-tertiary outline-none"
           />
         ) : (
-          <span
-            className={cx(
-              "truncate text-[13.5px]",
-              atLimit ? "text-text-secondary" : "text-text-primary"
-            )}
-            aria-live="polite"
-          >
+          <span className="truncate text-[13.5px] text-text-primary" aria-live="polite">
             {status === "generating"
               ? "Picking a template · writing the copy…"
-              : status === "done"
-                ? `Applied to page ${appliedPage}. Not quite right? Try again with more detail.`
-                : `You’ve used all ${ai?.limit ?? ""} briefs this month. They reset on ${resetLabel(ai?.resetsAt)}.`}
+              : `Applied to page ${appliedPage}. Not quite right? Try again with more detail.`}
           </span>
         )}
         {status === "generating" && (
@@ -292,22 +267,6 @@ export default function AiBar() {
           </span>
         )}
       </div>
-
-      {quota && (
-        <div
-          className={cx(
-            "flex items-center px-3.5 font-mono text-[10.5px] border-l border-border-default shrink-0",
-            status === "generating"
-              ? "text-text-primary"
-              : atLimit
-                ? "text-danger"
-                : "text-text-tertiary"
-          )}
-          title="AI briefs this month"
-        >
-          {quota}
-        </div>
-      )}
 
       {status === "generating" ? (
         <button
@@ -325,13 +284,13 @@ export default function AiBar() {
         >
           UNDO <span className="ml-1.5 font-mono font-medium text-[10.5px]">⌘Z</span>
         </button>
-      ) : atLimit ? (
+      ) : noKey && !typing ? (
         <button
           type="button"
-          onClick={() => openUpgrade("Upgrade for 100 AI briefs a month.")}
+          onClick={() => openSettings("ai")}
           className="flex items-center px-3.5 text-[12px] font-extrabold font-expanded uppercase tracking-[0.02em] bg-accent text-accent-fg hover:bg-accent-hover shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
         >
-          Go Pro · 100/mo
+          Add API key
         </button>
       ) : typing ? (
         <button

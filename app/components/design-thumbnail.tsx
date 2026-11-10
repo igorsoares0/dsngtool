@@ -3,14 +3,21 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { CanvasFormat, EditorElement, GradientFill, Page } from "../types/editor";
 import { resolveFontFamily } from "../lib/fonts";
+import { useResolvedSrc } from "../lib/local-assets";
+
+/** SVG <image> that also understands `asset:` sources stored on the device. */
+function ThumbImage({ src, ...props }: { src: string } & Omit<React.SVGProps<SVGImageElement>, "href">) {
+  const href = useResolvedSrc(src);
+  if (!href) return null;
+  return <image href={href} {...props} />;
+}
 
 /**
  * A live preview of a design, drawn as SVG straight from the stored document.
  *
- * Deliberately not a stored raster: `/api/projects` already ships the full
- * document to the client, so rendering from it costs no storage, needs no
- * upload, and can never go stale against the design it claims to show. It also
- * keeps Konva out of the dashboard bundle.
+ * Deliberately not a stored raster: the document is already in IndexedDB, so
+ * rendering from it costs no storage and can never go stale against the design
+ * it claims to show. It also keeps Konva out of the dashboard bundle.
  *
  * It is a preview, not a second renderer — image filters and drop shadows are
  * skipped, and everything else (geometry, gradients, fonts, alignment, wrapping)
@@ -212,8 +219,8 @@ function ElementNode({ el, uid }: { el: EditorElement; uid: string }) {
             </clipPath>
           </defs>
         ) : null}
-        <image
-          href={el.src}
+        <ThumbImage
+          src={el.src}
           x={el.x}
           y={el.y}
           width={el.width}

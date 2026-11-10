@@ -1,140 +1,123 @@
 import { paddle } from "../../../lib/server/paddle";
-import { prisma } from "../../../lib/server/db";
+import { activateUrl, issueLicense, setLicenseStatus } from "../../../lib/server/license";
+import { sendLicenseEmail } from "../../../lib/server/email";
 
-// Prisma + raw body verification require the Node runtime, never edge.
+// Raw-body signature verification and Prisma need the Node runtime.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Paddle → license lifecycle.
+ *
+ *  - transaction.completed for the lifetime price: create the License, email the key.
+ *  - adjustment.created/updated, approved refund or chargeback: revoke it.
+ *    A reversed chargeback reactivates it.
+ *
+ * Every branch is idempotent (keyed on the transaction id), because Paddle
+ * retries anything that doesn't get a 2xx.
+ */
 export async function POST(req: Request) {
   const signature = req.headers.get("paddle-signature") ?? "";
   const secret = process.env.PADDLE_WEBHOOK_SECRET ?? "";
   // Must use the exact raw body — do not parse before verifying the signature.
   const rawBody = await req.text();
 
-  let event;
+  // Signature only (HMAC-SHA256 over `${ts}:${rawBody}` plus the replay
+  // window), then our own parse of the few fields we read. The SDK's
+  // `unmarshal` also builds full entity objects and throws on any payload
+  // shape it doesn't expect — which would surface as a bogus 400 here.
+  let valid = false;
   try {
-    // unmarshal verifies HMAC-SHA256 over `${ts}:${rawBody}` and the ~5s replay window.
-    event = await paddle.webhooks.unmarshal(rawBody, secret, signature);
-  } catch (err) {
-    console.error("[paddle] signature verification failed", err);
+    valid = await paddle.webhooks.isSignatureValid(rawBody, secret, signature);
+  } catch {
+    valid = false;
+  }
+  if (!valid) {
+    console.error("[paddle] signature verification failed");
     return new Response("Invalid signature", { status: 400 });
   }
 
-  if (!event) return new Response("ok", { status: 200 });
+  let event: { event_type?: string; data?: unknown };
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return new Response("Bad JSON", { status: 400 });
+  }
 
-  // The subscription lifecycle drives entitlement. Every subscription.* event
-  // (created, activated, updated, past_due, paused, resumed, canceled, trialing)
-  // carries the full subscription state, so a single upsert keeps our mirror in
-  // sync regardless of which one fired.
-  if (event.eventType.startsWith("subscription.")) {
-    try {
-      await syncSubscription(event.data as SubscriptionData);
-    } catch (err) {
-      console.error("[paddle] subscription sync failed", err);
-      // 500 tells Paddle to retry.
-      return new Response("Sync error", { status: 500 });
+  try {
+    if (event.event_type === "transaction.completed") {
+      await fulfil(event.data as CompletedTransaction);
+    } else if (
+      event.event_type === "adjustment.created" ||
+      event.event_type === "adjustment.updated"
+    ) {
+      await adjust(event.data as Adjustment);
     }
+  } catch (err) {
+    console.error(`[paddle] ${event.event_type} failed`, err);
+    // 500 tells Paddle to retry.
+    return new Response("Processing error", { status: 500 });
   }
 
   return new Response("ok", { status: 200 });
 }
 
-interface SubscriptionData {
+/** The parts of Paddle's raw (snake_case) transaction payload we use. */
+interface CompletedTransaction {
   id: string;
-  status: string;
-  customerId?: string | null;
-  customData?: { userId?: string } | null;
-  currentBillingPeriod?: { endsAt?: string | null } | null;
-  scheduledChange?: { action?: string; effectiveAt?: string | null } | null;
-  canceledAt?: string | null;
-  items?: Array<{ price?: { id?: string | null } | null }> | null;
+  customer_id?: string | null;
+  items?: Array<{ price?: { id?: string } | null }>;
 }
 
-async function syncSubscription(data: SubscriptionData) {
-  const userId = await resolveUserId(data);
-  if (!userId) {
-    // Can't attribute this subscription to a user — log and ack so Paddle stops
-    // retrying (retrying won't help without attribution data). The subscription
-    // id is enough to find it in the Paddle dashboard; the customer id is not
-    // logged, since these lines end up in Coolify's log store.
-    console.error("[paddle] no user for subscription", data.id);
-    return;
-  }
+async function fulfil(txn: CompletedTransaction) {
+  const ltdPrice = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_LTD;
+  const isLtd = (txn.items ?? []).some((i) => i.price?.id === ltdPrice);
+  if (!ltdPrice || !isLtd) return;
 
-  const priceId = data.items?.[0]?.price?.id ?? null;
-  const currentPeriodEnd = data.currentBillingPeriod?.endsAt
-    ? new Date(data.currentBillingPeriod.endsAt)
-    : null;
-  const cancelScheduledAt =
-    data.scheduledChange?.action === "cancel" && data.scheduledChange.effectiveAt
-      ? new Date(data.scheduledChange.effectiveAt)
-      : null;
-  const canceledAt = data.canceledAt ? new Date(data.canceledAt) : null;
-
-  const fields = {
-    userId,
-    status: data.status,
-    priceId,
-    customerId: data.customerId ?? null,
-    currentPeriodEnd,
-    cancelScheduledAt,
-    canceledAt,
-  };
-
-  await prisma.subscription.upsert({
-    where: { id: data.id },
-    create: { id: data.id, ...fields },
-    update: fields,
-  });
-}
-
-/**
- * Attribute a subscription to a Modo user. Preference order:
- *  1. customData.userId set at checkout (propagates from transaction → subscription)
- *  2. an existing row for this subscription id (later events may drop customData)
- *  3. the Paddle customer's email matched to a *verified* user (last resort)
- */
-async function resolveUserId(data: SubscriptionData): Promise<string | null> {
-  // customData originates in the browser (see app/lib/paddle-checkout.ts), so
-  // it names a user rather than proving one. Confirm the id is real before
-  // hanging entitlement off it — a typo or a stale id would otherwise create a
-  // Subscription row pointing at nobody, and the FK would reject the write
-  // anyway, just later and as a 500 that Paddle retries forever.
-  const claimed = data.customData?.userId;
-  if (claimed) {
-    const user = await prisma.user.findUnique({
-      where: { id: claimed },
-      select: { id: true },
-    });
-    if (user) return user.id;
-    console.error("[paddle] customData.userId does not exist", data.id);
-  }
-
-  const existing = await prisma.subscription.findUnique({
-    where: { id: data.id },
-    select: { userId: true },
-  });
-  if (existing) return existing.userId;
-
-  if (data.customerId) {
+  // transaction.completed carries no email; it lives on the customer.
+  let email: string | null = null;
+  if (txn.customer_id) {
     try {
-      const customer = await paddle.customers.get(data.customerId);
-      if (customer.email) {
-        // `emailVerified` is the whole point of this filter. Sign-up does not
-        // require verification (see app/lib/server/auth.ts), so an address
-        // alone proves nothing: anyone can hold an account on someone else's
-        // email. Matching on it unverified would hand that account a stranger's
-        // subscription. An unverified payer falls through to the null branch,
-        // which logs loudly and can be fixed by hand — the safe direction.
-        const user = await prisma.user.findFirst({
-          where: { email: customer.email, emailVerified: true },
-          select: { id: true },
-        });
-        if (user) return user.id;
-      }
+      email = (await paddle.customers.get(txn.customer_id)).email ?? null;
     } catch (err) {
-      console.error("[paddle] customer lookup failed", err);
+      // Not fatal: the checkout's success screen shows the key anyway.
+      console.error("[paddle] could not fetch customer for", txn.id, err);
     }
   }
-  return null;
+
+  const license = await issueLicense({ source: "paddle", externalId: txn.id, email });
+
+  if (license.email) {
+    try {
+      await sendLicenseEmail({
+        to: license.email,
+        key: license.key,
+        activateUrl: activateUrl(license.key),
+        // Resend dedupes on this, so a retried webhook can't double-send.
+        idempotencyKey: `license-${txn.id}`,
+      });
+    } catch (err) {
+      // The license exists and the checkout screen shows it; don't make Paddle
+      // retry the whole event over an email hiccup.
+      console.error("[paddle] license email failed for", txn.id, err);
+    }
+  }
+}
+
+interface Adjustment {
+  transaction_id: string;
+  action: string;
+  type: string;
+  status: string;
+}
+
+async function adjust(adj: Adjustment) {
+  if (adj.status !== "approved") return;
+  // A partial refund (a discount after the fact) leaves the license intact.
+  const revokes = (adj.action === "refund" && adj.type === "full") || adj.action === "chargeback";
+  if (revokes) {
+    await setLicenseStatus(adj.transaction_id, "revoked");
+  } else if (adj.action === "chargeback_reverse") {
+    await setLicenseStatus(adj.transaction_id, "active");
+  }
 }

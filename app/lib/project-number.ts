@@ -1,14 +1,13 @@
 "use client";
 
 import { create } from "zustand";
+import { db } from "./db";
 
 /**
  * The "Nº 014" shown on dashboard cards and in the editor topbar.
  *
- * There is no stored sequence — a project's number is its position in the
- * account's creation order, counted over every row the server returns,
- * tombstones included. Counting deleted projects too is what keeps a number
- * stable: deleting Nº 003 does not renumber 004 onwards.
+ * There is no stored sequence — a project's number is its position in this
+ * device's creation order.
  */
 export function numberProjects(
   rows: { id: string; createdAt: string | Date }[]
@@ -30,25 +29,36 @@ export function formatProjectNumber(n: number | undefined): string {
 
 interface ProjectNumberState {
   numbers: Record<string, number>;
-  /** How many rows the server knows about — a brand-new, not-yet-synced
-   *  project is provisionally the next one. */
+  /** How many projects are saved — a brand-new, not-yet-saved project is
+   *  provisionally the next one. */
   total: number;
-  setFromServer: (rows: { id: string; createdAt: string | Date }[]) => void;
+  /** False until the first count, so nothing flashes a wrong number. */
+  loaded: boolean;
+  setFromRows: (rows: { id: string; createdAt: string | Date }[]) => void;
 }
 
-/** Filled by `syncProjects` so the editor can show the number without a
- *  separate request. */
 export const useProjectNumbers = create<ProjectNumberState>((set) => ({
   numbers: {},
   total: 0,
-  setFromServer: (rows) => set({ numbers: numberProjects(rows), total: rows.length }),
+  loaded: false,
+  setFromRows: (rows) => set({ numbers: numberProjects(rows), total: rows.length, loaded: true }),
 }));
 
-/** The number for `id`, or the provisional next number when the server has
- *  not seen the project yet. Undefined before the first sync. */
+/** Recount from IndexedDB (editor boot). */
+export async function refreshProjectNumbers(): Promise<void> {
+  try {
+    const rows = await db.projects.toArray();
+    useProjectNumbers.getState().setFromRows(rows);
+  } catch {
+    // IndexedDB unavailable — numbers just stay hidden
+  }
+}
+
+/** The number for `id`, or the provisional next number for an unsaved project.
+ *  Undefined until the first count. */
 export function useProjectNumber(id: string | null): number | undefined {
   return useProjectNumbers((s) => {
-    if (!id || s.total === 0) return undefined;
+    if (!id || !s.loaded) return undefined;
     return s.numbers[id] ?? s.total + 1;
   });
 }

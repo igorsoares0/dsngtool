@@ -6,7 +6,6 @@ import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";
 import { useClipboardEvents } from "../../hooks/use-clipboard-events";
 import { useAutosave } from "../../hooks/use-autosave";
 import { useProjectLoader } from "../../hooks/use-project-loader";
-import { useEntitlement } from "../../hooks/use-entitlement";
 import Topbar from "./topbar";
 import LeftSidebar, { type SidebarTool } from "./left-sidebar";
 import LeftPanel from "./left-panel";
@@ -18,7 +17,7 @@ import RightPanel from "./right-panel";
 import FontLoader from "./font-loader";
 import ProjectsModal from "./projects-modal";
 import ShortcutsModal from "./shortcuts-modal";
-import UpgradeModal from "./upgrade-modal";
+import SettingsModal from "../settings/settings-modal";
 import ExportModal from "./export-modal";
 import Toaster from "./toaster";
 import IosInstallHint from "./ios-install-hint";
@@ -40,7 +39,6 @@ export default function EditorLayout() {
   useKeyboardShortcuts();
   useClipboardEvents();
   useAutosave();
-  useEntitlement();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -99,7 +97,7 @@ export default function EditorLayout() {
         onClose={() => setShowExport(false)}
         stageRef={stageRef}
       />
-      <UpgradeModal />
+      <SettingsModal />
       <Toaster />
       <IosInstallHint />
     </div>

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { useEditorStore } from "../../store/editor-store";
-import { useEntitlementStore } from "../../store/entitlement-store";
 import { TEMPLATES, type Template } from "../../data/templates";
 import { templatePage } from "../../data/template-pages";
 import { ASSETS } from "../../data/assets";
@@ -11,8 +10,16 @@ import { resolveFontFamily } from "../../lib/fonts";
 import { addTextPreset } from "../../lib/text-presets";
 import { CANVAS_FORMATS, type GradientFill, type Page, type ShapeElement } from "../../types/editor";
 import DesignThumbnail from "../design-thumbnail";
-import { LockIcon, UploadIcon, SearchIcon } from "./icons";
-import { SegmentBars, formatBytes, storageLevel } from "./storage-meter";
+import { UploadIcon, SearchIcon, TrashIcon } from "./icons";
+import type { LocalAsset } from "../../lib/db";
+import {
+  assetSrc,
+  countAssetUses,
+  deleteAsset,
+  saveAsset,
+  useLocalAssets,
+  useResolvedSrc,
+} from "../../lib/local-assets";
 import { cx } from "../ui/cx";
 import SectionLabel from "../ui/section-label";
 import { toast } from "../../store/toast-store";
@@ -191,8 +198,6 @@ const useLastTemplate = create<{ projectId: string | null; name: string | null }
 function TemplatesPanel() {
   const loadTemplate = useEditorStore((s) => s.loadTemplate);
   const projectId = useEditorStore((s) => s.projectId);
-  const isPro = useEntitlementStore((s) => s.pro);
-  const openLicense = useEntitlementStore((s) => s.openModal);
   const last = useLastTemplate();
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<FormatTab>("all");
@@ -222,20 +227,15 @@ function TemplatesPanel() {
 
       <div className="px-4 pt-0.5 pb-4 grid grid-cols-3 gap-x-2 gap-y-3 items-start">
         {visible.map((t) => {
-          const locked = t.premium && !isPro;
           const isSelected = selected === t.name;
           return (
             <button
               key={t.name}
               onClick={() => {
-                if (locked) {
-                  openLicense(`"${t.name}" is a premium template. Upgrade to unlock it and all others.`);
-                  return;
-                }
                 loadTemplate(t);
                 useLastTemplate.setState({ projectId, name: t.name });
               }}
-              aria-label={locked ? `${t.name} (premium template — upgrade to unlock)` : `Apply template ${t.name}`}
+              aria-label={`Apply template ${t.name}`}
               className="group flex flex-col gap-[5px] text-left focus-visible:outline-none"
             >
               <span
@@ -248,11 +248,6 @@ function TemplatesPanel() {
                 style={{ aspectRatio: `${t.format.width} / ${t.format.height}`, backgroundColor: t.previewColor }}
               >
                 <DesignThumbnail pages={[templatePage(t)]} format={t.format} className="absolute inset-0" />
-                {locked && (
-                  <span className="absolute top-1 right-1 flex items-center justify-center w-[18px] h-[18px] bg-surface-inverse text-text-inverse">
-                    <LockIcon className="w-2.5 h-2.5" />
-                  </span>
-                )}
               </span>
               <span className="flex justify-between gap-1 min-w-0">
                 <span className="text-[11px] font-semibold text-text-primary truncate">{t.name}</span>
@@ -273,7 +268,7 @@ function TemplatesPanel() {
 --------------------------------------------------------------------------- */
 
 /** Read an image file's natural pixel dimensions in the browser. */
-function imageDimensions(file: File): Promise<{ w: number; h: number }> {
+function imageDimensions(file: Blob): Promise<{ w: number; h: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new window.Image();
@@ -290,46 +285,16 @@ function imageDimensions(file: File): Promise<{ w: number; h: number }> {
 }
 
 const MAX_UPLOAD_MB = 15;
+const ACCEPTED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 
-interface UploadItem {
-  id: string;
-  name: string;
-  file: File;
-  /** 0–100 while uploading. */
-  progress: number;
-  status: "uploading" | "done" | "failed";
-  error?: string;
-  url?: string;
-  w?: number;
-  h?: number;
-}
-
-/** This session's uploads. There is no list endpoint for older ones, so the
- *  grid shows only what was uploaded since the editor opened. */
-const useSessionUploads = create<{ items: UploadItem[] }>(() => ({ items: [] }));
-
-function patchUpload(id: string, patch: Partial<UploadItem>) {
-  useSessionUploads.setState((s) => ({
-    items: s.items.map((it) => (it.id === id ? { ...it, ...patch } : it)),
-  }));
-}
-
-const UPLOAD_ERRORS: Record<string, string> = {
-  quota_exceeded: "STORAGE FULL",
-  file_too_large: `OVER ${MAX_UPLOAD_MB} MB`,
-  unsupported_type: "UNSUPPORTED TYPE",
-  unauthorized: "SIGN IN TO UPLOAD",
-  network: "NETWORK ERROR",
-};
-
-function placeImage(url: string, natW: number, natH: number) {
+function placeImage(src: string, natW: number, natH: number) {
   const { addElement, format } = useEditorStore.getState();
   const maxW = format.width * 0.6;
   const w = Math.min(natW, maxW);
   const h = w * (natH / natW);
   addElement({
     type: "image",
-    src: url,
+    src,
     x: (format.width - w) / 2,
     y: (format.height - h) / 2,
     width: w,
@@ -339,97 +304,46 @@ function placeImage(url: string, natW: number, natH: number) {
   });
 }
 
-/** POST via XHR — fetch() exposes no upload progress. */
-function sendUpload(form: FormData, onProgress: (pct: number) => void) {
-  return new Promise<{ status: number; body: Record<string, unknown> }>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/uploads");
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => {
-      let body: Record<string, unknown> = {};
-      try {
-        body = JSON.parse(xhr.responseText);
-      } catch {
-        // non-JSON error page
+/**
+ * Store each file on the device and drop the first onto the page. Nothing is
+ * uploaded anywhere: the image goes into IndexedDB and the element points at
+ * it (`asset:<id>`), see app/lib/local-assets.ts.
+ */
+async function addFiles(files: FileList | File[]) {
+  let placed = false;
+  for (const file of [...files]) {
+    if (!ACCEPTED.includes(file.type)) {
+      toast.error(`${file.name}: unsupported file type`);
+      continue;
+    }
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      toast.error(`${file.name} is over ${MAX_UPLOAD_MB} MB`);
+      continue;
+    }
+    try {
+      const { w, h } = await imageDimensions(file);
+      const src = await saveAsset(file, { name: file.name, w, h });
+      if (!placed) {
+        placeImage(src, w, h);
+        placed = true;
       }
-      resolve({ status: xhr.status, body });
-    };
-    xhr.onerror = () => reject(new Error("network"));
-    xhr.send(form);
-  });
-}
-
-async function runUpload(id: string) {
-  const item = useSessionUploads.getState().items.find((i) => i.id === id);
-  if (!item) return;
-  patchUpload(id, { status: "uploading", progress: 0, error: undefined });
-
-  if (item.file.size > MAX_UPLOAD_MB * 1024 * 1024) {
-    patchUpload(id, { status: "failed", error: "file_too_large" });
-    return;
+    } catch (err) {
+      const full = (err as Error)?.name === "QuotaExceededError";
+      toast.error(full ? "This device is out of storage space." : `Couldn't read ${file.name}`);
+    }
   }
-
-  // Measure natural dimensions locally, then upload the bytes to R2 via our
-  // API (which enforces the storage quota) and place the returned URL.
-  const dims = await imageDimensions(item.file).catch(() => null);
-  const form = new FormData();
-  form.append("file", item.file);
-  if (dims) {
-    form.append("width", String(dims.w));
-    form.append("height", String(dims.h));
-  }
-
-  let res: { status: number; body: Record<string, unknown> };
-  try {
-    res = await sendUpload(form, (progress) => patchUpload(id, { progress }));
-  } catch {
-    patchUpload(id, { status: "failed", error: "network" });
-    return;
-  }
-
-  if (res.status < 200 || res.status >= 300) {
-    const code = res.status === 401 ? "unauthorized" : String(res.body.error ?? "upload_failed");
-    patchUpload(id, { status: "failed", error: code });
-    if (code === "quota_exceeded") toast.warning("Storage full — free up space or upgrade for more.");
-    return;
-  }
-
-  const { url, width, height } = res.body as { url: string; width: number | null; height: number | null };
-  const format = useEditorStore.getState().format;
-  const natW = width ?? dims?.w ?? format.width * 0.6;
-  const natH = height ?? dims?.h ?? natW;
-  patchUpload(id, { status: "done", progress: 100, url, w: natW, h: natH });
-  placeImage(url, natW, natH);
-  // The quota just moved — keep the meter honest.
-  useEntitlementStore.getState().refresh();
-}
-
-function startUploads(files: FileList | File[]) {
-  const added: UploadItem[] = [...files].map((file, i) => ({
-    id: `up_${Date.now()}_${i}`,
-    name: file.name,
-    file,
-    progress: 0,
-    status: "uploading",
-  }));
-  useSessionUploads.setState((s) => ({ items: [...added, ...s.items] }));
-  for (const it of added) void runUpload(it.id);
 }
 
 function UploadsPanel() {
-  const storage = useEntitlementStore((s) => s.storage);
-  const items = useSessionUploads((s) => s.items);
+  const assets = useLocalAssets();
   const [dragging, setDragging] = useState(false);
-
-  const meter = storage && storage.limit > 0 ? storageLevel(storage) : null;
+  const count = assets?.length ?? 0;
 
   return (
     <>
       <PanelHeader
         title="Uploads"
-        meta={items.length > 0 ? `${items.length} ${items.length === 1 ? "FILE" : "FILES"} THIS SESSION` : undefined}
+        meta={count > 0 ? `${count} ${count === 1 ? "IMAGE" : "IMAGES"} ON THIS DEVICE` : undefined}
       />
 
       <label
@@ -441,7 +355,7 @@ function UploadsPanel() {
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          if (e.dataTransfer.files?.length) startUploads(e.dataTransfer.files);
+          if (e.dataTransfer.files?.length) void addFiles(e.dataTransfer.files);
         }}
         className={cx(
           "mx-4 h-[120px] border-[1.5px] border-dashed flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-colors duration-150 ease-standard",
@@ -459,42 +373,21 @@ function UploadsPanel() {
         </span>
         <input
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
+          accept={ACCEPTED.join(",")}
           multiple
           className="sr-only"
           onChange={(e) => {
-            if (e.target.files?.length) startUploads(e.target.files);
+            if (e.target.files?.length) void addFiles(e.target.files);
             // Reset so picking the same file again re-fires onChange.
             e.target.value = "";
           }}
         />
       </label>
 
-      {storage && meter && (
-        <div className="mx-4 mt-3 flex items-center gap-2.5">
-          <span className="font-mono text-[10.5px] text-text-tertiary">STORAGE</span>
-          <SegmentBars
-            count={16}
-            filled={Math.round((meter.pct / 100) * 16)}
-            onClass={meter.level === "full" ? "bg-danger" : meter.level === "warn" ? "bg-warning" : "bg-text-primary"}
-            barClassName="flex-1 h-1"
-            className="flex-1"
-          />
-          <span
-            className={cx(
-              "font-mono text-[10.5px] font-medium tabular-nums",
-              meter.level === "full" ? "text-danger" : meter.level === "warn" ? "text-warning" : "text-text-primary"
-            )}
-          >
-            {Math.round(storage.used / (1024 * 1024))}/{formatBytes(storage.limit)}
-          </span>
-        </div>
-      )}
-
-      {items.length > 0 && (
+      {count > 0 && (
         <div className="px-4 pt-4 pb-4 grid grid-cols-2 gap-2.5">
-          {items.map((it) => (
-            <UploadTile key={it.id} item={it} />
+          {assets!.map((a) => (
+            <UploadTile key={a.id} asset={a} />
           ))}
         </div>
       )}
@@ -502,53 +395,51 @@ function UploadsPanel() {
   );
 }
 
-function UploadTile({ item }: { item: UploadItem }) {
-  const failed = item.status === "failed";
-  const uploading = item.status === "uploading";
-  const meta = failed ? "FAILED" : uploading ? `${item.progress}%` : item.w && item.h ? ratioLabel(Math.round(item.w), Math.round(item.h)) : "";
+function UploadTile({ asset }: { asset: LocalAsset }) {
+  const src = assetSrc(asset.id);
+  const url = useResolvedSrc(src);
+
+  const remove = async () => {
+    const uses = await countAssetUses(asset.id);
+    if (uses > 0) {
+      toast.error(
+        `Used in ${uses} ${uses === 1 ? "design" : "designs"}. Remove it there first.`,
+        5000
+      );
+      return;
+    }
+    await deleteAsset(asset.id);
+  };
+
   return (
-    <div className="flex flex-col gap-[5px] min-w-0">
+    <div className="group relative flex flex-col gap-[5px] min-w-0">
       <button
         type="button"
-        disabled={uploading}
-        onClick={() => {
-          if (failed) void runUpload(item.id);
-          else if (item.url && item.w && item.h) placeImage(item.url, item.w, item.h);
-        }}
-        title={failed ? "Retry" : item.status === "done" ? "Add to page" : undefined}
+        onClick={() => placeImage(src, asset.w, asset.h)}
+        title="Add to page"
         className={cx(
-          "relative aspect-square flex items-center justify-center p-2 text-center font-mono text-[10.5px] font-medium overflow-hidden",
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection",
-          failed
-            ? "bg-danger-tint text-danger shadow-[inset_0_0_0_1px_var(--danger)]"
-            : uploading
-              ? "bg-surface-3 text-text-tertiary shadow-[inset_0_-3px_0_var(--text-primary),inset_0_0_0_1px_var(--border-default)]"
-              : "bg-surface-3 shadow-[inset_0_0_0_1px_var(--border-default)] hover:shadow-[0_0_0_2px_var(--selection)]"
+          "relative aspect-square flex items-center justify-center p-2 overflow-hidden",
+          "bg-surface-3 shadow-[inset_0_0_0_1px_var(--border-default)] hover:shadow-[0_0_0_2px_var(--selection)]",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
         )}
       >
-        {item.url ? (
+        {url && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.url} alt="" className="w-full h-full object-contain" loading="lazy" />
-        ) : failed ? (
-          <span>
-            {UPLOAD_ERRORS[item.error ?? ""] ?? "UPLOAD FAILED"} · RETRY
-          </span>
-        ) : (
-          <span>UPLOADING…</span>
-        )}
-        {uploading && (
-          <span
-            aria-hidden
-            className="absolute left-0 bottom-0 h-[3px] bg-text-primary transition-[width]"
-            style={{ width: `${item.progress}%` }}
-          />
+          <img src={url} alt="" className="w-full h-full object-contain" loading="lazy" />
         )}
       </button>
+      <button
+        type="button"
+        onClick={() => void remove()}
+        aria-label={`Delete ${asset.name} from this device`}
+        title="Delete from this device"
+        className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-surface-1 text-text-secondary hover:text-danger shadow-[inset_0_0_0_1px_var(--border-default)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+      >
+        <TrashIcon className="w-3 h-3" />
+      </button>
       <span className="flex justify-between gap-1.5 font-mono text-[10.5px] min-w-0">
-        <span className="truncate text-text-primary">{item.name}</span>
-        <span className={cx("shrink-0", failed ? "text-danger" : uploading ? "text-text-primary" : "text-text-tertiary")}>
-          {meta}
-        </span>
+        <span className="truncate text-text-primary">{asset.name}</span>
+        <span className="shrink-0 text-text-tertiary">{ratioLabel(Math.round(asset.w), Math.round(asset.h))}</span>
       </span>
     </div>
   );

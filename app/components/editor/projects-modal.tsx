@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { db, type Project } from "../../lib/db";
-import { deleteProjectSynced, pushProject } from "../../lib/project-sync";
 import { normalizePages, countElements } from "../../lib/project-data";
 import DesignThumbnail from "../design-thumbnail";
 import { useEditorStore } from "../../store/editor-store";
@@ -79,17 +78,14 @@ export default function ProjectsModal({ onClose }: { onClose: () => void }) {
   const handleDelete = async (id: string) => {
     const removed = projects.find((p) => p.id === id);
     try {
-      await deleteProjectSynced(id);
+      await db.projects.delete(id);
       setProjects((prev) => prev.filter((p) => p.id !== id));
       if (id === currentProjectId) {
         newProject();
       }
       if (removed) {
         toast.action("Project deleted", "Undo", async () => {
-          // Re-create locally with a fresh timestamp and push it back up.
-          const restored = { ...removed, updatedAt: new Date(), dirty: false };
-          await db.projects.put(restored);
-          void pushProject(restored);
+          await db.projects.put({ ...removed, updatedAt: new Date() });
           loadProjects();
         });
       }

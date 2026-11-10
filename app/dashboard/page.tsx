@@ -1,82 +1,79 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { db } from "../lib/db";
 import { toast } from "../store/toast-store";
-import { useEntitlementStore } from "../store/entitlement-store";
+import { useSettingsStore } from "../store/settings-store";
 import { numberProjects } from "../lib/project-number";
 import Toaster from "../components/editor/toaster";
-import UpgradeModal from "../components/editor/upgrade-modal";
+import LicenseGate from "../components/license/license-gate";
+import SettingsPanel from "../components/settings/settings-panel";
 import DashboardTopbar from "../components/dashboard/dashboard-topbar";
 import ProjectsView from "../components/dashboard/projects-view";
-import AccountView, { RESUME_DELETE_PARAM } from "../components/dashboard/account-view";
-import type { Me, Nav, ProjectRow } from "../components/dashboard/types";
+import type { Nav, ProjectRow } from "../components/dashboard/types";
 
-export default function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const router = useRouter();
-  // Set when a provider re-authentication was started from the danger zone
-  // (see DangerZone). Read as a prop rather than off `location` in an effect,
-  // so the account panel is the one already rendered on the way back — no
-  // flash of the projects tab and no setState cascade on mount.
-  const resumeDelete = use(searchParams)[RESUME_DELETE_PARAM] !== undefined;
-  const [me, setMe] = useState<Me | null>(null);
+export default function DashboardPage() {
+  return (
+    <LicenseGate>
+      <Dashboard />
+    </LicenseGate>
+  );
+}
+
+function Dashboard() {
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [numbers, setNumbers] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [nav, setNav] = useState<Nav>(resumeDelete ? "account" : "projects");
+  const [nav, setNav] = useState<Nav>("projects");
+  const aiKey = useSettingsStore((s) => s.aiKey);
+  const aiKeyLoaded = useSettingsStore((s) => s.aiKeyLoaded);
+  const loadAiKey = useSettingsStore((s) => s.loadAiKey);
 
   const load = useCallback(async () => {
     try {
-      const [meRes, projRes] = await Promise.all([fetch("/api/me"), fetch("/api/projects")]);
-      if (meRes.status === 401) {
-        router.push("/login?redirect=/dashboard");
-        return;
-      }
-      const meData = (await meRes.json()) as Me;
-      const projData = (await projRes.json()) as { projects: ProjectRow[] };
-      const rows = projData.projects ?? [];
-      setMe(meData);
-      // The topbar meter, the upgrade modal and the account menu all read the
-      // shared entitlement store — seed it from the same response rather than
-      // fetching /api/me twice.
-      useEntitlementStore.setState({
-        pro: meData.pro,
-        storage: meData.storage,
-        ai: meData.ai ?? null,
-        hydrated: true,
-      });
-      // Numbered over every row, tombstones included, so deleting a project
-      // never renumbers the rest.
+      const rows = await db.projects.toArray();
       setNumbers(numberProjects(rows));
       setProjects(
         rows
-          .filter((p) => !p.deletedAt)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            data: { format: p.format, pages: p.pages },
+            createdAt: new Date(p.createdAt).toISOString(),
+            updatedAt: new Date(p.updatedAt).toISOString(),
+          }))
           .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
       );
     } catch {
-      toast.error("Couldn't load your dashboard. Try again.");
+      toast.error("Couldn't read your projects from this browser.");
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    // Reads IndexedDB; every setState inside happens after an await.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+    void loadAiKey();
+    // A restored backup lands new rows; re-read.
+    const onChanged = () => void load();
+    window.addEventListener("modo:projects-changed", onChanged);
+    return () => window.removeEventListener("modo:projects-changed", onChanged);
+  }, [load, loadAiKey]);
 
   const del = async (id: string) => {
-    const name = projects.find((p) => p.id === id)?.name;
+    const removed = await db.projects.get(id);
     setProjects((prev) => prev.filter((p) => p.id !== id));
     try {
-      await fetch(`/api/projects/${id}`, { method: "DELETE" });
-      toast.show({ type: "info", message: "Project deleted", sub: name ? `“${name}”` : undefined });
+      await db.projects.delete(id);
+      toast.action(`Deleted “${removed?.name ?? "project"}”`, "Undo", async () => {
+        if (removed) await db.projects.put(removed);
+        void load();
+      });
     } catch {
       toast.error("Couldn't delete project");
-      load();
+      void load();
     }
   };
 
@@ -86,17 +83,25 @@ export default function DashboardPage({
     <div className="h-full flex flex-col overflow-hidden bg-surface-0 text-text-primary">
       <DashboardTopbar nav={nav} onNav={setNav} />
       <main className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-        {nav === "account" ? (
-          <AccountView me={me} projectCount={projects.length} resumeDelete={resumeDelete} />
+        {nav === "settings" ? (
+          <div className="w-full max-w-[640px] px-5 sm:px-11 py-[34px] flex flex-col gap-6">
+            <h1 className="text-[56px] sm:text-[88px] leading-[0.82] font-black font-wide tracking-[-0.04em]">
+              Settings
+            </h1>
+            <SettingsPanel />
+          </div>
         ) : (
-          <ProjectsView me={me} projects={projects} numbers={numbers} loading={loading} onDelete={del} />
+          <ProjectsView
+            hasKey={aiKeyLoaded ? !!aiKey : null}
+            projects={projects}
+            numbers={numbers}
+            loading={loading}
+            onDelete={del}
+          />
         )}
       </main>
 
-      {/* The dashboard fires toasts too — before this, every one of them was
-          dropped because <Toaster /> only existed inside the editor. */}
       <Toaster />
-      <UpgradeModal />
     </div>
   );
 }

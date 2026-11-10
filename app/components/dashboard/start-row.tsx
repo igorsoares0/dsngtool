@@ -4,7 +4,6 @@ import { forwardRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BRIEF_HANDOFF_KEY } from "../../lib/brief-handoff";
 import { FORMAT_SLUGS, type FormatSlug } from "../../types/editor";
-import type { AiUsage } from "../../lib/ai-limits";
 import { cx } from "../ui/cx";
 
 const STARTS: { slug: FormatSlug; name: string; glyph: string }[] = [
@@ -44,11 +43,10 @@ export function FormatCard({ slug, compact }: { slug: FormatSlug; compact?: bool
  * text with Konva), so this hands the brief over and opens a new design; the
  * editor's brief bar picks it up and runs it.
  */
-export const BriefCard = forwardRef<HTMLInputElement, { ai: AiUsage | null; empty?: boolean }>(
-  function BriefCard({ ai, empty }, ref) {
+export const BriefCard = forwardRef<HTMLInputElement, { hasKey: boolean | null; empty?: boolean }>(
+  function BriefCard({ hasKey, empty }, ref) {
     const router = useRouter();
     const [prompt, setPrompt] = useState("");
-    const left = ai ? Math.max(0, ai.limit - ai.used) : null;
 
     const submit = () => {
       const brief = prompt.trim();
@@ -61,12 +59,9 @@ export const BriefCard = forwardRef<HTMLInputElement, { ai: AiUsage | null; empt
       router.push("/?new=1");
     };
 
-    const quota =
-      left === null
-        ? ""
-        : empty && ai && ai.used === 0
-          ? `${ai.limit} FREE THIS MONTH`
-          : `${left} OF ${ai?.limit} LEFT THIS MONTH`;
+    // Without a key the editor opens Settings and keeps the brief, so submitting
+    // still works — this just sets the expectation.
+    const quota = hasKey === null ? "" : hasKey ? "RUNS ON YOUR ANTHROPIC KEY" : "NEEDS YOUR ANTHROPIC KEY";
 
     return (
       <form
@@ -103,7 +98,7 @@ export const BriefCard = forwardRef<HTMLInputElement, { ai: AiUsage | null; empt
           {!empty && (
             <button
               type="submit"
-              disabled={!prompt.trim() || left === 0}
+              disabled={!prompt.trim()}
               className="self-center mb-1.5 px-3.5 py-1.5 bg-surface-inverse text-text-inverse text-[12.5px] font-bold disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
             >
               Generate ⏎
@@ -115,7 +110,7 @@ export const BriefCard = forwardRef<HTMLInputElement, { ai: AiUsage | null; empt
             <span className="font-mono text-[10.5px] text-text-tertiary">{quota}</span>
             <button
               type="submit"
-              disabled={!prompt.trim() || left === 0}
+              disabled={!prompt.trim()}
               className="px-3 py-[7px] bg-surface-inverse text-text-inverse text-[12.5px] font-bold disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
             >
               Generate ⏎

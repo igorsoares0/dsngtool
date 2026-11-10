@@ -10,6 +10,7 @@ import { resolveFontFamily } from "../../lib/fonts";
 import { measureTextWidth } from "../../lib/text-fit";
 import { useCanvasColors } from "../../lib/theme-colors";
 import type { EditorElement, ShapeElement, TextElement, ImageElement } from "../../types/editor";
+import { resolveSrc } from "../../lib/local-assets";
 
 interface Guide {
   orientation: "v" | "h";
@@ -218,12 +219,16 @@ function useImage(src: string): HTMLImageElement | null {
   useEffect(() => {
     if (typeof window === "undefined") return;
     let cancelled = false;
-    const img = new window.Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      if (!cancelled) setImage(img);
-    };
-    img.src = src;
+    // `asset:` sources (images stored on this device) resolve to object URLs.
+    void resolveSrc(src).then((url) => {
+      if (cancelled || !url) return;
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        if (!cancelled) setImage(img);
+      };
+      img.src = url;
+    });
     return () => {
       cancelled = true;
     };

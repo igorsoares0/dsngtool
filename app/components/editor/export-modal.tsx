@@ -144,17 +144,21 @@ export default function ExportModal({
     activeIndex,
   ]);
 
-  const exportProjectFile = useCallback(() => {
+  const exportProjectFile = useCallback(async () => {
     const s = useEditorStore.getState();
     // The project file is always the whole document — scope only applies to
-    // the flattened image formats.
-    downloadProjectFile({
-      name: s.projectName,
-      format: s.format,
-      pages: s.pages,
-    });
-    onClose();
-    toast.success("Project file downloaded");
+    // the flattened image formats. Images stored on this device ride along.
+    try {
+      await downloadProjectFile({
+        name: s.projectName,
+        format: s.format,
+        pages: s.pages,
+      });
+      onClose();
+      toast.success("Project file downloaded");
+    } catch {
+      toast.error("Couldn't build the project file");
+    }
   }, [onClose]);
 
   return (
