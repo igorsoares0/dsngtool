@@ -124,7 +124,7 @@ Em **Environment Variables**, adicione (valores de **produção** do Paddle):
 | `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | ✅ **build** | token de produção |
 | `NEXT_PUBLIC_PADDLE_ENV` | ✅ **build** | `production` |
 | `NEXT_PUBLIC_PADDLE_PRICE_ID_LTD` | ✅ **build** | price **único** (one-time) da licença vitalícia. O webhook também lê — o Next embute `NEXT_PUBLIC_*` até no código do servidor |
-| `NEXT_PUBLIC_LTD_PRICE_LABEL` | ✅ **build** | opcional, ex. `$59` — aparece no botão de compra |
+| `NEXT_PUBLIC_LTD_PRICE_LABEL` | ✅ **build** | `$79` — aparece no botão de compra (igual ao da landing) |
 | `PADDLE_API_KEY` | ❌ runtime | secret de produção (busca o e-mail do comprador) |
 | `PADDLE_WEBHOOK_SECRET` | ❌ runtime | do destination de produção (passo 8) |
 | `LICENSE_PRIVATE_KEY` | ❌ runtime | chave Ed25519 que assina as licenças (`scripts/license-keygen.mjs`). **Guarde no gerenciador de senhas** — perdeu, não emite mais chaves que o app aceite |
