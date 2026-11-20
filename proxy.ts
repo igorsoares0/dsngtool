@@ -30,7 +30,8 @@ function buildCsp(nonce: string, isDev: boolean): string {
     "default-src 'self'",
     // React uses eval in development for server-stack reconstruction.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
-    "style-src 'self' 'unsafe-inline'",
+    // Paddle.js injects its overlay stylesheet from its CDN when checkout opens.
+    "style-src 'self' 'unsafe-inline' https://cdn.paddle.com",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     // Paddle's checkout posts back to its own API; the iframe it opens is framed

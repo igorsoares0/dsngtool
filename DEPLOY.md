@@ -205,7 +205,7 @@ Se o build estourar memória (OOM no log) mesmo com swap, suba pra CX32.
 ## 9. Checklist pós-deploy
 
 - [ ] `https://app.dominio.com` mostra a tela **Activate Modo**; service worker
-      registra (DevTools → Application) e o cache ativo é o `modo-v3`.
+      registra (DevTools → Application) e o cache ativo é o `modo-v4`.
 - [ ] Uma chave manual (`node --env-file=.env scripts/issue-license.mjs --note teste`)
       ativa pelo link e cai no dashboard.
 - [ ] Checkout do Paddle abre (vazio = esqueceu de marcar as `NEXT_PUBLIC` como

@@ -5,8 +5,9 @@
 // Bump on any change to what this worker caches: `activate` deletes every cache
 // whose name isn't the current one, which is the only way to evict entries an
 // older worker wrote under different rules. v1 cached /api responses; v2 was
-// the account era, whose cached pages could redirect to /login.
-const CACHE = "modo-v3";
+// the account era, whose cached pages could redirect to /login; v4 evicts the
+// old green-M icons.
+const CACHE = "modo-v4";
 const APP_SHELL = ["/", "/dashboard", "/activate", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

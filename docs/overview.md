@@ -186,7 +186,7 @@ prompt.
 
 `/api/` is **excluded from the worker** — a cached license status would hide a
 refund, a cached "not ready" would stall a checkout. `CACHE` is versioned
-(`modo-v3`) and `activate` deletes every other cache.
+(`modo-v4`) and `activate` deletes every other cache.
 
 ---
 
