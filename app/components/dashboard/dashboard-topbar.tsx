@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { cx } from "../ui/cx";
+import { useLicenseStore } from "../../store/license-store";
+import { usePlanStore } from "../../store/plan-store";
 import type { Nav } from "./types";
 
 /** "modo." · Projects | Settings. Full-height cells split by hairlines, like
  *  the editor's topbar. */
 export default function DashboardTopbar({ nav, onNav }: { nav: Nav; onNav: (n: Nav) => void }) {
+  const free = useLicenseStore((s) => s.status === "none");
+  const openUpgrade = usePlanStore((s) => s.openUpgrade);
   return (
     <header className="h-12 shrink-0 flex items-stretch bg-surface-1 border-b border-border-default whitespace-nowrap">
       <Link
@@ -41,6 +45,16 @@ export default function DashboardTopbar({ nav, onNav }: { nav: Nav; onNav: (n: N
       <span className="hidden sm:flex items-center px-5 border-l border-border-default font-mono text-[10.5px] text-text-tertiary">
         SAVED ON THIS DEVICE
       </span>
+
+      {free && (
+        <button
+          onClick={() => openUpgrade("generic")}
+          className="flex items-center gap-2 px-5 border-l border-border-default font-mono text-[11px] font-medium uppercase text-text-primary hover:bg-surface-3 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
+        >
+          <span className="hidden sm:inline text-text-tertiary">Free plan ·</span>
+          Go lifetime
+        </button>
+      )}
     </header>
   );
 }

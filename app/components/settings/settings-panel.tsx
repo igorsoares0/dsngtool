@@ -3,6 +3,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useSettingsStore } from "../../store/settings-store";
 import { useLicenseStore, maskKey } from "../../store/license-store";
+import { usePlanStore, FREE_EXPORTS } from "../../store/plan-store";
+import { ActivationForm } from "../license/activation-screen";
+import { TEMPLATES } from "../../data/templates";
 import { testApiKey, type GenerateErrorCode } from "../../lib/ai/generate";
 import { BACKUP_EXTENSION, downloadBackup, restoreBackup } from "../../lib/backup";
 import { toast } from "../../store/toast-store";
@@ -156,8 +159,29 @@ function AiKeySection() {
 function LicenseSection() {
   const license = useLicenseStore((s) => s.license);
   const deactivate = useLicenseStore((s) => s.deactivate);
+  const status = useLicenseStore((s) => s.status);
+  const exportsUsed = usePlanStore((s) => s.exportsUsed);
   const [confirming, setConfirming] = useState(false);
-  if (!license) return null;
+  if (status === "loading") return null;
+  if (!license) {
+    const left = Math.max(0, FREE_EXPORTS - exportsUsed);
+    return (
+      <>
+        <div className="flex flex-col gap-1">
+          <span className="text-[14px] font-semibold text-text-primary">Free plan</span>
+          <span className="font-mono text-[11px] text-text-tertiary tabular-nums">
+            {left} OF {FREE_EXPORTS} FREE EXPORTS LEFT
+          </span>
+        </div>
+        <p className="text-[12.5px] text-text-secondary leading-relaxed">
+          A lifetime license adds unlimited exports, the{" "}
+          {TEMPLATES.filter((t) => t.premium).length} premium templates and saving .modo project
+          files. One payment, no subscription.
+        </p>
+        <ActivationForm compact />
+      </>
+    );
+  }
 
   return (
     <>
@@ -201,8 +225,8 @@ function LicenseSection() {
         )}
       </div>
       <p className="text-[12px] text-text-tertiary leading-relaxed">
-        Removing the license locks Modo on this device until you activate again. Your designs
-        stay where they are.
+        Removing the license puts this device back on the free plan until you activate again.
+        Your designs stay where they are.
       </p>
     </>
   );

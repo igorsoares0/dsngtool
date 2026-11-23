@@ -8,7 +8,7 @@
  * api.anthropic.com (allowed in the CSP's connect-src, see proxy.ts).
  */
 import type Anthropic from "@anthropic-ai/sdk";
-import { TEMPLATES } from "../../data/templates";
+import { TEMPLATES, type Template } from "../../data/templates";
 import { FONT_FAMILY_NAMES } from "../font-catalog";
 import { buildManifest, buildTemplateIndex, type GenerationResult } from "./manifest";
 
@@ -23,14 +23,16 @@ const FILL_FALLBACK = "claude-sonnet-5";
 export const MAX_PROMPT_CHARS = 600;
 
 const FONT_FAMILIES = FONT_FAMILY_NAMES;
-const TEMPLATE_NAMES = TEMPLATES.map((t) => t.name);
-
-const SELECT_SCHEMA = {
-  type: "object",
-  properties: { template: { type: "string", enum: TEMPLATE_NAMES } },
-  required: ["template"],
-  additionalProperties: false,
-} as const;
+/** The pick is constrained to the templates this device may use (the free
+ *  plan leaves out the premium ones), so the enum is built per call. */
+function selectSchema(templates: Template[]) {
+  return {
+    type: "object",
+    properties: { template: { type: "string", enum: templates.map((t) => t.name) } },
+    required: ["template"],
+    additionalProperties: false,
+  } as const;
+}
 
 const FILL_SCHEMA = {
   type: "object",
@@ -178,10 +180,14 @@ export async function generateDesign(opts: {
   apiKey: string | null;
   prompt: string;
   signal?: AbortSignal;
+  /** Templates to choose from; defaults to all of them. */
+  templates?: Template[];
 }): Promise<Generated> {
   if (!opts.apiKey) throw new GenerateError("no_key");
   const prompt = opts.prompt.trim();
   if (prompt.length > MAX_PROMPT_CHARS) throw new GenerateError("prompt_too_long");
+
+  const templates = opts.templates?.length ? opts.templates : TEMPLATES;
 
   try {
     const anthropic = await client(opts.apiKey);
@@ -193,12 +199,12 @@ export async function generateDesign(opts: {
       {
         model: SELECT_MODEL,
         max_tokens: 1024,
-        output_config: { format: { type: "json_schema", schema: SELECT_SCHEMA }, effort: "low" },
+        output_config: { format: { type: "json_schema", schema: selectSchema(templates) }, effort: "low" },
         system: SELECT_SYSTEM,
         messages: [
           {
             role: "user",
-            content: `Brief: ${prompt}\n\nTemplates:\n${JSON.stringify(buildTemplateIndex(TEMPLATES))}`,
+            content: `Brief: ${prompt}\n\nTemplates:\n${JSON.stringify(buildTemplateIndex(templates))}`,
           },
         ],
       },
@@ -207,7 +213,7 @@ export async function generateDesign(opts: {
     if (pick.stop_reason === "refusal") throw new GenerateError("refused");
     const templateName = (JSON.parse(textFrom(pick)) as { template: string }).template;
 
-    const template = TEMPLATES.find((t) => t.name === templateName);
+    const template = templates.find((t) => t.name === templateName);
     if (!template) throw new GenerateError("internal");
 
     // 2. Fill the slots. max_tokens covers adaptive thinking as well as the

@@ -4,7 +4,8 @@ Modo is a browser-based visual design editor for social media content — Instag
 posts and stories, Pinterest graphics, promo banners. It runs entirely in the
 browser (installable as a PWA, works offline). There are no accounts: designs
 and images live on the user's device, AI runs on the user's own Anthropic key,
-and a one-time license key unlocks the app.
+and the editor is free to use; a one-time license key lifts the free plan's
+limits.
 
 Positioning: a lighter, faster Canva. No install, no learning curve, a small
 toolset that covers what people actually use.
@@ -33,8 +34,8 @@ toolset that covers what people actually use.
 
 ```
 app/
-  page.tsx              → the editor, behind the license gate
-  dashboard/            → projects + settings, behind the license gate
+  page.tsx              → the editor (free plan or licensed)
+  dashboard/            → projects + settings
   activate/             → one-click activation links (/activate#key=…)
   api/
     webhooks/paddle     → one-time purchase → License + email; refunds revoke
@@ -43,7 +44,7 @@ app/
     license/status      → "was this license refunded?" (daily, best-effort)
     license/by-transaction → key for a just-finished checkout
   components/editor/    → topbar, sidebar, panels, canvas, modals
-  components/license/   → activation screen, gate
+  components/license/   → activation screen + form, upgrade dialog, license loader
   components/settings/  → AI key, backup/restore, license, theme
   store/                → editor-store, license-store, settings-store, toast-store
   lib/                  → client libs (db, local-assets, backup, fonts, text-fit)
@@ -132,11 +133,16 @@ A key is `MODO-` + Crockford base32 of a 12-byte payload (version, source,
 `LICENSE_PUBLIC_KEYS` — no network needed, ever. The license id is the server's
 `License` row id, so the server can answer `GET /api/license/status`, which the
 app calls at most daily when online: `revoked` (refund, chargeback, AppSumo
-deactivate) locks the device; any failure fails open.
+deactivate) puts the device back on the free plan; any failure fails open.
 
-Without a valid license the editor and dashboard render only the activation
-screen (`LicenseGate`). The gate is client-side — bypassable by a determined
-user, accepted for a one-time-price app that must work with no server.
+Without a valid license the app runs on the **free plan**
+(`app/store/plan-store.ts`): the whole editor, the AI brief, opening `.modo`
+files and backup/restore are free; a license adds unlimited image exports (free:
+3 per device, ever — one per Download click), the `premium: true` templates
+(locked in the panel, and left out of the AI brief's choices) and saving `.modo`
+files. Each locked action opens the upgrade dialog (`UpgradeModal`, mounted by
+`LicenseGate`). All of it is client-side — bypassable by a determined user,
+accepted for a one-time-price app that must work with no server.
 
 Delivery: Paddle's `transaction.completed` creates the row and emails a
 one-click link; the checkout screen also polls `by-transaction` and activates

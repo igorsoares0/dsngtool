@@ -15,8 +15,8 @@ export interface Template {
   previewColor: string;
   previewAccent: string;
   elements: TemplateElement[];
-  /** Historical: marked the Pro-only templates of the subscription era. Every
-   *  licensed user gets every template now, so nothing reads it. */
+  /** Needs a license. The free plan shows it with a lock and the AI brief
+   *  skips it (see app/store/plan-store.ts). */
   premium?: boolean;
 }
 
@@ -9900,6 +9900,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Practice Areas" — numbered services list (IG Post) ──
   {
     name: "Practice Areas",
+    premium: true,
     category: "Legal",
     backgroundColor: "#F2EDE4",
     format: IGPost,
@@ -10266,6 +10267,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Meet the Partner" — attorney profile with portrait (IG Post) ──
   {
     name: "Meet the Partner",
+    premium: true,
     category: "Legal",
     backgroundColor: "#E8E0D4",
     format: IGPost,
@@ -10434,6 +10436,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Myth vs Fact" — two-tone myth buster (IG Post) ──
   {
     name: "Myth vs Fact",
+    premium: true,
     category: "Legal",
     backgroundColor: "#F2EDE4",
     format: IGPost,
@@ -10598,6 +10601,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Client Story" — client testimonial with monogram (IG Post) ──
   {
     name: "Client Story",
+    premium: true,
     category: "Legal",
     backgroundColor: "#F2EDE4",
     format: IGPost,
@@ -10846,6 +10850,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Free Consultation" — consultation offer with photo (IG Story) ──
   {
     name: "Free Consultation",
+    premium: true,
     category: "Legal",
     backgroundColor: "#0E1829",
     format: IGStory,
@@ -11362,6 +11367,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "Ask a Lawyer" — weekly Q&A question sticker (IG Story) ──
   {
     name: "Ask a Lawyer",
+    premium: true,
     category: "Legal",
     backgroundColor: "#5C1F24",
     format: IGStory,
@@ -11521,6 +11527,7 @@ export const TEMPLATES: Template[] = [
   // ── Template: "New Partner" — new partner announcement (IG Story) ──
   {
     name: "New Partner",
+    premium: true,
     category: "Legal",
     backgroundColor: "#E8E0D4",
     format: IGStory,

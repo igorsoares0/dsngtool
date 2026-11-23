@@ -53,7 +53,8 @@ npm run db:deploy    # prod / CI
 ## 4. Flows
 
 **Direct purchase**
-1. Activation screen → `openLtdCheckout()` (`app/lib/paddle-checkout.ts`).
+1. Upgrade dialog, Settings → License, or `/activate` → `openLtdCheckout()`
+   (`app/lib/paddle-checkout.ts`).
 2. Paddle → `POST /api/webhooks/paddle` `transaction.completed` → `issueLicense`
    (idempotent on the transaction id) → license email with a one-click
    `/activate#key=…` link.
@@ -71,7 +72,8 @@ npm run db:deploy    # prod / CI
 - Paddle full refund / chargeback (`adjustment.*`, approved) and AppSumo
   `deactivate` set `status = revoked`.
 - The app calls `GET /api/license/status?id=` at most once a day when online.
-  `revoked` locks the device; offline or a failed check keeps it unlocked.
+  `revoked` puts the device back on the free plan; offline or a failed check
+  keeps it licensed.
 
 **Manual keys** (support, reviewers, giveaways)
 
@@ -89,7 +91,7 @@ adjustments), so a minimal payload is enough.
 
 ## Security notes
 
-- The gate is client-side; DevTools can bypass it. Accepted for a one-time,
+- The free-plan limits are client-side; DevTools can bypass them. Accepted for a one-time,
   offline-capable app — the signature stops casual key sharing *of invented
   keys*, the daily status check catches refunds, nothing stops a determined
   cracker.

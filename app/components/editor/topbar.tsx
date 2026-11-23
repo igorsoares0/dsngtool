@@ -2,10 +2,12 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useEditorStore } from "../../store/editor-store";
+import { useLicenseStore } from "../../store/license-store";
 import { CANVAS_FORMATS } from "../../types/editor";
 import { db } from "../../lib/db";
 import { toast } from "../../store/toast-store";
 import { useInstallPrompt } from "../../hooks/use-install-prompt";
+import { usePlanStore, useIsLicensed, FREE_EXPORTS } from "../../store/plan-store";
 import AppMenu from "./app-menu";
 import { useProjectNumber, formatProjectNumber } from "../../lib/project-number";
 import IconButton from "../ui/icon-button";
@@ -27,6 +29,7 @@ import {
   KeyboardIcon,
   TemplatesIcon,
   InstallIcon,
+  LockIcon,
 } from "./icons";
 
 export default function Topbar({
@@ -51,6 +54,10 @@ export default function Topbar({
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
   const { canInstall, promptInstall } = useInstallPrompt();
+  const licenseStatus = useLicenseStore((s) => s.status);
+  const licensed = useIsLicensed();
+  const openUpgrade = usePlanStore((s) => s.openUpgrade);
+  const exportsUsed = usePlanStore((s) => s.exportsUsed);
 
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -350,7 +357,8 @@ export default function Topbar({
             </span>
             <button
               onClick={() => {
-                onOpenExport();
+                if (licensed) onOpenExport();
+                else openUpgrade("project-file");
                 setShowFileMenu(false);
               }}
               className={cx(menuItem, "justify-between")}
@@ -359,7 +367,8 @@ export default function Topbar({
                 <DownloadIcon className="w-3.5 h-3.5 text-text-tertiary" />
                 Download project
               </span>
-              <span className="text-[10.5px] text-text-tertiary uppercase font-mono">
+              <span className="flex items-center gap-1.5 text-[10.5px] text-text-tertiary uppercase font-mono">
+                {!licensed && <LockIcon className="w-3 h-3" />}
                 .{FILE_EXTENSION}
               </span>
             </button>
@@ -408,6 +417,23 @@ export default function Topbar({
           </div>
         )}
       </div>
+
+      {/* Free plan: what's left, and the way out of it. Hidden until the
+          license cache is read so a licensed device never flashes it. */}
+      {licenseStatus === "none" && (
+        <div className={cx(cell, "border-l")}>
+          <button
+            onClick={() => openUpgrade("generic")}
+            title="Get a lifetime license"
+            className="h-full flex items-center gap-2 px-3.5 font-mono text-[11px] font-medium uppercase text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
+          >
+            <span className="hidden lg:inline tabular-nums text-text-tertiary">
+              Free · {Math.max(0, FREE_EXPORTS - exportsUsed)}/{FREE_EXPORTS} exports
+            </span>
+            <span className="text-text-primary">Go lifetime</span>
+          </button>
+        </div>
+      )}
 
       {/* The one primary action on the screen. */}
       <div className={cx(cell, "px-2.5 border-l")}>

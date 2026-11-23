@@ -10,6 +10,7 @@ import type { GenerationResult } from "../../lib/ai/manifest";
 import { fitTextToBox } from "../../lib/text-fit";
 import { GenerateError, MAX_PROMPT_CHARS, generateDesign, type GenerateErrorCode } from "../../lib/ai/generate";
 import { toast } from "../../store/toast-store";
+import { availableTemplates, isLicensed } from "../../store/plan-store";
 import { BRIEF_HANDOFF_KEY } from "../../lib/brief-handoff";
 import { ArrowRightIcon } from "./icons";
 import { cx } from "../ui/cx";
@@ -91,7 +92,13 @@ export default function AiBar() {
       let succeeded = false;
 
       try {
-        const data = await generateDesign({ apiKey, prompt: brief, signal: controller.signal });
+        // The free plan's brief only builds on the free templates.
+        const data = await generateDesign({
+          apiKey,
+          prompt: brief,
+          signal: controller.signal,
+          templates: availableTemplates(await isLicensed()),
+        });
 
         const template = TEMPLATES.find((t) => t.name === data.template);
         if (!template) {

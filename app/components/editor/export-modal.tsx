@@ -4,12 +4,13 @@ import { useCallback, useMemo, useState } from "react";
 import type Konva from "konva";
 import { useEditorStore } from "../../store/editor-store";
 import { toast } from "../../store/toast-store";
+import { usePlanStore, useIsLicensed, isLicensed, FREE_EXPORTS } from "../../store/plan-store";
 import { downloadProjectFile, FILE_EXTENSION } from "../../lib/project-io";
 import { stackGeometry } from "../../lib/canvas-layout";
 import Modal from "../ui/modal";
 import { cx } from "../ui/cx";
 import { btnPrimary, btnSecondary } from "../ui/buttons";
-import { DownloadIcon } from "./icons";
+import { DownloadIcon, LockIcon } from "./icons";
 
 type ExportKind = "png" | "jpeg" | "json";
 
@@ -48,6 +49,10 @@ export default function ExportModal({
   const [quality, setQuality] = useState(90);
   const [transparentBg, setTransparentBg] = useState(false);
   const [allPages, setAllPages] = useState(false);
+  const licensed = useIsLicensed();
+  const exportsUsed = usePlanStore((s) => s.exportsUsed);
+  const openUpgrade = usePlanStore((s) => s.openUpgrade);
+  const freeLeft = Math.max(0, FREE_EXPORTS - exportsUsed);
 
   const activeIndex = Math.max(0, pages.findIndex((p) => p.id === activePageId));
   const multiPage = pages.length > 1;
@@ -68,6 +73,17 @@ export default function ExportModal({
   const exportImage = useCallback(async () => {
     const stage = stageRef.current;
     if (!stage) return;
+
+    // Free plan: FREE_EXPORTS downloads, then the upgrade dialog.
+    const free = !(await isLicensed());
+    if (free) {
+      await usePlanStore.getState().loadUsage();
+      if (usePlanStore.getState().exportsUsed >= FREE_EXPORTS) {
+        onClose();
+        openUpgrade("exports");
+        return;
+      }
+    }
 
     const state = useEditorStore.getState();
     const scale = zoom / 100;
@@ -124,11 +140,18 @@ export default function ExportModal({
     }
 
     onClose();
+    let left: number | null = null;
+    if (free) {
+      await usePlanStore.getState().recordExport();
+      left = Math.max(0, FREE_EXPORTS - usePlanStore.getState().exportsUsed);
+    }
     const kb = totalBytes / 1024;
     toast.show({
       type: "success",
       message: indices.length > 1 ? `Exported ${indices.length} pages` : `Exported ${baseName}.${kind}`,
-      sub: `${format.width} × ${format.height} · ${kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`}`,
+      sub:
+        `${format.width} × ${format.height} · ${kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`}` +
+        (left !== null ? ` · ${left} free ${left === 1 ? "export" : "exports"} left` : ""),
     });
   }, [
     stageRef,
@@ -139,12 +162,18 @@ export default function ExportModal({
     quality,
     transparentBg,
     onClose,
+    openUpgrade,
     allPages,
     multiPage,
     activeIndex,
   ]);
 
   const exportProjectFile = useCallback(async () => {
+    if (!(await isLicensed())) {
+      onClose();
+      openUpgrade("project-file");
+      return;
+    }
     const s = useEditorStore.getState();
     // The project file is always the whole document — scope only applies to
     // the flattened image formats. Images stored on this device ride along.
@@ -159,7 +188,7 @@ export default function ExportModal({
     } catch {
       toast.error("Couldn't build the project file");
     }
-  }, [onClose]);
+  }, [onClose, openUpgrade]);
 
   return (
     <Modal
@@ -173,7 +202,11 @@ export default function ExportModal({
       footer={
         <>
           <span className="font-mono text-[10.5px] uppercase text-text-tertiary tabular-nums">
-            {estimate ? `~${estimate} estimated` : `.${FILE_EXTENSION} project file`}
+            {!licensed && kind !== "json"
+              ? `${freeLeft} of ${FREE_EXPORTS} free exports left`
+              : estimate
+                ? `~${estimate} estimated`
+                : `.${FILE_EXTENSION} project file`}
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -182,13 +215,18 @@ export default function ExportModal({
             >
               Cancel
             </button>
-            <button
-              onClick={kind === "json" ? exportProjectFile : exportImage}
-              className={cx(btnPrimary, "h-8 px-4 text-[13px]")}
-            >
-              Download
-              <DownloadIcon className="w-3.5 h-3.5" />
-            </button>
+            {(() => {
+              const locked = !licensed && (kind === "json" || freeLeft === 0);
+              return (
+                <button
+                  onClick={kind === "json" ? exportProjectFile : exportImage}
+                  className={cx(btnPrimary, "h-8 px-4 text-[13px]")}
+                >
+                  {locked ? "Unlock" : "Download"}
+                  {locked ? <LockIcon className="w-3.5 h-3.5" /> : <DownloadIcon className="w-3.5 h-3.5" />}
+                </button>
+              );
+            })()}
           </div>
         </>
       }
@@ -210,8 +248,11 @@ export default function ExportModal({
                     : "hover:bg-surface-3"
                 )}
               >
-                <span className="block text-[14px] font-extrabold font-expanded text-text-primary">
+                <span className="flex items-center gap-1.5 text-[14px] font-extrabold font-expanded text-text-primary">
                   {k.label}
+                  {k.id === "json" && !licensed && (
+                    <LockIcon className="w-3 h-3 text-text-tertiary" />
+                  )}
                 </span>
                 <span className="block font-mono text-[10.5px] uppercase text-text-tertiary mt-0.5">{k.hint}</span>
               </button>
@@ -282,6 +323,7 @@ export default function ExportModal({
           <p className="text-[12.5px] text-text-secondary leading-relaxed">
             Downloads the editable project — every page, with its layers, fonts and
             colours — so you can re-import it here later.
+            {!licensed && " Saving project files comes with a lifetime license; opening them is free."}
           </p>
         )}
       </div>

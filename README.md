@@ -5,9 +5,9 @@ posts and stories, Pinterest graphics and promo banners. Think of it as a lighte
 faster Canva. There's nothing to install and almost nothing to learn, and the
 toolset is small but covers what people actually use.
 
-It is a local-first PWA sold as a **lifetime license**: no accounts, every design
-and image stays on the user's device, and AI generation runs on the user's own
-Anthropic API key.
+It is a local-first PWA with a **free plan** and a **lifetime license**: no
+accounts, every design and image stays on the user's device, and AI generation
+runs on the user's own Anthropic API key.
 
 Live at [app.getmodo.pro](https://app.getmodo.pro).
 
@@ -23,7 +23,8 @@ Live at [app.getmodo.pro](https://app.getmodo.pro).
 - **AI generation**: designs from a brief, called from the browser with the user's own key (`app/lib/ai/generate.ts`)
 - **Projects** with multiple pages each, plus preview thumbnails
 - **Local storage**: projects and uploaded images live in IndexedDB; `.modo` files and whole-device backups embed the images
-- **License**: Ed25519-signed keys verified on the device; sold through Paddle (one-time) and AppSumo
+- **Free plan**: the whole editor, AI, opening `.modo` files and backups; 3 image exports (`app/store/plan-store.ts`)
+- **License**: unlimited exports, premium templates, saving `.modo` files. Ed25519-signed keys verified on the device; sold through Paddle (one-time) and AppSumo
 - **Dashboard**: projects and settings (AI key, backup/restore, license, theme)
 
 ## Stack

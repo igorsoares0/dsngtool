@@ -10,7 +10,8 @@ import { resolveFontFamily } from "../../lib/fonts";
 import { addTextPreset } from "../../lib/text-presets";
 import { CANVAS_FORMATS, type GradientFill, type Page, type ShapeElement } from "../../types/editor";
 import DesignThumbnail from "../design-thumbnail";
-import { UploadIcon, SearchIcon, TrashIcon } from "./icons";
+import { UploadIcon, SearchIcon, TrashIcon, LockIcon } from "./icons";
+import { usePlanStore, useIsLicensed, isTemplateLocked } from "../../store/plan-store";
 import type { LocalAsset } from "../../lib/db";
 import {
   assetSrc,
@@ -199,6 +200,8 @@ function TemplatesPanel() {
   const loadTemplate = useEditorStore((s) => s.loadTemplate);
   const projectId = useEditorStore((s) => s.projectId);
   const last = useLastTemplate();
+  const licensed = useIsLicensed();
+  const openUpgrade = usePlanStore((s) => s.openUpgrade);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<FormatTab>("all");
 
@@ -228,14 +231,19 @@ function TemplatesPanel() {
       <div className="px-4 pt-0.5 pb-4 grid grid-cols-3 gap-x-2 gap-y-3 items-start">
         {visible.map((t) => {
           const isSelected = selected === t.name;
+          const locked = isTemplateLocked(t, licensed);
           return (
             <button
               key={t.name}
               onClick={() => {
+                if (locked) {
+                  openUpgrade("template");
+                  return;
+                }
                 loadTemplate(t);
                 useLastTemplate.setState({ projectId, name: t.name });
               }}
-              aria-label={`Apply template ${t.name}`}
+              aria-label={locked ? `${t.name} — premium template, needs a license` : `Apply template ${t.name}`}
               className="group flex flex-col gap-[5px] text-left focus-visible:outline-none"
             >
               <span
@@ -248,6 +256,11 @@ function TemplatesPanel() {
                 style={{ aspectRatio: `${t.format.width} / ${t.format.height}`, backgroundColor: t.previewColor }}
               >
                 <DesignThumbnail pages={[templatePage(t)]} format={t.format} className="absolute inset-0" />
+                {locked && (
+                  <span className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center bg-surface-inverse text-text-inverse">
+                    <LockIcon className="w-3 h-3" />
+                  </span>
+                )}
               </span>
               <span className="flex justify-between gap-1 min-w-0">
                 <span className="text-[11px] font-semibold text-text-primary truncate">{t.name}</span>

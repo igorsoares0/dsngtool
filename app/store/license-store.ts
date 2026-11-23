@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { db } from "../lib/db";
 import { verifyLicenseKey, normalizeKey, type LicenseSource } from "../lib/license/format";
+import { toast } from "./toast-store";
 
 /** What is kept on the device once a key has been accepted. */
 export interface StoredLicense {
@@ -111,7 +112,10 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
 
     const remote = await fetchStatus(license.id);
     if (remote === "revoked") {
+      // A refund caught by the daily check. Said here rather than on every
+      // active → none change, which also covers removing it from Settings.
       await get().deactivate();
+      toast.error("This license is no longer active on this device. Modo is back on the free plan.", 8000);
     } else if (remote === "active") {
       const next = { ...license, checkedAt: Date.now() };
       await persist(next);
