@@ -47,7 +47,8 @@ export default function LeftSidebar({
   return (
     <aside
       aria-label="Tools"
-      className="w-[68px] bg-surface-1 border-r border-border-default flex flex-col shrink-0 z-30"
+      // Icons only on a phone, to give the canvas the width.
+      className="w-[52px] md:w-[68px] bg-surface-1 border-r border-border-default flex flex-col shrink-0 z-30 overflow-y-auto"
     >
       {TOOLS.map((tool) => {
         const Icon = tool.icon;
@@ -57,10 +58,12 @@ export default function LeftSidebar({
             key={tool.id}
             type="button"
             aria-pressed={isActive}
+            aria-label={tool.label}
+            title={tool.label}
             // Clicking the open tool again collapses the panel down to the rail.
             onClick={() => onToolChange(isActive ? null : tool.id)}
             className={cx(
-              "h-[66px] shrink-0 flex flex-col items-center justify-center gap-[5px] border-b border-border-default",
+              "h-[52px] md:h-[66px] shrink-0 flex flex-col items-center justify-center gap-[5px] border-b border-border-default",
               "transition-colors duration-150 ease-standard hover:bg-surface-3",
               "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection",
               isActive && "shadow-[inset_3px_0_0_var(--text-primary)]"
@@ -71,7 +74,7 @@ export default function LeftSidebar({
             </span>
             <span
               className={cx(
-                "text-[10.5px] leading-none",
+                "hidden md:block text-[10.5px] leading-none",
                 isActive ? "font-bold text-text-primary" : "font-medium text-text-secondary"
               )}
             >

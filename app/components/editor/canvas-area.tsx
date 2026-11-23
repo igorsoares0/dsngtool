@@ -125,6 +125,9 @@ export default function CanvasArea({
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
   const [menuReq, setMenuReq] = useState<ContextMenuRequest | null>(null);
   const lastFitFormatRef = useRef<string | null>(null);
+  /** The zoom the last fit produced, to tell a still-fitted view from one the
+   *  user has zoomed or panned since. */
+  const lastFitZoomRef = useRef<number | null>(null);
 
   const scale = zoom / 100;
   const geometry = stackGeometry({
@@ -263,14 +266,17 @@ export default function CanvasArea({
    *  would zoom out to something unusable. Pan resets so page one is on top. */
   const fitToScreen = useCallback(() => {
     if (dims.width === 0 || dims.height === 0) return;
-    // Room for the page label around the artboard.
-    const padding = 150;
+    // Room for the page label around the artboard. A phone can't spare 150px
+    // a side, so narrow viewports get a tighter margin.
+    const padding = dims.width < 640 ? 48 : 150;
     const fitScale = Math.min(
       (dims.width - padding) / format.width,
       (dims.height - padding) / format.height,
       1
     );
-    setZoom(Math.max(10, Math.floor(fitScale * 100)));
+    const next = Math.max(10, Math.floor(fitScale * 100));
+    lastFitZoomRef.current = next;
+    setZoom(next);
     useEditorStore.getState().resetPan();
   }, [dims, format, setZoom]);
 
@@ -282,6 +288,93 @@ export default function CanvasArea({
     fitToScreen();
     lastFitFormatRef.current = formatKey;
   }, [dims, format, fitToScreen]);
+
+  // Below lg the canvas resizes under the user's thumb — the inspector sheet
+  // opens on select and folds on deselect. Keep a still-fitted view fitted
+  // through that, but leave alone a view the user has zoomed or panned.
+  useEffect(() => {
+    if (dims.width === 0 || dims.height === 0 || dims.width >= 1024) return;
+    const { zoom: z, panX: px, panY: py } = useEditorStore.getState();
+    if (z === lastFitZoomRef.current && px === 0 && py === 0) fitToScreen();
+    // Only a resize should trigger this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dims.width, dims.height]);
+
+  // Two-finger pinch and pan on touch screens. Listened for in the capture
+  // phase so that, once a second finger lands, Konva never sees the gesture
+  // (it would otherwise read it as a drag or a marquee).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let start: { dist: number; midX: number; midY: number; zoom: number; panX: number; panY: number } | null = null;
+
+    const read = (e: TouchEvent) => {
+      const rect = el.getBoundingClientRect();
+      const [a, b] = [e.touches[0], e.touches[1]];
+      return {
+        rect,
+        dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        midX: (a.clientX + b.clientX) / 2 - rect.left,
+        midY: (a.clientY + b.clientY) / 2 - rect.top,
+      };
+    };
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // A drag the first finger started would otherwise keep going.
+      stageRef.current?.find((n: Konva.Node) => n.isDragging()).forEach((n) => n.stopDrag());
+      const { dist, midX, midY } = read(e);
+      const st = useEditorStore.getState();
+      start = { dist: Math.max(dist, 1), midX, midY, zoom: st.zoom, panX: st.panX, panY: st.panY };
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (!start || e.touches.length !== 2) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const { rect, dist, midX, midY } = read(e);
+      const st = useEditorStore.getState();
+      const next = Math.max(10, Math.min(400, Math.round(start.zoom * (dist / start.dist))));
+      const geom = (sc: number, px: number, py: number) =>
+        stackGeometry({
+          containerWidth: rect.width,
+          containerHeight: rect.height,
+          format: st.format,
+          pageCount: st.pages.length,
+          scale: sc,
+          panX: px,
+          panY: py,
+        });
+      // The canvas point under the fingers' starting midpoint follows the
+      // current midpoint — so one gesture zooms and pans together.
+      const oldScale = start.zoom / 100;
+      const before = geom(oldScale, start.panX, start.panY);
+      const ptX = (start.midX - before.offsetX) / oldScale;
+      const ptY = (start.midY - before.offsetY) / oldScale;
+      const newScale = next / 100;
+      const base = geom(newScale, 0, 0);
+      st.setZoom(next);
+      st.setPan(midX - ptX * newScale - base.offsetX, midY - ptY * newScale - base.offsetY);
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      if (start && e.touches.length < 2) start = null;
+    };
+
+    const capture = { capture: true, passive: false } as const;
+    el.addEventListener("touchstart", onStart, capture);
+    el.addEventListener("touchmove", onMove, capture);
+    el.addEventListener("touchend", onEnd, true);
+    el.addEventListener("touchcancel", onEnd, true);
+    return () => {
+      el.removeEventListener("touchstart", onStart, capture);
+      el.removeEventListener("touchmove", onMove, capture);
+      el.removeEventListener("touchend", onEnd, true);
+      el.removeEventListener("touchcancel", onEnd, true);
+    };
+  }, [stageRef]);
 
   // The page strip's FIT lives outside this component; it bumps a counter.
   useEffect(() => {
@@ -334,7 +427,9 @@ export default function CanvasArea({
   return (
     <div
       ref={containerRef}
-      className="flex-1 min-h-0 bg-surface-0 overflow-hidden relative"
+      // touch-action: none hands pinch and pan to the handlers above instead
+      // of zooming the whole page.
+      className="flex-1 min-h-0 bg-surface-0 overflow-hidden relative touch-none"
       style={{ cursor: cursorStyle }}
     >
       {dims.width > 0 && (

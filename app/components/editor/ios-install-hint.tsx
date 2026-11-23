@@ -11,6 +11,13 @@ const DISMISS_KEY = "modo-ios-hint-dismissed";
 export default function IosInstallHint() {
   const { showIOSHint } = useInstallPrompt();
   const [dismissed, setDismissed] = useState(true);
+  // Not on arrival: a first-time visitor should see the editor, not a banner
+  // over it. Half a minute in, they've had a look and can decide to keep it.
+  const [due, setDue] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setDue(true), 30_000);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     try {
@@ -20,7 +27,7 @@ export default function IosInstallHint() {
     }
   }, []);
 
-  if (!showIOSHint || dismissed) return null;
+  if (!showIOSHint || dismissed || !due) return null;
 
   const dismiss = () => {
     setDismissed(true);
@@ -32,7 +39,8 @@ export default function IosInstallHint() {
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,380px)] animate-fade-in">
+    // Below lg it clears the inspector sheet's tab row.
+    <div className="fixed bottom-16 lg:bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,380px)] animate-fade-in">
       <div className="flex items-start gap-3 bg-surface-inverse text-text-inverse rounded-float px-4 py-3 shadow-pop">
         <div className="shrink-0 mt-0.5">
           {/* iOS share glyph */}

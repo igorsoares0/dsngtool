@@ -13,7 +13,7 @@ import CanvasArea from "./canvas-area";
 import AiBar from "./ai-bar";
 import PageStrip from "./page-strip";
 import StatusBar from "./status-bar";
-import RightPanel from "./right-panel";
+import RightPanel, { useInspectorSheet } from "./right-panel";
 import FontLoader from "./font-loader";
 import ProjectsModal from "./projects-modal";
 import ShortcutsModal from "./shortcuts-modal";
@@ -21,6 +21,7 @@ import SettingsModal from "../settings/settings-modal";
 import ExportModal from "./export-modal";
 import Toaster from "./toaster";
 import IosInstallHint from "./ios-install-hint";
+import { cx } from "../ui/cx";
 
 /** Desktop opens with Templates showing (as the mock does); below xl the panel
  *  is an overlay, so it starts collapsed there. */
@@ -35,6 +36,7 @@ export default function EditorLayout() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const stageRef = useRef<Konva.Stage>(null);
+  const sheetExpanded = useInspectorSheet((s) => s.expanded);
   const ready = useProjectLoader();
   useKeyboardShortcuts();
   useClipboardEvents();
@@ -80,9 +82,9 @@ export default function EditorLayout() {
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         <LeftSidebar activeTool={activeTool} onToolChange={setActiveTool} />
         <LeftPanel activePanel={activeTool} onClose={() => setActiveTool(null)} />
-        {/* Below lg the inspector is a 45vh bottom sheet; the padding keeps the
-            brief bar and page strip above it. */}
-        <div className="flex-1 min-w-0 flex flex-col pb-[45vh] lg:pb-0">
+        {/* Below lg the inspector is a bottom sheet (its tab row, or 45vh with
+            a selection); the padding keeps the brief bar and page strip above it. */}
+        <div className={cx("flex-1 min-w-0 flex flex-col lg:pb-0", sheetExpanded ? "pb-[45vh]" : "pb-12")}>
           <CanvasArea stageRef={stageRef} />
           <AiBar />
           <PageStrip />

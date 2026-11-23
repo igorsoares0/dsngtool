@@ -132,7 +132,8 @@ export default function SelectionToolbar({
       aria-label="Selection actions"
       onMouseDown={(e) => e.stopPropagation()}
       className="absolute z-20 flex items-stretch h-[38px] p-[3px] gap-[2px] whitespace-nowrap bg-surface-inverse text-text-inverse rounded-float shadow-pop animate-scale-in"
-      style={{ left, top }}
+      // Never wider than the canvas: on a phone the font name gives way.
+      style={{ left, top, maxWidth: Math.max(0, containerWidth - 16) }}
     >
       {text && (
         <>
@@ -142,10 +143,11 @@ export default function SelectionToolbar({
             className="flex"
           >
             <span
-              className="h-full flex items-center px-[11px] text-[14px] rounded-float bg-[rgb(128_128_128/0.22)]"
+              className="h-full flex items-center px-[11px] text-[14px] rounded-float bg-[rgb(128_128_128/0.22)] min-w-0"
               style={{ fontFamily: resolveFontFamily(text.fontFamily) }}
             >
-              {text.fontFamily} ▾
+              <span className="truncate max-w-[96px] sm:max-w-none">{text.fontFamily}</span>
+              &nbsp;▾
             </span>
           </FontSelect>
           <span className="flex items-center px-2.5 font-mono text-[12px] font-medium tabular-nums">
@@ -178,7 +180,8 @@ export default function SelectionToolbar({
       <ToolbarButton title="Duplicate" onClick={duplicateSelectedElements}>
         <DuplicateIcon className="w-4 h-4" />
       </ToolbarButton>
-      {isSingle && single && (
+      {/* No room on a phone; the Layers tab reorders there. */}
+      {isSingle && single && containerWidth >= 480 && (
         <ToolbarButton
           title="Bring forward (⇧-click: send backward)"
           onClick={(e) => moveElement(single.id, e.shiftKey ? "down" : "up")}

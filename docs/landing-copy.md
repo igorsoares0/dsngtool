@@ -1,5 +1,16 @@
 # Modo — Landing Page Copy
 
+> **Current offer — 2026-11-23. Read this before the rest, which is out of date.**
+> The SaaS / $10-a-month copy below was dropped on 2026-11-10 for a local-first
+> lifetime license, and on 2026-11-23 the hard license gate became a free plan.
+> What the landing (`modolp`) says now, and what claims may rely on:
+> - **Free plan, no signup:** the whole editor, AI briefs on your own Anthropic
+>   key, 49 of 62 templates, 3 PNG/JPEG exports, opening `.modo` files, backups.
+> - **Lifetime license, $39 once:** unlimited exports, all 62 templates (13
+>   premium), saving `.modo` files, updates included; 14-day no-questions refund.
+> - Exports are never watermarked, on either plan.
+> The live numbers are in `modolp/app/lib/site.ts`.
+
 > Copy version: 3.0 — October 2026
 > Product source of truth: `reqs.md` · Design system: `docs/landing-page-spec.md`
 >

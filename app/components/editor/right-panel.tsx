@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { create } from "zustand";
 import {
   DndContext,
   closestCenter,
@@ -19,7 +20,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "../../store/editor-store";
 import { toastDeleted } from "../../store/toast-store";
-import { LockIcon, EyeIcon, TrashIcon, TextIcon, ShapesIcon, ImageIcon, LayersIcon } from "./icons";
+import { LockIcon, EyeIcon, TrashIcon, TextIcon, ShapesIcon, ImageIcon, LayersIcon, ChevronDownIcon } from "./icons";
 import { AVAILABLE_FONTS, FONT_CATEGORY_LABELS, resolveFontFamily } from "../../lib/fonts";
 import { docPalette } from "../../lib/doc-palette";
 import { elementLabel } from "../../lib/element-label";
@@ -1047,16 +1048,38 @@ function LayersTab() {
    Panel
 --------------------------------------------------------------------------- */
 
+/**
+ * Below lg the inspector is a bottom sheet with two heights: just its tab row
+ * (collapsed) or 45vh. It opens when something gets selected and folds back
+ * when the selection clears, so on a phone the canvas gets the room until
+ * there is something to inspect. The editor layout reads this to pad the
+ * canvas column by the sheet's height. Ignored from lg up, where it docks.
+ */
+export const useInspectorSheet = create<{ expanded: boolean; setExpanded: (v: boolean) => void }>(
+  (set) => ({ expanded: false, setExpanded: (expanded) => set({ expanded }) })
+);
+
+/** The collapsed sheet: the tab row only. */
+const SHEET_COLLAPSED = "h-12";
+
 export default function RightPanel() {
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const elements = useEditorStore((s) => s.elements);
   const updateElement = useEditorStore((s) => s.updateElement);
+  const expanded = useInspectorSheet((s) => s.expanded);
+  const setExpanded = useInspectorSheet((s) => s.setExpanded);
 
   const isSingle = selectedIds.length === 1;
   const selected = isSingle ? elements.find((e) => e.id === selectedIds[0]) : null;
 
   // Local state: nothing outside this panel reads the active tab.
   const [tab, setTab] = useState<"inspect" | "layers">("inspect");
+
+  // Follow the selection: open on select, fold on deselect.
+  const hasSelection = selectedIds.length > 0;
+  useEffect(() => {
+    setExpanded(hasSelection);
+  }, [hasSelection, setExpanded]);
 
   const update: Update = (updates) => {
     if (selected) updateElement(selected.id, updates);
@@ -1072,10 +1095,11 @@ export default function RightPanel() {
   return (
     <aside
       className={cx(
-        "bg-surface-1 border-border-default overflow-y-auto shrink-0",
+        "bg-surface-1 border-border-default shrink-0",
         // Docked from lg up; a bottom sheet below it.
-        "fixed inset-x-0 bottom-0 z-30 h-[45vh] border-t shadow-modal",
-        "lg:static lg:h-auto lg:w-[288px] lg:border-t-0 lg:border-l lg:shadow-none lg:z-auto"
+        "fixed inset-x-0 bottom-0 z-30 border-t shadow-modal transition-[height] duration-200 ease-standard",
+        expanded ? "h-[45vh] overflow-y-auto" : cx(SHEET_COLLAPSED, "overflow-hidden"),
+        "lg:static lg:h-auto lg:overflow-y-auto lg:w-[288px] lg:border-t-0 lg:border-l lg:shadow-none lg:z-auto"
       )}
     >
       <div className="flex border-b border-border-default sticky top-0 bg-surface-1 z-10" role="tablist">
@@ -1084,7 +1108,10 @@ export default function RightPanel() {
             key={t}
             role="tab"
             aria-selected={tab === t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              setExpanded(true);
+            }}
             className={cx(
               "flex-1 text-left px-4 py-[13px] text-[13px] capitalize transition-colors",
               "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection",
@@ -1097,6 +1124,15 @@ export default function RightPanel() {
             {t === "layers" && <span className="ml-1 font-mono text-[10.5px] font-normal">{elements.length}</span>}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          aria-label={expanded ? "Collapse panel" : "Expand panel"}
+          aria-expanded={expanded}
+          className="lg:hidden w-12 shrink-0 flex items-center justify-center border-l border-border-default text-text-secondary hover:text-text-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-selection"
+        >
+          <ChevronDownIcon className={cx("w-3 h-3 transition-transform", !expanded && "rotate-180")} />
+        </button>
       </div>
 
       {tab === "layers" ? (

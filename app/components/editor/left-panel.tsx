@@ -949,23 +949,39 @@ export default function LeftPanel({
   activePanel: PanelType | null;
   onClose: () => void;
 }) {
+  // On a phone the panel covers the canvas, so whatever it just added would
+  // land out of sight: close it after the first edit. Overlays stay open —
+  // that panel previews on its own tiles and has an intensity slider.
+  useEffect(() => {
+    if (!activePanel || activePanel === "overlays") return;
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+    return useEditorStore.subscribe((s, prev) => {
+      if (s.pages !== prev.pages) onClose();
+    });
+  }, [activePanel, onClose]);
+
   if (!activePanel) return null;
 
   const PanelContent = PANELS[activePanel];
 
   return (
     <>
-      {/* Below xl the panel floats over the canvas, so it needs a way out. */}
-      <div className="absolute inset-0 z-20 xl:hidden" onClick={onClose} aria-hidden />
+      {/* Below xl the panel floats over the canvas, so it needs a way out.
+          Above the inspector's bottom sheet (z-30) too, below lg; the rail
+          stays uncovered so another tool is still one tap away. */}
+      <div className="absolute inset-y-0 right-0 left-[52px] md:left-[68px] z-[35] xl:hidden" onClick={onClose} aria-hidden />
       <div
         // Re-keyed so switching tools replays the 150ms fade.
         key={activePanel}
         className={cx(
-          "w-[288px] bg-surface-1 border-r border-border-default overflow-y-auto shrink-0 animate-panel-in",
-          // Docked at xl and up; an overlay below it. `left-[68px]` clears the
-          // rail. Docked panels get a border and no shadow; only the floating
-          // form is raised.
-          "absolute inset-y-0 left-[68px] z-30 shadow-pop xl:static xl:left-auto xl:z-auto xl:shadow-none"
+          "bg-surface-1 border-r border-border-default overflow-y-auto shrink-0 animate-panel-in",
+          // Docked at xl and up; an overlay below it, clearing the rail (52px
+          // on a phone, where it also takes the rest of the width).
+          // Docked panels get a border and no shadow; only the floating form
+          // is raised.
+          "absolute inset-y-0 left-[52px] right-0 z-40 shadow-pop",
+          "md:left-[68px] md:right-auto md:w-[288px]",
+          "xl:static xl:left-auto xl:z-auto xl:shadow-none"
         )}
       >
         <PanelContent />

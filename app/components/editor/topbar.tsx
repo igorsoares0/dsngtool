@@ -171,8 +171,10 @@ export default function Topbar({
         mo<span className="text-accent">.</span>
       </button>
 
-      <div className={cx(cell, "gap-3 px-4 border-r min-w-0")}>
-        <span className="font-mono text-[11px] font-medium text-text-tertiary shrink-0 hidden sm:inline">
+      {/* Shrinks first when the bar runs out of room — clipped, never spilling
+          over the size picker beside it. */}
+      <div className={cx(cell, "gap-3 px-3 sm:px-4 border-r min-w-0 overflow-hidden")}>
+        <span className="font-mono text-[11px] font-medium text-text-tertiary shrink-0 hidden xl:inline">
           Nº {formatProjectNumber(projectNumber)}
         </span>
         {isEditingName ? (
@@ -190,13 +192,13 @@ export default function Topbar({
           <button
             onClick={() => setIsEditingName(true)}
             aria-label={`Rename project (current: ${projectName})`}
-            className="text-[14px] font-semibold text-text-primary truncate max-w-[200px] hover:underline underline-offset-4 decoration-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
+            className="min-w-0 text-[14px] font-semibold text-text-primary truncate max-w-[200px] hover:underline underline-offset-4 decoration-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
           >
             {projectName}
           </button>
         )}
         <span
-          className={cx("hidden sm:flex items-center gap-[5px] font-mono text-[11px] shrink-0", status.tone)}
+          className={cx("hidden lg:flex items-center gap-[5px] font-mono text-[11px] shrink-0", status.tone)}
           aria-live="polite"
         >
           <span className={cx("w-1.5 h-1.5 rounded-full", status.dot)} />
@@ -388,6 +390,22 @@ export default function Topbar({
               </span>
             </button>
 
+            {licenseStatus === "none" && (
+              <>
+                <div className="border-t border-border-default my-1" />
+                <button
+                  onClick={() => {
+                    openUpgrade("generic");
+                    setShowFileMenu(false);
+                  }}
+                  className={cx(menuItem, "text-text-primary font-semibold")}
+                >
+                  <LockIcon className="w-3.5 h-3.5 text-text-tertiary" />
+                  Get a lifetime license
+                </button>
+              </>
+            )}
+
             <div className="border-t border-border-default my-1" />
             <button
               onClick={() => {
@@ -421,7 +439,8 @@ export default function Topbar({
       {/* Free plan: what's left, and the way out of it. Hidden until the
           license cache is read so a licensed device never flashes it. */}
       {licenseStatus === "none" && (
-        <div className={cx(cell, "border-l")}>
+        // A phone has no room for it; the File menu carries the same action.
+        <div className={cx(cell, "border-l hidden sm:flex")}>
           <button
             onClick={() => openUpgrade("generic")}
             title="Get a lifetime license"
@@ -440,7 +459,7 @@ export default function Topbar({
         <button
           onClick={onOpenExport}
           aria-label="Export"
-          className="h-8 flex items-center gap-2.5 px-4 bg-accent hover:bg-accent-hover active:shadow-[inset_0_2px_0_rgb(0_0_0/0.25)] text-accent-fg text-[13px] font-extrabold font-expanded uppercase tracking-[0.02em] transition-colors duration-150 ease-standard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
+          className="h-8 flex items-center gap-2.5 px-3 sm:px-4 bg-accent hover:bg-accent-hover active:shadow-[inset_0_2px_0_rgb(0_0_0/0.25)] text-accent-fg text-[13px] font-extrabold font-expanded uppercase tracking-[0.02em] transition-colors duration-150 ease-standard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-selection"
         >
           Export
           <DownloadIcon className="w-3.5 h-3.5" />
